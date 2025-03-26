@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>注文記憶ゲーム - クリック回答型（５列表示・手動解除）</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    /* 共通の hidden クラス */
+    .hidden {
+      display: none;
+    }
+    /* 設定モーダル */
+    #settingsModal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+    #modalOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 50;
+    }
+    /* レベルコントロール */
+    #levelControls {
+      text-align: center;
+      margin: 10px;
+    }
+    #levelIndicator {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    /* ボタン */
+    button {
+      font-size: 16px;
+      padding: 5px 10px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    /* 押されたボタンを光らせる */
+    button.selected {
+      background-color: #ffff99;
+    }
+    /* 出題（覚える注文）表示エリア */
+    #orderDisplay {
+      font-size: 24px;
+      margin: 20px auto;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 8px;
+      width: 60%;
+      min-height: 40px;
+      /* ５列グリッド */
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      text-align: center;
+    }
+    /* 回答指示 */
+    #instruction {
+      text-align: center;
+      font-size: 18px;
+      margin: 10px;
+    }
+    /* 回答用ボタン群 */
+    #menuButtons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 10px;
+    }
+    #menuButtons button {
+      margin: 5px;
+    }
+    /* 結果表示 */
+    #result {
+      text-align: center;
+      font-size: 20px;
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>注文記憶ゲーム</h1>
+  
+  <!-- 上部設定ボタン -->
+  <div style="text-align:center;">
+    <button id="settingsBtn">設定</button>
+  </div>
+  
+  <!-- モーダルオーバーレイと設定モーダル -->
+  <div id="modalOverlay" class="hidden"></div>
+  <div id="settingsModal" class="hidden">
+    <h2>設定</h2>
+    <label>
+      <input type="checkbox" id="roundModeCheckbox" checked>
+      ラウンドモード
+    </label><br><br>
+    <label>
+      メニューファイル読み込み (JSON):
+      <input type="file" id="jsonFileInput" accept=".json">
+    </label><br><br>
+    <button id="applySettingsBtn">設定を適用</button>
+    <button id="closeSettingsBtn">閉じる</button>
+    <button id="saveMenuBtn">メニューをJSONとして保存</button>
+  </div>
+  
+  <!-- レベルコントロール -->
+  <div id="levelControls">
+    <span id="levelIndicator">レベル: 1</span><br>
+    <button id="levelUpBtn">レベルアップ</button>
+    <button id="levelDownBtn">レベルダウン</button>
+  </div>
+  
+  <!-- ゲームコントロール -->
+  <div id="gameControls" style="text-align: center;">
+    <button id="startBtn">スタート</button>
+  </div>
+  
+  <!-- 覚える注文の表示エリア（５列グリッドで出題） -->
+  <div id="orderDisplay"></div>
+  
+  <!-- 回答指示 -->
+  <div id="instruction" class="hidden">
+    覚えた料理をクリックして回答してください。
+  </div>
+  
+  <!-- 回答用ボタン群 -->
+  <div id="menuButtons" class="hidden"></div>
+  
+  <!-- 結果表示 -->
+  <div id="result"></div>
+  
+  <script>
+    // ◆ メニューリスト（初期データ）
+    let menuItems = [
+      "台湾ラーメン", "陳麻婆豆腐", "紅油鶏片", "古老肉", "回鍋肉片",
+      "蒜苔肉絲", "魚香肉片", "蠣油肉片", "青椒肉絲", "青椒牛肉絲（大）",
+      "水煮肉片", "牛筋と豆腐辛子煮込み", "四川回鍋肉", "杏鮑肉片", "糖醋丸子",
+      "乾焼蝦仁", "生炒蝦仁", "宮保魷花", "乾焼明蝦", "中華えびマヨ",
+      "腰果鶏丁", "辣子鶏丁", "炸子鶏", "油淋鶏（鶏もも）", "（骨あり）油淋鶏",
+      "蛋花湯(小)", "蛋花湯(大)", "栗米湯(小)", "栗米湯(大)", "ﾜﾝﾀﾝ(6個)",
+      "ﾜﾝﾀﾝ(12個)", "酸辣湯", "魚翅湯", "蛋花湯(小)", "チャーハン",
+      "蝦仁炒飯", "中華丼", "麻婆丼", "天津飯", "ライス(小)",
+      "ライス（中）", "ライス(並)", "ライス(大)", "カニ炒飯", "担々雑炊",
+      "ラーメン(小)", "ザーサイ", "メンマ", "蒸し鶏入りサラダ", "１００円サラダ",
+      "白菜キムチ", "カシュナッツ", "えびとかにの塩味中華丼", "棒々鶏（小）",
+      "青椒牛肉絲（小）", "古老肉（小）", "回鍋肉片（小）", "魚香肉片（小）",
+      "杏鮑肉片（小）", "東坡肉（小）", "蒜苔肉絲（小）", "八宝菜（小）",
+      "乾焼蝦仁（小）", "天津飯 S", "にらレバー（小）", "金醤肉片（小）"
+    ];
+    
+    // ◆ ゲーム設定・状態変数
+    let roundMode = true;       // ラウンドモードONなら出題数＝現在のレベル、OFFなら常に１品
+    let currentLevel = 1;       // 現在のレベル（表示する料理数）
+    let sequence = [];          // 出題（覚える注文）の配列
+    let userSelections = [];    // ユーザーがクリックした回答の配列
+
+    // ◆ DOM 要素の取得
+    const settingsBtn = document.getElementById("settingsBtn");
+    const settingsModal = document.getElementById("settingsModal");
+    const modalOverlay = document.getElementById("modalOverlay");
+    const roundModeCheckbox = document.getElementById("roundModeCheckbox");
+    const jsonFileInput = document.getElementById("jsonFileInput");
+    const applySettingsBtn = document.getElementById("applySettingsBtn");
+    const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+    const saveMenuBtn = document.getElementById("saveMenuBtn");
+
+    const levelIndicator = document.getElementById("levelIndicator");
+    const levelUpBtn = document.getElementById("levelUpBtn");
+    const levelDownBtn = document.getElementById("levelDownBtn");
+    const startBtn = document.getElementById("startBtn");
+    const orderDisplay = document.getElementById("orderDisplay");
+    const instructionDiv = document.getElementById("instruction");
+    const menuButtonsDiv = document.getElementById("menuButtons");
+    const resultDiv = document.getElementById("result");
+
+    // ◆ 設定モーダルの操作
+    settingsBtn.addEventListener("click", () => {
+      modalOverlay.classList.remove("hidden");
+      settingsModal.classList.remove("hidden");
+    });
+    closeSettingsBtn.addEventListener("click", () => {
+      modalOverlay.classList.add("hidden");
+      settingsModal.classList.add("hidden");
+    });
+    applySettingsBtn.addEventListener("click", () => {
+      roundMode = roundModeCheckbox.checked;
+      // JSONファイルが選択されていた場合、メニューを更新
+      if (jsonFileInput.files.length > 0) {
+        const file = jsonFileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const jsonMenu = JSON.parse(e.target.result);
+            if (Array.isArray(jsonMenu) && jsonMenu.length > 0) {
+              menuItems = jsonMenu;
+              initMenuButtons();
+              alert("メニューが更新されました！");
+            } else {
+              alert("JSON形式が正しくありません。");
+            }
+          } catch (err) {
+            alert("JSONの読み込みに失敗しました。");
+          }
+        };
+        reader.readAsText(file);
+      }
+      modalOverlay.classList.add("hidden");
+      settingsModal.classList.add("hidden");
+    });
+
+    // ◆ メニューをJSONとして保存するボタンの動作
+    saveMenuBtn.addEventListener("click", () => {
+      const jsonStr = JSON.stringify(menuItems, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "menu.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // ◆ レベルコントロール
+    levelUpBtn.addEventListener("click", () => {
+      currentLevel++;
+      updateLevelIndicator();
+    });
+    levelDownBtn.addEventListener("click", () => {
+      if (currentLevel > 1) {
+        currentLevel--;
+        updateLevelIndicator();
+      }
+    });
+    function updateLevelIndicator() {
+      levelIndicator.textContent = "レベル: " + currentLevel;
+    }
+
+    // ◆ 回答用ボタン群の初期生成（各ボタンがクリックされたら onAnswerClick() を呼ぶ）
+    function initMenuButtons() {
+      menuButtonsDiv.innerHTML = "";
+      menuItems.forEach(item => {
+        const btn = document.createElement("button");
+        btn.textContent = item;
+        btn.addEventListener("click", function() {
+          onAnswerClick(item, this);
+        });
+        menuButtonsDiv.appendChild(btn);
+      });
+    }
+    initMenuButtons();
+
+    // ◆ 回答用ボタンの選択状態をリセット
+    function resetAnswerButtons() {
+      Array.from(menuButtonsDiv.children).forEach(btn => {
+        btn.classList.remove("selected");
+      });
+    }
+
+    // ◆ 出題開始（スタートボタン押下時）
+    function startGame() {
+      resultDiv.textContent = "";
+      // 回答用エリアと指示は最初非表示
+      menuButtonsDiv.classList.add("hidden");
+      instructionDiv.classList.add("hidden");
+      resetAnswerButtons();
+      userSelections = [];
+      orderDisplay.innerHTML = "";
+      startBtn.disabled = true;
+      
+      // 出題数はラウンドモードなら currentLevel、OFFなら常に 1 品
+      const count = roundMode ? currentLevel : 1;
+      sequence = [];
+      for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * menuItems.length);
+        sequence.push(menuItems[randomIndex]);
+      }
+      
+      // 出題（覚える注文）を５列のグリッドとして表示
+      orderDisplay.innerHTML = "";
+      sequence.forEach(item => {
+        const cell = document.createElement("div");
+        cell.textContent = item;
+        orderDisplay.appendChild(cell);
+      });
+      
+      // 出題された内容はユーザーが画面またはボタンをクリックするまでそのまま表示
+      // ※スタート押下直後のクリックを除外するため、わずかな遅延を入れる
+      setTimeout(() => {
+        document.addEventListener("click", onScreenClick, { once: true });
+      }, 50);
+    }
+
+    // ◆ 画面またはボタンがクリックされたときの処理（出題フェーズから回答フェーズへ移行）
+    function onScreenClick(e) {
+      // 出題を消去し、回答フェーズへ
+      orderDisplay.innerHTML = "";
+      instructionDiv.classList.remove("hidden");
+      menuButtonsDiv.classList.remove("hidden");
+    }
+
+    // ◆ ユーザーが回答用ボタンをクリックしたときの処理
+    function onAnswerClick(clickedItem, btn) {
+      if (btn.classList.contains("selected")) return;
+      btn.classList.add("selected");
+      userSelections.push(clickedItem);
+      if (userSelections.length === sequence.length) {
+        checkAnswer();
+      }
+    }
+
+    // ◆ 順序を無視して回答の集合をチェック
+    function arraysEqualIgnoreOrder(arr1, arr2) {
+      if (arr1.length !== arr2.length) return false;
+      const sorted1 = arr1.slice().sort();
+      const sorted2 = arr2.slice().sort();
+      for (let i = 0; i < sorted1.length; i++) {
+        if (sorted1[i] !== sorted2[i]) return false;
+      }
+      return true;
+    }
+
+    // ◆ 回答チェック：回答集合と出題集合を比較
+    function checkAnswer() {
+      let correct = arraysEqualIgnoreOrder(userSelections, sequence);
+      if (correct) {
+        resultDiv.innerHTML = "正解！記憶力抜群です！";
+      } else {
+        resultDiv.innerHTML = "不正解…<br>正しい注文は:<br>" + sequence.join("<br>");
+      }
+      setTimeout(nextQuestion, 2000);
+    }
+
+    // ◆ 次の問題へ（出題・回答エリアのリセット後、自動出題）
+    function nextQuestion() {
+      menuButtonsDiv.classList.add("hidden");
+      instructionDiv.classList.add("hidden");
+      resetAnswerButtons();
+      userSelections = [];
+      resultDiv.textContent = "";
+      startGame();
+    }
+
+    startBtn.addEventListener("click", startGame);
+  </script>
+</body>
+</html>
