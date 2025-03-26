@@ -2,67 +2,123 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>カスタムタイムチャレンジ</title>
+  <title>カスタムタイムチャレンジ with 記録</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
+      font-family: sans-serif;
       background: linear-gradient(135deg, #74ebd5, #ACB6E5);
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
     }
-    /* 全体を縦に並べるためのコンテナ */
     .container {
+      width: 90%;
+      max-width: 600px;
       text-align: center;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
     }
-    /* 大きな文字でフィードバックを表示 */
-    #message {
-      font-size: 3em;
-      color: white;
-      user-select: none;
-      white-space: pre-line;
-    }
-    /* 入力欄のスタイル */
+    /* 入力欄：大きい文字とシンプルなデザイン */
     #targetInput {
       font-size: 2em;
       padding: 10px;
-      border: none;
-      border-radius: 5px;
       text-align: center;
       width: 80%;
       max-width: 300px;
+      border: none;
+      border-radius: 5px;
+    }
+    /* フィードバック用の大きな文字 */
+    #message {
+      font-size: 3em;
+      color: white;
+      margin: 20px 0;
+      user-select: none;
+      white-space: pre-line;
+    }
+    /* 記録テーブルのデザイン */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      font-size: 1.2em;
+      text-align: center;
+      color: #333;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    /* 記録消去ボタン */
+    #clearRecords {
+      background-color: #ff5555;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1.2em;
+      margin-top: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    #clearRecords:hover {
+      background-color: #ff3333;
+      transform: scale(1.05);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <input
-      id="targetInput"
-      type="number"
-      placeholder="目標時間（秒） 未入力で10秒"
-    />
+    <!-- ユーザーが目標時間（秒）を入力 -->
+    <input id="targetInput" type="number" placeholder="目標時間（秒） 未入力で10秒">
+    <!-- タップ時のフィードバック表示エリア -->
     <div id="message">タップしてスタート</div>
+    <!-- チャレンジ記録を5列のテーブルで表示 -->
+    <table id="recordTable">
+      <thead>
+        <tr>
+          <th>試行</th>
+          <th>目標時間(s)</th>
+          <th>実際のタイム(s)</th>
+          <th>差分(s)</th>
+          <th>評価</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+    <!-- 記録を消去するボタン -->
+    <button id="clearRecords">記録を消去</button>
   </div>
 
   <script>
     let isRunning = false;
     let startTime = 0;
     let targetTime = 10000; // デフォルト10秒
+    let challengeCount = 0; // 試行回数
     const messageEl = document.getElementById('message');
     const targetInput = document.getElementById('targetInput');
+    const recordTableBody = document.querySelector('#recordTable tbody');
+    const clearRecordsBtn = document.getElementById('clearRecords');
 
-    // 画面全体タップ時の処理
-    document.body.addEventListener('click', function (event) {
-      // 入力欄のタップは無視する
-      if (event.target === targetInput) return;
+    // 記録消去ボタンの処理
+    clearRecordsBtn.addEventListener('click', function(e) {
+      // クリックイベントが他の処理に伝播しないようにする
+      e.stopPropagation();
+      recordTableBody.innerHTML = "";
+      challengeCount = 0;
+    });
+
+    // 画面全体タップのイベント（入力欄と消去ボタンは除外）
+    document.body.addEventListener('click', function(e) {
+      if (e.target === targetInput || e.target === clearRecordsBtn) return;
 
       if (!isRunning) {
-        // ゲーム開始：入力欄から目標時間の値を取得し、無入力なら10秒
+        // スタート状態：入力欄の値を目標時間として取得（無入力なら10秒）
         let userTime = targetInput.value;
         if (!userTime || isNaN(userTime) || userTime <= 0) {
           userTime = 10;
@@ -70,10 +126,9 @@
         targetTime = parseFloat(userTime) * 1000;
         startTime = Date.now();
         isRunning = true;
-        messageEl.textContent =
-          `目標は ${(targetTime / 1000).toFixed(2)}秒\nタップしてストップ`;
+        messageEl.textContent = `目標は ${(targetTime/1000).toFixed(2)}秒\nタップしてストップ`;
       } else {
-        // ゲーム終了：経過時間と目標との差を計算して結果を表示
+        // ストップ状態：経過時間と目標との差を計算して結果を表示
         const elapsed = Date.now() - startTime;
         const diff = Math.abs(targetTime - elapsed);
         let feedback = "";
@@ -84,13 +139,21 @@
         } else {
           feedback = "頑張って！";
         }
-
         messageEl.innerHTML =
-          `あなたのタイム: ${(elapsed / 1000).toFixed(2)}秒<br>` +
-          `目標との差: ${(diff / 1000).toFixed(2)}秒<br>` +
-          `${feedback}<br><br>` +
-          `タップして再挑戦`;
+          `あなたのタイム: ${(elapsed/1000).toFixed(2)}秒\n` +
+          `目標との差: ${(diff/1000).toFixed(2)}秒\n` +
+          `${feedback}\n\nタップして再挑戦`;
         isRunning = false;
+
+        // チャレンジ記録テーブルに記録を追加
+        challengeCount++;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${challengeCount}</td>
+                        <td>${(targetTime/1000).toFixed(2)}</td>
+                        <td>${(elapsed/1000).toFixed(2)}</td>
+                        <td>${(diff/1000).toFixed(2)}</td>
+                        <td>${feedback}</td>`;
+        recordTableBody.appendChild(tr);
       }
     });
   </script>
