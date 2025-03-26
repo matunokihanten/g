@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>カスタムタイムチャレンジ</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* 全体を縦に並べるためのコンテナ */
+    .container {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    /* 大きな文字でフィードバックを表示 */
+    #message {
+      font-size: 3em;
+      color: white;
+      user-select: none;
+      white-space: pre-line;
+    }
+    /* 入力欄のスタイル */
+    #targetInput {
+      font-size: 2em;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      text-align: center;
+      width: 80%;
+      max-width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <input
+      id="targetInput"
+      type="number"
+      placeholder="目標時間（秒） 未入力で10秒"
+    />
+    <div id="message">タップしてスタート</div>
+  </div>
+
+  <script>
+    let isRunning = false;
+    let startTime = 0;
+    let targetTime = 10000; // デフォルト10秒
+    const messageEl = document.getElementById('message');
+    const targetInput = document.getElementById('targetInput');
+
+    // 画面全体タップ時の処理
+    document.body.addEventListener('click', function (event) {
+      // 入力欄のタップは無視する
+      if (event.target === targetInput) return;
+
+      if (!isRunning) {
+        // ゲーム開始：入力欄から目標時間の値を取得し、無入力なら10秒
+        let userTime = targetInput.value;
+        if (!userTime || isNaN(userTime) || userTime <= 0) {
+          userTime = 10;
+        }
+        targetTime = parseFloat(userTime) * 1000;
+        startTime = Date.now();
+        isRunning = true;
+        messageEl.textContent =
+          `目標は ${(targetTime / 1000).toFixed(2)}秒\nタップしてストップ`;
+      } else {
+        // ゲーム終了：経過時間と目標との差を計算して結果を表示
+        const elapsed = Date.now() - startTime;
+        const diff = Math.abs(targetTime - elapsed);
+        let feedback = "";
+        if (diff < 1000) {
+          feedback = "素晴らしい！";
+        } else if (diff < 3000) {
+          feedback = "良い感覚です！";
+        } else {
+          feedback = "頑張って！";
+        }
+
+        messageEl.innerHTML =
+          `あなたのタイム: ${(elapsed / 1000).toFixed(2)}秒<br>` +
+          `目標との差: ${(diff / 1000).toFixed(2)}秒<br>` +
+          `${feedback}<br><br>` +
+          `タップして再挑戦`;
+        isRunning = false;
+      }
+    });
+  </script>
+</body>
+</html>
