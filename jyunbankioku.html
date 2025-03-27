@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>記憶順クリックゲーム</title>
+  <style>
+    /* 全体のスタイル */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #eee;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+    #message {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      color: #333;
+    }
+    .panel {
+      position: absolute;
+      width: 160px;
+      height: 160px;
+      background: #4caf50;
+      color: #fff;
+      font-size: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="message"></div>
+  
+  <script>
+    const gameContainer = document.getElementById('game');
+    const messageEl = document.getElementById('message');
+    
+    let panelCount = 2; // 初回は2枚のパネル
+    const panelSize = 160; // パネルの大きさ
+    let displayTime = 2000; // 初回の表示時間 (2秒)
+    
+    let expectedOrder = []; // 正しい順番（昇順）
+    let userClicks = [];   // ユーザーのクリック順
+    let allowClick = false; // 数字が隠れてからクリック可能にする
+    let panels = [];       // 現在のパネル要素を格納
+    let existingPositions = []; // 配置済みパネルの位置を保存
+    
+    /**
+     * パネルが重ならず、かつゲーム領域の上の2/3内に収まるランダムな位置を返す関数
+     * @param {number} panelWidth - パネルの幅
+     * @param {number} panelHeight - パネルの高さ
+     * @param {Array} existingPositions - 既に配置されたパネルの位置配列（{x, y} オブジェクト）
+     * @returns {object} {x, y} のオブジェクト
+     */
+    function getRandomNonOverlappingPosition(panelWidth, panelHeight, existingPositions) {
+      const gameWidth = gameContainer.clientWidth;
+      const allowedHeight = gameContainer.clientHeight * 2 / 3; // 上の2/3
+      let maxAttempts = 1000;
+      let pos, overlap;
+      
+      do {
+        const x = Math.random() * (gameWidth - panelWidth);
+        const y = Math.random() * (allowedHeight - panelHeight);
+        pos = { x, y };
+        overlap = existingPositions.some(other => {
+          return !(pos.x + panelWidth < other.x ||
+                   pos.x > other.x + panelWidth ||
+                   pos.y + panelHeight < other.y ||
+                   pos.y > other.y + panelHeight);
+        });
+        maxAttempts--;
+      } while (overlap && maxAttempts > 0);
+      
+      return pos;
+    }
+    
+    // 新たなレベル（問題）に進むための初期化処理
+    function startGame() {
+      if (panelCount > 10) {
+        messageEl.textContent = "ゲームクリア！おめでとうございます。";
+        return;
+      }
+      
+      // 状態のリセット
+      gameContainer.innerHTML = '';
+      messageEl.textContent = '';
+      userClicks = [];
+      allowClick = false;
+      panels = [];
+      existingPositions = [];
+      
+      // 1〜10の数字から重複なく panelCount 枚を選択
+      let numbers = [];
+      while (numbers.length < panelCount) {
+        const num = Math.floor(Math.random() * 10) + 1;
+        if (!numbers.includes(num)) {
+          numbers.push(num);
+        }
+      }
+      
+      // 正しい順番（昇順）の配列を作成
+      expectedOrder = [...numbers].sort((a, b) => a - b);
+      
+      // 各数字パネルを、重ならずに配置
+      numbers.forEach(num => {
+        const panel = document.createElement('div');
+        panel.classList.add('panel');
+        panel.textContent = num;            // 最初の表示では数字を表示
+        panel.dataset.number = num;
+        const pos = getRandomNonOverlappingPosition(panelSize, panelSize, existingPositions);
+        existingPositions.push(pos);
+        panel.style.left = pos.x + "px";
+        panel.style.top  = pos.y + "px";
+        panel.addEventListener('click', onPanelClick);
+        gameContainer.appendChild(panel);
+        panels.push(panel);
+      });
+      
+      // 指定された表示時間後に数字を非表示にし、クリックを許可する
+      setTimeout(() => {
+        panels.forEach(panel => {
+          panel.textContent = '';
+        });
+        allowClick = true;
+      }, displayTime);
+    }
+    
+    // パネルクリック時の処理
+    function onPanelClick(event) {
+      if (!allowClick) return;  // 数字が隠れる前はクリック無効
+      const panel = event.currentTarget;
+      if (panel.classList.contains('clicked')) return; // 既にクリック済みのパネルなら無視
+      
+      const num = parseInt(panel.dataset.number, 10);
+      const expectedNum = expectedOrder[userClicks.length];
+      
+      if (num === expectedNum) {
+        panel.classList.add('clicked');
+        panel.style.background = '#2196f3';
+        panel.textContent = num; // 正しい場合再表示
+        userClicks.push(num);
+        
+        // 全パネルが正しい順番でクリックされた場合
+        if (userClicks.length === expectedOrder.length) {
+          messageEl.textContent = '正解！次の問題へ。';
+          allowClick = false;
+          if (panelCount < 10) {
+            panelCount++;
+            displayTime += 500; // パネル数増加に応じて表示時間を0.5秒増加
+            setTimeout(startGame, 1000);
+          } else {
+            setTimeout(() => {
+              messageEl.textContent = "ゲームクリア！おめでとうございます。";
+            }, 1000);
+          }
+        }
+      } else {
+        // 誤ったクリックの場合
+        messageEl.textContent = '不正解…再挑戦してください。';
+        panels.forEach(p => {
+          p.textContent = p.dataset.number;  // 全パネルに数字を表示
+          p.style.background = '#f44336';
+        });
+        allowClick = false;
+        setTimeout(startGame, 1500);
+      }
+    }
+    
+    // 初回スタート
+    startGame();
+  </script>
+</body>
+</html>
