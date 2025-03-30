@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ヒットアンドブロー - コンピューター推理ゲーム</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #4CAF50;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 700px;
+      margin: 20px auto;
+      padding: 0 20px;
+    }
+    .guess-box {
+      background-color: #fff;
+      border: 2px solid #4CAF50;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    .input-area {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .input-area label {
+      font-size: 18px;
+      margin: 0 5px;
+    }
+    .input-area input[type="number"] {
+      width: 60px;
+      padding: 5px;
+      font-size: 16px;
+      margin: 0 10px;
+    }
+    .input-area button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #message {
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      color: red;
+      margin-bottom: 20px;
+    }
+    .history {
+      background-color: #fff;
+      border-radius: 8px;
+      overflow-x: auto;
+      padding: 10px;
+    }
+    .history h2 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    button.edit-btn {
+      background-color: #2196F3;
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ヒットアンドブロー コンピューター推理ゲーム</h1>
+    <p>重複のない4桁の数字を思い浮かべてください。</p>
+  </header>
+  <div class="container">
+    <div class="guess-box">
+      <strong>現在の予想: </strong><span id="current-guess"></span>
+    </div>
+
+    <div class="input-area">
+      <label for="hit-input">ヒット数:</label>
+      <input type="number" id="hit-input" min="0" max="4" value="0" />
+      <label for="blow-input">ブロー数:</label>
+      <input type="number" id="blow-input" min="0" max="4" value="0" />
+      <button id="submit-btn">送信</button>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="history">
+      <h2>予想履歴</h2>
+      <table id="history-table">
+        <thead>
+          <tr>
+            <th>回数</th>
+            <th>予想</th>
+            <th>ヒット</th>
+            <th>ブロー</th>
+            <th>残り候補数</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const DIGIT_LENGTH = 4;
+    let candidates = [];
+    let guessHistory = [];
+    let currentGuess = "";
+
+    // 重複のない4桁の全候補を生成
+    function generateCandidates() {
+      const list = [];
+      for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 10; j++) {
+          if (j === i) continue;
+          for (let k = 0; k < 10; k++) {
+            if (k === i || k === j) continue;
+            for (let l = 0; l < 10; l++) {
+              if (l === i || l === j || l === k) continue;
+              list.push('' + i + j + k + l);
+            }
+          }
+        }
+      }
+      return list;
+    }
+
+    // ヒット・ブロー判定：位置も一致＝ヒット、含まれるが位置が違う＝ブロー
+    function getHitsAndBlows(guess, candidate) {
+      let hit = 0, blow = 0;
+      for (let i = 0; i < guess.length; i++) {
+        if (guess[i] === candidate[i]) {
+          hit++;
+        } else if (candidate.includes(guess[i])) {
+          blow++;
+        }
+      }
+      return { hit, blow };
+    }
+
+    // 現在の予想を表示
+    function updateGuessDisplay(guess) {
+      document.getElementById('current-guess').textContent = guess;
+    }
+
+    // 履歴テーブルに新規エントリを追加（編集ボタン付き）
+    function addHistoryEntry(guess, hit, blow, remaining) {
+      const tbody = document.querySelector('#history-table tbody');
+      const row = document.createElement('tr');
+      const moveNumber = guessHistory.length;
+      row.innerHTML = `
+        <td>${moveNumber}</td>
+        <td>${guess}</td>
+        <td>${hit}</td>
+        <td>${blow}</td>
+        <td>${remaining}</td>
+        <td><button class="edit-btn" onclick="editHistoryEntry(${moveNumber - 1})">編集</button></td>
+      `;
+      tbody.appendChild(row);
+      updateHistoryHighlights(); // 新規追加後、ハイライト更新
+    }
+
+    // 候補リストから、必ず含まれる数字（全候補に存在）と、必ず含まれない数字（全候補に存在しない）を算出する
+    function computeDefinitiveDigits(candidatesList) {
+      let includedSet = new Set();
+      let excludedSet = new Set();
+      if (candidatesList.length === 0) {
+        return { includedSet, excludedSet };
+      }
+      for (let d = 0; d < 10; d++) {
+        let digit = d.toString();
+        let allInclude = candidatesList.every(candidate => candidate.includes(digit));
+        if (allInclude) {
+           includedSet.add(digit);
+        }
+        let noneInclude = candidatesList.every(candidate => !candidate.includes(digit));
+        if (noneInclude) {
+           excludedSet.add(digit);
+        }
+      }
+      return { includedSet, excludedSet };
+    }
+
+    // 履歴テーブルの各予想セル内の数字を、判定により色分けして更新する
+    function updateHistoryHighlights() {
+      const { includedSet, excludedSet } = computeDefinitiveDigits(candidates);
+      const tbody = document.querySelector('#history-table tbody');
+      for (let i = 0; i < tbody.children.length; i++) {
+        const row = tbody.children[i];
+        const guessStr = guessHistory[i].guess;
+        let newHTML = "";
+        // 各桁ごとに判定
+        for (let ch of guessStr) {
+          if (includedSet.has(ch)) {
+            newHTML += `<span style="color: green; font-weight:bold;">${ch}</span>`;
+          } else if (excludedSet.has(ch)) {
+            newHTML += `<span style="color: red; font-weight:bold;">${ch}</span>`;
+          } else {
+            newHTML += `<span>${ch}</span>`;
+          }
+        }
+        row.children[1].innerHTML = newHTML;
+      }
+    }
+
+    // 次の予想を選ぶ
+    function nextGuess() {
+      if (candidates.length === 0) {
+        showMessage("候補がなくなりました。履歴の編集でフィードバックを修正してください。");
+        disableInput(true);
+        updateGuessDisplay("なし");
+        return null;
+      }
+      const guess = candidates[Math.floor(Math.random() * candidates.length)];
+      updateGuessDisplay(guess);
+      return guess;
+    }
+
+    // メッセージ表示
+    function showMessage(msg) {
+      document.getElementById('message').textContent = msg;
+    }
+
+    // 入力欄とボタンの有効／無効切替
+    function disableInput(flag) {
+      document.getElementById('hit-input').disabled = flag;
+      document.getElementById('blow-input').disabled = flag;
+      document.getElementById('submit-btn').disabled = flag;
+    }
+
+    // ゲームの初期化（履歴エリアクリア含む）
+    function initGame() {
+      candidates = generateCandidates();
+      guessHistory = [];
+      document.querySelector('#history-table tbody').innerHTML = "";
+      document.getElementById('hit-input').value = "0";
+      document.getElementById('blow-input').value = "0";
+      showMessage("");
+      disableInput(false);
+      currentGuess = nextGuess();
+    }
+
+    // 履歴エントリを編集するための関数（inline promptで値変更）
+    function editHistoryEntry(index) {
+      const entry = guessHistory[index];
+      let newHit = prompt("新しいヒット数を入力してください (0-" + DIGIT_LENGTH + "):", entry.hit);
+      if (newHit === null) return; // キャンセル
+      newHit = parseInt(newHit, 10);
+      if (isNaN(newHit) || newHit < 0 || newHit > DIGIT_LENGTH) {
+        alert("ヒット数は0～" + DIGIT_LENGTH + "の範囲で入力してください。");
+        return;
+      }
+      let newBlow = prompt("新しいブロー数を入力してください (0-" + DIGIT_LENGTH + "):", entry.blow);
+      if (newBlow === null) return;
+      newBlow = parseInt(newBlow, 10);
+      if (isNaN(newBlow) || newBlow < 0 || newBlow > DIGIT_LENGTH) {
+        alert("ブロー数は0～" + DIGIT_LENGTH + "の範囲で入力してください。");
+        return;
+      }
+      // 履歴の更新
+      guessHistory[index].hit = newHit;
+      guessHistory[index].blow = newBlow;
+      // 履歴テーブル更新
+      const tbody = document.querySelector('#history-table tbody');
+      const row = tbody.children[index];
+      if (row) {
+        row.children[2].textContent = newHit;
+        row.children[3].textContent = newBlow;
+      }
+      // 全履歴から候補リストを再計算
+      recalcCandidates();
+      alert("履歴を更新しました。");
+    }
+
+    // 全履歴から候補リストを再計算し、各行の残り候補数も更新する
+    function recalcCandidates() {
+      let tempCandidates = generateCandidates();
+      const tbody = document.querySelector('#history-table tbody');
+      for (let i = 0; i < guessHistory.length; i++) {
+        const { guess, hit, blow } = guessHistory[i];
+        tempCandidates = tempCandidates.filter(candidate => {
+          const res = getHitsAndBlows(guess, candidate);
+          return res.hit === hit && res.blow === blow;
+        });
+        // 履歴テーブルの「残り候補数」を更新
+        if (tbody.children[i]) {
+          tbody.children[i].children[4].textContent = tempCandidates.length;
+        }
+      }
+      candidates = tempCandidates;
+      // 候補リスト更新後、ハイライトも更新
+      updateHistoryHighlights();
+      if (candidates.length > 0) {
+        currentGuess = candidates[Math.floor(Math.random() * candidates.length)];
+        updateGuessDisplay(currentGuess);
+        disableInput(false);
+        showMessage("（編集後の候補数: " + candidates.length + "）");
+      } else {
+        updateGuessDisplay("なし");
+        disableInput(true);
+        showMessage("編集後も候補がありません。再度履歴の値をご確認ください。");
+      }
+    }
+
+    // 送信ボタン押下時の処理
+    document.getElementById('submit-btn').addEventListener('click', () => {
+      const hitInput = document.getElementById('hit-input').value;
+      const blowInput = document.getElementById('blow-input').value;
+      const hit = parseInt(hitInput, 10);
+      const blow = parseInt(blowInput, 10);
+
+      // 入力値の検証
+      if (
+        isNaN(hit) || isNaN(blow) ||
+        hit < 0 || blow < 0 ||
+        hit > DIGIT_LENGTH || blow > DIGIT_LENGTH
+      ) {
+        showMessage("数値は0から" + DIGIT_LENGTH + "の間で入力してください。");
+        return;
+      }
+      showMessage("");
+
+      // 現在の予想とフィードバックを履歴に記録
+      guessHistory.push({ guess: currentGuess, hit, blow });
+      addHistoryEntry(currentGuess, hit, blow, candidates.length);
+
+      // 全ての桁が一致していれば、正解として終了
+      if (hit === DIGIT_LENGTH) {
+        showMessage("成功！ 正解は " + currentGuess + " です。ゲーム終了！");
+        disableInput(true);
+        return;
+      }
+
+      // ユーザーのフィードバックに基づいて候補リストを更新
+      candidates = candidates.filter(candidate => {
+        const res = getHitsAndBlows(currentGuess, candidate);
+        return res.hit === hit && res.blow === blow;
+      });
+
+      // 候補がなくなった場合は、履歴の編集で修正できるようにする
+      if (candidates.length === 0) {
+        showMessage("候補がなくなりました。履歴の編集でフィードバックを修正してください。");
+        disableInput(true);
+        updateGuessDisplay("なし");
+        return;
+      }
+
+      // 入力欄をリセット（初期値0に戻す）
+      document.getElementById('hit-input').value = "0";
+      document.getElementById('blow-input').value = "0";
+
+      // 候補数更新後、履歴のハイライトも再計算
+      updateHistoryHighlights();
+      currentGuess = nextGuess();
+    });
+
+    // ページ読み込み時にゲーム開始
+    initGame();
+  </script>
+</body>
+</html>

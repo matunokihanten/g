@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ヒットアンドブロー ゲーム（難しい数字生成付き・自動シミュレーション）</title>
+  <style>
+    /* 全体レイアウト */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: linear-gradient(to right, #e0eafc, #cfdef3);
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      background: #fff;
+      margin: 50px auto;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 2rem;
+      color: #222;
+    }
+    h2 {
+      font-size: 1.5rem;
+      color: #444;
+    }
+    /* 設定部 */
+    #settings {
+      margin-bottom: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #fafafa;
+    }
+    #settings label, #settings input, #settings select {
+      font-size: 1rem;
+      margin: 5px 0;
+    }
+    #settings input, #settings select {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #settings button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 10px;
+      font-size: 1.1rem;
+      background-color: #0066cc;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+    }
+    #settings button:hover {
+      background-color: #005bb5;
+    }
+    /* ゲームプレイ部 */
+    #gameSection {
+      display: none;
+    }
+    .info {
+      background-color: #f1f1f1;
+      padding: 12px;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+    }
+    form {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    form label {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    form input[type="number"] {
+      width: 60px;
+      text-align: center;
+      padding: 4px;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    form button {
+      padding: 8px 16px;
+      font-size: 1rem;
+      background-color: #0066cc;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    form button:hover {
+      background-color: #005bb5;
+    }
+    /* エラーメッセージ */
+    .error {
+      background-color: #ffe6e6;
+      border: 1px solid #ff0000;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+      color: #d8000c;
+      margin-bottom: 20px;
+    }
+    /* 履歴表示 */
+    #historySection {
+      margin-top: 30px;
+    }
+    #historySection table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #historySection table th,
+    #historySection table td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: center;
+      font-size: 0.95rem;
+    }
+    #historySection table th {
+      background-color: #f9f9f9;
+    }
+    /* 設定に戻るボタン */
+    #backButton {
+      width: 100%;
+      margin-top: 20px;
+      padding: 10px;
+      font-size: 1.1rem;
+      background-color: #ff9900;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+    }
+    #backButton:hover {
+      background-color: #e68a00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ヒットアンドブロー ゲーム</h1>
+    <!-- 設定部分 -->
+    <div id="settings">
+      <h2>設定</h2>
+      <label for="digitCount">数字の桁数:</label>
+      <input type="number" id="digitCount" min="3" max="6" value="4">
+      <br><br>
+      <label for="strategySelect">推測戦略:</label>
+      <select id="strategySelect">
+        <option value="first">先頭候補</option>
+        <option value="random">ランダム選択</option>
+        <option value="maxFrequency">情報量最大化</option>
+      </select>
+      <br><br>
+      <label><input type="checkbox" id="useHardSecret"> 難しい数字を使う</label>
+      <br><br>
+      <button id="startButton">自動シミュレーション開始</button>
+    </div>
+    
+    <!-- ゲームプレイ部分 -->
+    <div id="gameSection">
+      <h2>コンピューターの推測</h2>
+      <div class="info" id="currentGuessDisplay"></div>
+      <div class="info" id="candidateCountDisplay"></div>
+      <!-- 自動シミュレーションなのでフィードバック入力は不要 -->
+      <div id="message" class="error"></div>
+      
+      <!-- 試行履歴表示 -->
+      <div id="historySection">
+        <h2>試行履歴</h2>
+        <table id="historyTable">
+          <thead>
+            <tr>
+              <th>試行番号</th>
+              <th>推測</th>
+              <th>ヒット</th>
+              <th>ブロー</th>
+            </tr>
+          </thead>
+          <tbody><!-- 履歴データは JavaScript で挿入 --></tbody>
+        </table>
+      </div>
+      
+      <!-- 設定に戻るボタン -->
+      <button id="backButton">設定に戻る</button>
+    </div>
+  </div>
+  
+  <script>
+    // グローバル変数
+    let digitCount = 4;
+    let strategy = "first"; // "first", "random", "maxFrequency"
+    let candidates = [];
+    let attempts = [];
+    let currentGuess = "";
+    let secret = "";  // コンピューターが推測すべき秘密
+    const sampleSize = 50; // hard secret を選ぶときのサンプル数
+
+    // 重複しない数字で構成される候補リストを生成（桁数指定）
+    function generateCandidates(digitCount) {
+      const list = [];
+      const max = Math.pow(10, digitCount);
+      for (let i = 0; i < max; i++) {
+        const numStr = i.toString().padStart(digitCount, '0');
+        if (new Set(numStr).size === digitCount) {
+          list.push(numStr);
+        }
+      }
+      return list;
+    }
+    
+    // ヒット・ブローの計算
+    function getHitBlow(secret, guess) {
+      let hit = 0;
+      for (let i = 0; i < secret.length; i++) {
+        if (secret[i] === guess[i]) hit++;
+      }
+      let common = 0;
+      for (const digit of secret) {
+        if (guess.includes(digit)) common++;
+      }
+      return { hit, blow: common - hit };
+    }
+    
+    // 推測戦略に応じた次の候補選択
+    function getNextGuess(candidatesList) {
+      if (candidatesList.length === 0) return "";
+      if (strategy === "first") {
+        return candidatesList[0];
+      } else if (strategy === "random") {
+        const index = Math.floor(Math.random() * candidatesList.length);
+        return candidatesList[index];
+      } else if (strategy === "maxFrequency") {
+        const freq = {};
+        for (let i = 0; i < 10; i++) { freq[i] = 0; }
+        candidatesList.forEach(candidate => {
+          candidate.split("").forEach(digit => {
+            freq[digit]++;
+          });
+        });
+        let bestCandidate = candidatesList[0];
+        let bestScore = -1;
+        candidatesList.forEach(candidate => {
+          let score = 0;
+          candidate.split("").forEach(digit => {
+            score += freq[digit];
+          });
+          if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = candidate;
+          }
+        });
+        return bestCandidate;
+      }
+      return candidatesList[0];
+    }
+    
+    // 画面表示の更新（推測値と候補数の表示）
+    function updateDisplay() {
+      document.getElementById("currentGuessDisplay").textContent = "推測: " + currentGuess;
+      document.getElementById("candidateCountDisplay").textContent = "候補数: " + candidates.length;
+    }
+    
+    // 試行履歴の更新：試行履歴テーブルを更新する
+    function updateHistoryDisplay() {
+      const tbody = document.getElementById("historyTable").querySelector("tbody");
+      tbody.innerHTML = "";
+      attempts.forEach((attempt, index) => {
+        const tr = document.createElement("tr");
+        const tdIndex = document.createElement("td");
+        tdIndex.textContent = index + 1;
+        const tdGuess = document.createElement("td");
+        tdGuess.textContent = attempt.guess;
+        const tdHit = document.createElement("td");
+        tdHit.textContent = attempt.hit;
+        const tdBlow = document.createElement("td");
+        tdBlow.textContent = attempt.blow;
+        tr.appendChild(tdIndex);
+        tr.appendChild(tdGuess);
+        tr.appendChild(tdHit);
+        tr.appendChild(tdBlow);
+        tbody.appendChild(tr);
+      });
+    }
+    
+    // シミュレーション用：指定された秘密で何手かかるかシミュレートする
+    function simulateSecret(secretCandidate, digitCount, strategy) {
+      let candidatesSim = generateCandidates(digitCount);
+      let steps = 0;
+      let guess;
+      while(true) {
+        steps++;
+        guess = getNextGuess(candidatesSim);
+        if(guess === secretCandidate) break;
+        const feedback = getHitBlow(secretCandidate, guess);
+        candidatesSim = candidatesSim.filter(candidate => {
+          const fb = getHitBlow(candidate, guess);
+          return (fb.hit === feedback.hit && fb.blow === feedback.blow);
+        });
+        if(candidatesSim.length === 0) break;
+      }
+      return steps;
+    }
+    
+    // 難しい（＝推測手数が多い）秘密を生成する関数
+    function generateHardSecret(digitCount, strategy, sampleSize) {
+      const allCandidates = generateCandidates(digitCount);
+      let sampleCandidates = [];
+      for (let i = 0; i < sampleSize; i++) {
+        const idx = Math.floor(Math.random() * allCandidates.length);
+        sampleCandidates.push(allCandidates[idx]);
+      }
+      let maxSteps = -1, hardSecret = sampleCandidates[0];
+      sampleCandidates.forEach(candidate => {
+        const steps = simulateSecret(candidate, digitCount, strategy);
+        if(steps > maxSteps) {
+          maxSteps = steps;
+          hardSecret = candidate;
+        }
+      });
+      return hardSecret;
+    }
+    
+    // 自動シミュレーション（ループ）関数
+    function autoSimulateGuess() {
+      const feedback = getHitBlow(secret, currentGuess);
+      attempts.push({ guess: currentGuess, hit: feedback.hit, blow: feedback.blow });
+      updateHistoryDisplay();
+      updateDisplay();
+      // 終了判定
+      if(currentGuess === secret) {
+        document.getElementById("currentGuessDisplay").textContent =
+          "コンピューターが当てました！ 答えは " + secret + " です。";
+        return;
+      }
+      // 候補の絞り込み
+      candidates = candidates.filter(candidate => {
+        const fb = getHitBlow(candidate, currentGuess);
+        return (fb.hit === feedback.hit && fb.blow === feedback.blow);
+      });
+      if(candidates.length === 0) {
+        document.getElementById("message").textContent = "矛盾するフィードバックです。";
+        return;
+      }
+      currentGuess = getNextGuess(candidates);
+      setTimeout(autoSimulateGuess, 1000); // １秒毎に次の推測
+    }
+    
+    // ゲーム開始処理
+    document.getElementById("startButton").addEventListener("click", function(){
+      digitCount = parseInt(document.getElementById("digitCount").value, 10);
+      strategy = document.getElementById("strategySelect").value;
+      candidates = generateCandidates(digitCount);
+      attempts = [];
+      
+      // 「難しい数字を使う」がチェックされていれば、シミュレーションサンプルより難しい秘密を選ぶ
+      if(document.getElementById("useHardSecret").checked) {
+        secret = generateHardSecret(digitCount, strategy, sampleSize);
+      } else {
+        // そうでなければランダムに選ぶ
+        secret = candidates[Math.floor(Math.random() * candidates.length)];
+      }
+      
+      // ※ シミュレーションのため、秘密は内部で使う（必要に応じてデバッグ用にコンソール出力）
+      console.log("選ばれた秘密:", secret);
+      
+      currentGuess = getNextGuess(candidates);
+      document.getElementById("settings").style.display = "none";
+      document.getElementById("gameSection").style.display = "block";
+      updateDisplay();
+      updateHistoryDisplay();
+      document.getElementById("message").textContent = "";
+      // 自動シミュレーション開始
+      setTimeout(autoSimulateGuess, 1000);
+    });
+    
+    // 「設定に戻る」ボタンの処理
+    document.getElementById("backButton").addEventListener("click", function(){
+      document.getElementById("gameSection").style.display = "none";
+      document.getElementById("settings").style.display = "block";
+    });
+    
+  </script>
+</body>
+</html>

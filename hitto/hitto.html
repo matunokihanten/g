@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ヒットアンドブローゲーム</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 30px 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      text-align: center;
+      width: 320px;
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    p {
+      color: #555;
+      margin-bottom: 15px;
+    }
+    /* 入力フィールド：数字のみ入力できるように */
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    /* 数字キーボード促進用 */
+    input[type="text"]::-webkit-outer-spin-button,
+    input[type="text"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="text"] {
+      -moz-appearance: textfield;
+    }
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: #28a745;
+      color: #fff;
+      transition: background-color 0.2s;
+      min-width: 90px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    #result {
+      font-size: 18px;
+      color: #222;
+      min-height: 24px;
+      margin-bottom: 20px;
+    }
+    /* 予想履歴テーブル */
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>ヒットアンドブローゲーム</h2>
+    <p>4桁の数字を入力してください。（各桁は重複しない）</p>
+    <!-- 数字のみ入力可能：inputmodeとpattern属性で促す -->
+    <input type="text" id="guess" maxlength="4" placeholder="例：1234" pattern="\d{4}" inputmode="numeric">
+    <div class="buttons">
+      <button onclick="checkGuess()">チェック</button>
+      <button onclick="showHint()">ヒント</button>
+      <button onclick="showAnswer()">答え</button>
+    </div>
+    <p id="result"></p>
+    <div>
+      <h3>予想履歴</h3>
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>試行</th>
+            <th>予想</th>
+            <th>ヒット</th>
+            <th>ブロー</th>
+          </tr>
+        </thead>
+        <tbody id="history"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // 重複のない4桁の数字を生成する関数
+    function generateAnswer() {
+      const digits = [0,1,2,3,4,5,6,7,8,9];
+      let answerArray = [];
+      for (let i = 0; i < 4; i++) {
+        const index = Math.floor(Math.random() * digits.length);
+        answerArray.push(digits[index]);
+        digits.splice(index, 1);
+      }
+      return answerArray;
+    }
+
+    // ゲームの答えを生成（コンソールに表示しています）
+    const answer = generateAnswer();
+    console.log("答え(デバッグ用):", answer.join(""));
+
+    // 予想履歴の記録用配列とヒント適用フラグ
+    let guessHistory = [];
+    let hintActive = false;
+
+    // 履歴テーブルを更新する関数
+    function updateHistory() {
+      const historyBody = document.getElementById("history");
+      historyBody.innerHTML = ""; // 既存の内容をクリア
+      guessHistory.forEach((entry, index) => {
+        const row = document.createElement("tr");
+
+        // 試行番号
+        const cellAttempt = document.createElement("td");
+        cellAttempt.textContent = index + 1;
+
+        // 予想の各桁に対し、ヒントが有効なら答えに含まれている場合は緑、含まれていなければ赤で表示
+        const cellGuess = document.createElement("td");
+        if (hintActive) {
+          let highlighted = "";
+          for (let d of entry.guess) {
+            if (answer.includes(parseInt(d))) {
+              highlighted += `<span style="color: green; font-weight: bold;">${d}</span>`;
+            } else {
+              highlighted += `<span style="color: red; font-weight: bold;">${d}</span>`;
+            }
+          }
+          cellGuess.innerHTML = highlighted;
+        } else {
+          cellGuess.textContent = entry.guess;
+        }
+
+        // ヒット数
+        const cellHit = document.createElement("td");
+        cellHit.textContent = entry.hit;
+        // ブロー数
+        const cellBlow = document.createElement("td");
+        cellBlow.textContent = entry.blow;
+
+        row.appendChild(cellAttempt);
+        row.appendChild(cellGuess);
+        row.appendChild(cellHit);
+        row.appendChild(cellBlow);
+        historyBody.appendChild(row);
+      });
+    }
+
+    // 「チェック」ボタン：入力検証、ヒット・ブロー判定、履歴更新、入力クリア
+    function checkGuess() {
+      const guessField = document.getElementById("guess");
+      const guessStr = guessField.value.trim();
+      let message = "";
+
+      // 入力チェック：4桁の数字であること
+      if (guessStr.length !== 4 || !/^\d{4}$/.test(guessStr)) {
+        message = "4桁の数字を正しく入力してください。";
+        document.getElementById("result").textContent = message;
+        return;
+      }
+
+      // 各桁の重複チェック
+      const guessDigits = guessStr.split('');
+      if (new Set(guessDigits).size !== 4) {
+        message = "各桁は重複しない数字で入力してください。";
+        document.getElementById("result").textContent = message;
+        return;
+      }
+
+      // ヒットとブローのカウント
+      let hit = 0;
+      let blow = 0;
+      for (let i = 0; i < 4; i++) {
+        if (Number(guessDigits[i]) === answer[i]) {
+          hit++;
+        } else if (answer.includes(Number(guessDigits[i]))) {
+          blow++;
+        }
+      }
+
+      if (hit === 4) {
+        message = `正解です！答えは ${answer.join('')} でした。おめでとうございます！`;
+      } else {
+        message = `ヒット：${hit}、ブロー：${blow}`;
+      }
+      document.getElementById("result").textContent = message;
+
+      // 履歴に今回の試行を追加し更新
+      guessHistory.push({ guess: guessStr, hit: hit, blow: blow });
+      updateHistory();
+
+      // 入力フィールドをクリア
+      guessField.value = "";
+    }
+
+    // 「ヒント」ボタン：入力された予想と答えの大小の比較を行い、なおかつ履歴の各数字をハイライト
+    function showHint() {
+      const guessStr = document.getElementById("guess").value.trim();
+      let hintMsg = "";
+      if (guessStr.length !== 4 || !/^\d{4}$/.test(guessStr)) {
+        hintMsg = "まずは4桁の数字を入力してください。";
+        document.getElementById("result").textContent = hintMsg;
+        return;
+      }
+      const guessInt = parseInt(guessStr, 10);
+      const answerInt = parseInt(answer.join(""), 10);
+      if (guessInt > answerInt) {
+        hintMsg = "あなたの予想は答えより大きいです。";
+      } else if (guessInt < answerInt) {
+        hintMsg = "あなたの予想は答えより小さいです。";
+      } else {
+        hintMsg = "あなたの予想はちょうどです！";
+      }
+      document.getElementById("result").textContent = hintMsg;
+      
+      // ヒントを適用するフラグをオンにし、履歴の表示を更新
+      hintActive = true;
+      updateHistory();
+    }
+
+    // 「答え」ボタン：答えを表示する
+    function showAnswer() {
+      document.getElementById("result").textContent = "答えは " + answer.join('') + " です。";
+    }
+  </script>
+</body>
+</html>
