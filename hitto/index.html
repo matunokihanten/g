@@ -27,6 +27,18 @@
       margin-bottom: 20px;
       color: #333;
     }
+    .digit-select {
+      margin-bottom: 15px;
+    }
+    .digit-select p {
+      margin: 0 0 8px;
+      font-weight: bold;
+    }
+    .digit-select label {
+      margin-right: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
     p {
       color: #555;
       margin-bottom: 15px;
@@ -85,6 +97,7 @@
     th, td {
       border: 1px solid #ddd;
       padding: 8px;
+      text-align: center;
     }
     th {
       background-color: #f2f2f2;
@@ -94,8 +107,16 @@
 <body>
   <div class="container">
     <h2>ヒットアンドブローゲーム</h2>
-    <p>4桁の数字を入力してください。（各桁は重複しない）</p>
-    <!-- 数字のみ入力可能：inputmodeとpattern属性で促す -->
+    <!-- 桁数選択（3～6桁） -->
+    <div class="digit-select">
+      <p>桁数選択:</p>
+      <label><input type="radio" name="digitCount" value="3"> 3桁</label>
+      <label><input type="radio" name="digitCount" value="4" checked> 4桁</label>
+      <label><input type="radio" name="digitCount" value="5"> 5桁</label>
+      <label><input type="radio" name="digitCount" value="6"> 6桁</label>
+    </div>
+    <p>数字を入力してください。（各桁は重複しない）</p>
+    <!-- 数字のみ入力可能：maxlength・patternは後で更新 -->
     <input type="text" id="guess" maxlength="4" placeholder="例：1234" pattern="\d{4}" inputmode="numeric">
     <div class="buttons">
       <button onclick="checkGuess()">チェック</button>
@@ -120,11 +141,17 @@
   </div>
 
   <script>
-    // 重複のない4桁の数字を生成する関数
-    function generateAnswer() {
-      const digits = [0,1,2,3,4,5,6,7,8,9];
+    // グローバル変数
+    let currentDigitCount = 4;
+    let answer = [];
+    let guessHistory = [];
+    let hintActive = false;
+
+    // 重複しない 指定桁数 の数字を生成する関数
+    function generateAnswer(count) {
+      const digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
       let answerArray = [];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < count; i++) {
         const index = Math.floor(Math.random() * digits.length);
         answerArray.push(digits[index]);
         digits.splice(index, 1);
@@ -132,18 +159,33 @@
       return answerArray;
     }
 
-    // ゲームの答えを生成（コンソールに表示しています）
-    const answer = generateAnswer();
-    console.log("答え(デバッグ用):", answer.join(""));
+    // ゲームのリセット：ラジオボタンで選択された桁数に従って初期化する
+    function resetGame() {
+      // 選択された桁数を取得
+      const selectedRadio = document.querySelector('input[name="digitCount"]:checked');
+      currentDigitCount = parseInt(selectedRadio.value, 10);
+      // 新しい答えを生成
+      answer = generateAnswer(currentDigitCount);
+      console.log("答え(デバッグ用):", answer.join(''));
+      // 予想履歴をクリア
+      guessHistory = [];
+      updateHistory();
+      // 結果表示をクリア
+      document.getElementById("result").textContent = "";
+      // 入力フィールドの属性を更新
+      const guessField = document.getElementById("guess");
+      guessField.setAttribute("maxlength", currentDigitCount);
+      guessField.setAttribute("pattern", `\\d{${currentDigitCount}}`);
+      guessField.placeholder = "例：" + "123456".substring(0, currentDigitCount);
+      guessField.value = "";
+      // ヒントフラグのリセット
+      hintActive = false;
+    }
 
-    // 予想履歴の記録用配列とヒント適用フラグ
-    let guessHistory = [];
-    let hintActive = false;
-
-    // 履歴テーブルを更新する関数
+    // 履歴テーブルの更新
     function updateHistory() {
       const historyBody = document.getElementById("history");
-      historyBody.innerHTML = ""; // 既存の内容をクリア
+      historyBody.innerHTML = "";
       guessHistory.forEach((entry, index) => {
         const row = document.createElement("tr");
 
@@ -151,7 +193,7 @@
         const cellAttempt = document.createElement("td");
         cellAttempt.textContent = index + 1;
 
-        // 予想の各桁に対し、ヒントが有効なら答えに含まれている場合は緑、含まれていなければ赤で表示
+        // 予想欄：ヒント有効時は、答えに含まれる数字は緑、含まれていないは赤でハイライト
         const cellGuess = document.createElement("td");
         if (hintActive) {
           let highlighted = "";
@@ -182,31 +224,28 @@
       });
     }
 
-    // 「チェック」ボタン：入力検証、ヒット・ブロー判定、履歴更新、入力クリア
+    // 「チェック」ボタン押下時の処理：入力検証、ヒット・ブロー判定、履歴更新、入力欄クリア
     function checkGuess() {
       const guessField = document.getElementById("guess");
       const guessStr = guessField.value.trim();
       let message = "";
 
-      // 入力チェック：4桁の数字であること
-      if (guessStr.length !== 4 || !/^\d{4}$/.test(guessStr)) {
-        message = "4桁の数字を正しく入力してください。";
+      if (guessStr.length !== currentDigitCount || !new RegExp(`^\\d{${currentDigitCount}}$`).test(guessStr)) {
+        message = `${currentDigitCount}桁の数字を正しく入力してください。`;
         document.getElementById("result").textContent = message;
         return;
       }
 
-      // 各桁の重複チェック
       const guessDigits = guessStr.split('');
-      if (new Set(guessDigits).size !== 4) {
+      if (new Set(guessDigits).size !== currentDigitCount) {
         message = "各桁は重複しない数字で入力してください。";
         document.getElementById("result").textContent = message;
         return;
       }
 
-      // ヒットとブローのカウント
       let hit = 0;
       let blow = 0;
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < currentDigitCount; i++) {
         if (Number(guessDigits[i]) === answer[i]) {
           hit++;
         } else if (answer.includes(Number(guessDigits[i]))) {
@@ -214,30 +253,33 @@
         }
       }
 
-      if (hit === 4) {
+      if (hit === currentDigitCount) {
         message = `正解です！答えは ${answer.join('')} でした。おめでとうございます！`;
       } else {
         message = `ヒット：${hit}、ブロー：${blow}`;
       }
       document.getElementById("result").textContent = message;
 
-      // 履歴に今回の試行を追加し更新
+      // 履歴に今回の試行を追加
       guessHistory.push({ guess: guessStr, hit: hit, blow: blow });
       updateHistory();
 
-      // 入力フィールドをクリア
+      // 入力欄をクリア
       guessField.value = "";
     }
 
-    // 「ヒント」ボタン：入力された予想と答えの大小の比較を行い、なおかつ履歴の各数字をハイライト
+    // 「ヒント」ボタン押下時：入力予想と答え全体を数値として比較し、結果を表示、かつ履歴をハイライト更新
     function showHint() {
-      const guessStr = document.getElementById("guess").value.trim();
+      const guessField = document.getElementById("guess");
+      const guessStr = guessField.value.trim();
       let hintMsg = "";
-      if (guessStr.length !== 4 || !/^\d{4}$/.test(guessStr)) {
-        hintMsg = "まずは4桁の数字を入力してください。";
+
+      if (guessStr.length !== currentDigitCount || !new RegExp(`^\\d{${currentDigitCount}}$`).test(guessStr)) {
+        hintMsg = `${currentDigitCount}桁の数字を入力してください。`;
         document.getElementById("result").textContent = hintMsg;
         return;
       }
+
       const guessInt = parseInt(guessStr, 10);
       const answerInt = parseInt(answer.join(""), 10);
       if (guessInt > answerInt) {
@@ -248,16 +290,22 @@
         hintMsg = "あなたの予想はちょうどです！";
       }
       document.getElementById("result").textContent = hintMsg;
-      
-      // ヒントを適用するフラグをオンにし、履歴の表示を更新
       hintActive = true;
       updateHistory();
     }
 
-    // 「答え」ボタン：答えを表示する
+    // 「答え」ボタン押下時：答えを表示する
     function showAnswer() {
       document.getElementById("result").textContent = "答えは " + answer.join('') + " です。";
     }
+
+    // ラジオボタンの変更時にゲームリセット
+    document.querySelectorAll('input[name="digitCount"]').forEach((elem) => {
+      elem.addEventListener("change", resetGame);
+    });
+
+    // 初期化
+    resetGame();
   </script>
 </body>
 </html>
