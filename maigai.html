@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>図形差分ゲーム</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+      font-size: 1.5em;
+    }
+    h1 {
+      color: #333;
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+    /* 情報表示 */
+    #info {
+      margin-bottom: 20px;
+    }
+    #info span {
+      margin: 0 15px;
+    }
+    /* コントロール部 */
+    #control {
+      margin-bottom: 20px;
+    }
+    #control span, 
+    #control label {
+      font-size: 1.5em;
+      margin: 0 10px;
+    }
+    #control input[type="radio"] {
+      transform: scale(1.5);
+      margin: 0 5px;
+    }
+    #control button {
+      padding: 10px 20px;
+      font-size: 1.5em;
+      margin: 0 10px;
+      cursor: pointer;
+    }
+    /* グリッド（セル数は動的に設定） */
+    .grid {
+      display: grid;
+      grid-gap: 15px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+    .cell {
+      width: 150px;
+      height: 150px;
+      background-color: #fff;
+      border: 2px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 1.5em;
+      color: #333;
+    }
+    .hidden {
+      display: none;
+    }
+    /* 答えを見る用オーバーレイ */
+    .diff-overlay {
+      position: absolute;
+      top: 95px;
+      left: 95px;
+      width: 30px;
+      height: 30px;
+      background-color: rgba(255, 0, 0, 0.5);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>図形差分ゲーム</h1>
+  
+  <!-- 情報表示 -->
+  <div id="info">
+    <span>ラウンド：<span id="roundDisplay">0</span></span>
+    <span>得点：<span id="scoreDisplay">0</span></span>
+  </div>
+  
+  <!-- コントロール部 -->
+  <div id="control">
+    <div id="gridSelect">
+      <span>図形の数：</span>
+      <label><input type="radio" name="gridCount" value="4">4</label>
+      <label><input type="radio" name="gridCount" value="9">9</label>
+      <label><input type="radio" name="gridCount" value="16" checked>16</label>
+      <label><input type="radio" name="gridCount" value="25">25</label>
+    </div>
+    <button id="startButton">ゲーム開始</button>
+    <button id="hintButton" disabled>ヒントを見る</button>
+    <button id="answerButton" disabled>答えを見る</button>
+    <button id="endButton" disabled>終了</button>
+  </div>
+  
+  <!-- ゲーム表示領域 -->
+  <div id="game" class="grid"></div>
+  <div id="message"></div>
+  
+  <script>
+    // カラーパレット
+    const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
+    // 利用する図形の種類（ここでは星型図形を主に使用）
+    const shapeTypes = ["star", "square", "triangle", "ellipse", "hexagon"];
+    
+    // ゲーム状態の管理
+    let round = 0;
+    let score = 0;
+    let gameActive = false;
+    let currentCorrectCell = null;
+    let hintUsed = false;
+    let currentShapeType = null;
+    let gridCount = 16; // デフォルトは16個（4×4）
+    
+    // DOM 要素の取得
+    const roundDisplay = document.getElementById("roundDisplay");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const gameContainer = document.getElementById("game");
+    const messageDiv = document.getElementById("message");
+    const startButton = document.getElementById("startButton");
+    const hintButton = document.getElementById("hintButton");
+    const answerButton = document.getElementById("answerButton");
+    const endButton = document.getElementById("endButton");
+    
+    // ランダムなオフセット（-10～10px）
+    function getRandomOffset() {
+      return Math.floor(Math.random() * 21) - 10;
+    }
+    
+    // 以下、各図形生成関数
+    // 星型図形
+    function createStarPoints(sides, outer, innerFactor, rotation = 0) {
+      let pts = "";
+      for (let i = 0; i < 2 * sides; i++) {
+        const isOuter = i % 2 === 0;
+        const r = isOuter ? outer : outer * innerFactor;
+        const angle = (Math.PI * i) / sides - Math.PI/2 + rotation;
+        const x = outer + r * Math.cos(angle);
+        const y = outer + r * Math.sin(angle);
+        pts += `${x},${y} `;
+      }
+      return pts.trim();
+    }
+    function createStarSVG(isDiff, delta, fillColor) {
+      const outer = 50;
+      const sides = 5;
+      const baseInnerFactor = 0.5;
+      const innerFactor = isDiff ? baseInnerFactor + delta : baseInnerFactor;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", outer * 2);
+      svg.setAttribute("height", outer * 2);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      polygon.setAttribute("points", createStarPoints(sides, outer, innerFactor, 0));
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "black");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    // 正方形図形 ※ diff: 1隅を5pxずらす
+    function createSquareSVG(isDiff, fillColor) {
+      const size = 100;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", size);
+      svg.setAttribute("height", size);
+      if (!isDiff) {
+        const rect = document.createElementNS(svgNS, "rect");
+        rect.setAttribute("x", "0");
+        rect.setAttribute("y", "0");
+        rect.setAttribute("width", size);
+        rect.setAttribute("height", size);
+        rect.setAttribute("fill", fillColor);
+        rect.setAttribute("stroke", "black");
+        rect.setAttribute("stroke-width", "2");
+        svg.appendChild(rect);
+      } else {
+        const polygon = document.createElementNS(svgNS, "polygon");
+        polygon.setAttribute("points", `0,0 ${size},0 ${size-5},${size} 0,${size}`);
+        polygon.setAttribute("fill", fillColor);
+        polygon.setAttribute("stroke", "black");
+        polygon.setAttribute("stroke-width", "2");
+        svg.appendChild(polygon);
+      }
+      return svg;
+    }
+    
+    // 三角形 ※ diff: 右下頂点を5px上げる
+    function createTriangleSVG(isDiff, fillColor) {
+      const size = 100;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", size);
+      svg.setAttribute("height", size);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      if (!isDiff) {
+        polygon.setAttribute("points", `${size/2},0 ${size},${size} 0,${size}`);
+      } else {
+        polygon.setAttribute("points", `${size/2},0 ${size},${size-5} 0,${size}`);
+      }
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "black");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    // 楕円 ※ diff: 縦半径をやや大きめに
+    function createEllipseSVG(isDiff, fillColor) {
+      const width = 100, height = 60;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", width);
+      svg.setAttribute("height", height);
+      const ellipse = document.createElementNS(svgNS, "ellipse");
+      ellipse.setAttribute("cx", width/2);
+      ellipse.setAttribute("cy", height/2);
+      ellipse.setAttribute("rx", width/2 - 5);
+      ellipse.setAttribute("ry", isDiff ? (height/2 - 2) : (height/2 - 5));
+      ellipse.setAttribute("fill", fillColor);
+      ellipse.setAttribute("stroke", "black");
+      ellipse.setAttribute("stroke-width", "2");
+      svg.appendChild(ellipse);
+      return svg;
+    }
+    
+    // 六角形 ※ diff: 3番目の頂点を5px内側に
+    function createHexagonSVG(isDiff, fillColor) {
+      const outer = 50;
+      const sides = 6;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", outer * 2);
+      svg.setAttribute("height", outer * 2);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      let pts = "";
+      for (let i = 0; i < sides; i++) {
+        let r = outer;
+        if (isDiff && i === 2) {
+          r = outer - 5;
+        }
+        const angle = (2 * Math.PI * i) / sides - Math.PI/2;
+        const x = outer + r * Math.cos(angle);
+        const y = outer + r * Math.sin(angle);
+        pts += `${x},${y} `;
+      }
+      polygon.setAttribute("points", pts.trim());
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "black");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    // 汎用図形生成関数
+    function createShapeSVG(type, isDiff, fillColor, delta) {
+      switch (type) {
+        case "star":
+          return createStarSVG(isDiff, delta, fillColor);
+        case "square":
+          return createSquareSVG(isDiff, fillColor);
+        case "triangle":
+          return createTriangleSVG(isDiff, fillColor);
+        case "ellipse":
+          return createEllipseSVG(isDiff, fillColor);
+        case "hexagon":
+          return createHexagonSVG(isDiff, fillColor);
+        default:
+          return createStarSVG(isDiff, delta, fillColor);
+      }
+    }
+    
+    // セットアップ関数：セルの数はラジオボタンで選択された数（4,9,16,25）を使用
+    function setupGame() {
+      // 選択されたセル数を取得
+      const selectedGridRadio = document.querySelector("input[name='gridCount']:checked");
+      gridCount = parseInt(selectedGridRadio.value, 10);
+      
+      gameContainer.innerHTML = "";
+      messageDiv.textContent = "";
+      hintUsed = false;
+      currentCorrectCell = null;
+      
+      // グリッドの列数は √(セル数)（例：9→3列、25→5列）
+      const nCols = Math.sqrt(gridCount);
+      gameContainer.style.gridTemplateColumns = `repeat(${nCols}, 150px)`;
+      
+      // 今ラウンドで使用する図形の種類をランダムに選択
+      currentShapeType = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+      
+      // 星型の場合のみ差分として内径比の差を計算
+      let delta = 0;
+      if (currentShapeType === "star") {
+          delta = Math.max(0.3 - 0.01 * round, 0.05);
+      }
+      
+      // 正解セルのインデックス（gridCount 個中ランダムに1つ）
+      const diffIndex = Math.floor(Math.random() * gridCount);
+      
+      for (let i = 0; i < gridCount; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        
+        // 各セルにランダムなオフセット（-10～10px）を適用
+        const offsetX = getRandomOffset() + "px";
+        const offsetY = getRandomOffset() + "px";
+        
+        const fillColor = colors[Math.floor(Math.random() * colors.length)];
+        let shapeSVG;
+        if (i === diffIndex) {
+          shapeSVG = createShapeSVG(currentShapeType, true, fillColor, delta);
+          currentCorrectCell = cell;
+        } else {
+          shapeSVG = createShapeSVG(currentShapeType, false, fillColor, delta);
+        }
+        
+        // ランダムな位置オフセットを適用
+        shapeSVG.style.transform = `translate(${offsetX}, ${offsetY})`;
+        cell.appendChild(shapeSVG);
+        
+        cell.addEventListener("click", () => {
+          if (!gameActive) return;
+          if (i === diffIndex) {
+            messageDiv.textContent = "正解！";
+            score += 10;
+            round++;  // 正解ならラウンドアップ
+          } else {
+            messageDiv.textContent = "不正解！";
+            // 正解セルを赤い枠で囲む
+            if (currentCorrectCell) {
+              currentCorrectCell.style.border = "3px solid red";
+            }
+            // ラウンドを下げる（最低 1 を下回らないように）
+            round = Math.max(round - 1, 1);
+          }
+          scoreDisplay.textContent = score;
+          roundDisplay.textContent = round;
+          setTimeout(setupGame, 1000);
+        });
+        
+        gameContainer.appendChild(cell);
+      }
+      
+      hintButton.disabled = false;
+      answerButton.disabled = false;
+    }
+    
+    // ヒントボタン：正解セルの枠を1秒間点線にしてハイライト
+    hintButton.addEventListener("click", () => {
+      if (!hintUsed && currentCorrectCell) {
+        currentCorrectCell.style.border = "2px dashed red";
+        hintUsed = true;
+        setTimeout(() => {
+          currentCorrectCell.style.border = "2px solid #ddd";
+        }, 1000);
+      }
+    });
+    
+    // 答えを見るボタン：正解セルに赤い半透明オーバーレイを表示
+    answerButton.addEventListener("click", () => {
+      if (currentCorrectCell && !currentCorrectCell.querySelector('.diff-overlay')) {
+        const overlay = document.createElement("div");
+        overlay.className = "diff-overlay";
+        currentCorrectCell.appendChild(overlay);
+      }
+    });
+    
+    startButton.addEventListener("click", () => {
+      gameActive = true;
+      round = 1;
+      score = 0;
+      roundDisplay.textContent = round;
+      scoreDisplay.textContent = score;
+      hintButton.disabled = false;
+      answerButton.disabled = false;
+      endButton.disabled = false;
+      setupGame();
+    });
+    
+    endButton.addEventListener("click", () => {
+      gameActive = false;
+      messageDiv.textContent = "ゲーム終了。最終得点：" + score;
+    });
+  </script>
+</body>
+</html>
