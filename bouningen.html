@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>棒人間の数を数えるゲーム</title>
+  <!-- Google FontsのRobotoを利用 -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #74ABE2, #5563DE);
+      font-family: 'Roboto', sans-serif;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-top: 20px;
+      color: #fff;
+    }
+    #levelDisplay {
+      font-size: 1.4em;
+      margin: 10px auto;
+      text-align: center;
+      color: #fff;
+    }
+    /* キャンバスは固定サイズにし、中央に配置 */
+    canvas {
+      background: #ffffff;
+      border: 2px solid #ccc;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+      display: block;
+      margin: 20px auto;
+      width: 800px;
+      height: 600px;
+    }
+    /* ボタンや入力フィールドのスタイル */
+    #gameControls,
+    #answerSection,
+    #result {
+      margin: 10px auto;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1em;
+      background: #5563DE;
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #334bb0;
+    }
+    #answerSection {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+    }
+    #answerInput {
+      width: 100px;
+      padding: 10px;
+      font-size: 1.2em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #result {
+      font-size: 1.3em;
+      margin-top: 10px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <h1>棒人間の数を数えるゲーム</h1>
+  <div id="levelDisplay">難易度レベル：1</div>
+  <canvas id="canvas"></canvas>
+  <div id="gameControls">
+    <button id="startButton">ゲーム開始</button>
+  </div>
+  <div id="answerSection">
+    <p>画面に表示されている棒人間は何体ですか？</p>
+    <input type="number" id="answerInput" placeholder="数字を入力">
+    <button id="submitAnswer">回答する</button>
+  </div>
+  <div id="result"></div>
+  
+  <script>
+    // グローバル変数
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startButton = document.getElementById('startButton');
+    const answerInput = document.getElementById('answerInput');
+    const submitAnswer = document.getElementById('submitAnswer');
+    const resultDiv = document.getElementById('result');
+    const levelDisplay = document.getElementById('levelDisplay');
+
+    let currentLevel = 1;
+    let actualCount = 0;
+    let stickFigures = [];
+    let lastTime = performance.now();
+
+    // レベルに応じた棒人間の個体数（レベル1: 5体, レベル100: 200体）
+    function getStickCountForLevel(level) {
+      const minCount = 5;
+      const maxCount = 200;
+      return Math.round(minCount + (maxCount - minCount) * (level - 1) / 99);
+    }
+
+    // 棒人間クラス（肘・膝の曲がる動き付き）
+    class StickFigure {
+      constructor(x, y, vx, vy, phase) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.phase = phase;
+      }
+      
+      update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        if (this.x < 0 || this.x > canvas.width) {
+          this.vx = -this.vx;
+          this.x = Math.max(0, Math.min(this.x, canvas.width));
+        }
+        if (this.y < 40 || this.y > canvas.height) {
+          this.vy = -this.vy;
+          this.y = Math.max(40, Math.min(this.y, canvas.height));
+        }
+      }
+      
+      draw(ctx, time) {
+        const headRadius = 10;
+        const bodyLength = 30;
+        const armLength = 15;
+        const legLength = 20;
+        
+        const swingAmplitude = Math.PI / 8;
+        const t = time + this.phase;
+        const armSwing = Math.sin(t) * swingAmplitude;
+        const legSwing = Math.sin(t) * swingAmplitude;
+        
+        // ヘッド
+        const headX = this.x;
+        const headY = this.y - bodyLength - headRadius;
+        ctx.beginPath();
+        ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+        ctx.fillStyle = "black";
+        ctx.fill();
+        ctx.strokeStyle = "black";
+        ctx.stroke();
+        ctx.closePath();
+        
+        // 体
+        ctx.beginPath();
+        ctx.moveTo(this.x, headY + headRadius);
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
+        ctx.closePath();
+        
+        // 腕（肘が曲がる構造）
+        const shoulderX = this.x;
+        const shoulderY = headY + headRadius + 5;
+        const upperArmLength = armLength * 0.5;
+        const lowerArmLength = armLength * 0.5;
+        // 左腕
+        const baseLeftArmAngle = Math.PI + armSwing;
+        const leftElbowX = shoulderX + upperArmLength * Math.cos(baseLeftArmAngle);
+        const leftElbowY = shoulderY + upperArmLength * Math.sin(baseLeftArmAngle);
+        const lowerLeftArmAngle = baseLeftArmAngle - (Math.PI / 6);
+        const leftHandX = leftElbowX + lowerArmLength * Math.cos(lowerLeftArmAngle);
+        const leftHandY = leftElbowY + lowerArmLength * Math.sin(lowerLeftArmAngle);
+        ctx.beginPath();
+        ctx.moveTo(shoulderX, shoulderY);
+        ctx.lineTo(leftElbowX, leftElbowY);
+        ctx.lineTo(leftHandX, leftHandY);
+        ctx.stroke();
+        ctx.closePath();
+        // 右腕
+        const baseRightArmAngle = armSwing;
+        const rightElbowX = shoulderX + upperArmLength * Math.cos(baseRightArmAngle);
+        const rightElbowY = shoulderY + upperArmLength * Math.sin(baseRightArmAngle);
+        const lowerRightArmAngle = baseRightArmAngle + (Math.PI / 6);
+        const rightHandX = rightElbowX + lowerArmLength * Math.cos(lowerRightArmAngle);
+        const rightHandY = rightElbowY + lowerArmLength * Math.sin(lowerRightArmAngle);
+        ctx.beginPath();
+        ctx.moveTo(shoulderX, shoulderY);
+        ctx.lineTo(rightElbowX, rightElbowY);
+        ctx.lineTo(rightHandX, rightHandY);
+        ctx.stroke();
+        ctx.closePath();
+        
+        // 脚（膝が曲がる構造）
+        const hipX = this.x;
+        const hipY = this.y;
+        const upperLegLength = legLength * 0.5;
+        const lowerLegLength = legLength * 0.5;
+        // 左脚
+        const baseLeftLegAngle = Math.PI / 2 + legSwing;
+        const leftKneeX = hipX + upperLegLength * Math.cos(baseLeftLegAngle);
+        const leftKneeY = hipY + upperLegLength * Math.sin(baseLeftLegAngle);
+        const lowerLeftLegAngle = baseLeftLegAngle - (Math.PI / 8);
+        const leftFootX = leftKneeX + lowerLegLength * Math.cos(lowerLeftLegAngle);
+        const leftFootY = leftKneeY + lowerLegLength * Math.sin(lowerLeftLegAngle);
+        ctx.beginPath();
+        ctx.moveTo(hipX, hipY);
+        ctx.lineTo(leftKneeX, leftKneeY);
+        ctx.lineTo(leftFootX, leftFootY);
+        ctx.stroke();
+        ctx.closePath();
+        // 右脚
+        const baseRightLegAngle = Math.PI / 2 - legSwing;
+        const rightKneeX = hipX + upperLegLength * Math.cos(baseRightLegAngle);
+        const rightKneeY = hipY + upperLegLength * Math.sin(baseRightLegAngle);
+        const lowerRightLegAngle = baseRightLegAngle + (Math.PI / 8);
+        const rightFootX = rightKneeX + lowerLegLength * Math.cos(lowerRightLegAngle);
+        const rightFootY = rightKneeY + lowerLegLength * Math.sin(lowerRightLegAngle);
+        ctx.beginPath();
+        ctx.moveTo(hipX, hipY);
+        ctx.lineTo(rightKneeX, rightKneeY);
+        ctx.lineTo(rightFootX, rightFootY);
+        ctx.stroke();
+        ctx.closePath();
+      }
+    }
+
+    function animate(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const figure of stickFigures) {
+        figure.update(dt);
+        figure.draw(ctx, now / 1000);
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function startGame() {
+      // キャンバスサイズと変形状態のリセット
+      canvas.width = 800;
+      canvas.height = 600;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      
+      actualCount = getStickCountForLevel(currentLevel);
+      stickFigures = [];
+      for (let i = 0; i < actualCount; i++) {
+        const x = Math.random() * canvas.width;
+        const y = 60 + Math.random() * (canvas.height - 80);
+        const vx = Math.random() * 200 - 100;
+        const vy = Math.random() * 200 - 100;
+        const phase = Math.random() * Math.PI * 2;
+        stickFigures.push(new StickFigure(x, y, vx, vy, phase));
+      }
+      lastTime = performance.now();
+      requestAnimationFrame(animate);
+    }
+
+    startButton.addEventListener('click', startGame);
+
+    submitAnswer.addEventListener('click', () => {
+      const userAnswer = parseInt(answerInput.value);
+      if (userAnswer === actualCount) {
+        resultDiv.textContent = `正解！棒人間は ${actualCount} 人でした。`;
+        currentLevel = Math.min(100, currentLevel + 1);
+      } else {
+        resultDiv.textContent = `不正解… 正解は ${actualCount} 人でした。`;
+        currentLevel = Math.max(1, currentLevel - 1);
+      }
+      answerInput.value = "";
+      levelDisplay.textContent = `難易度レベル：${currentLevel}`;
+      // 新たな問題を開始（アニメーションは継続）
+      startGame();
+    });
+  </script>
+</body>
+</html>
