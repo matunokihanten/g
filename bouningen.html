@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>棒人間の数を数えるゲーム</title>
-  <!-- Google FontsのRobotoを利用 -->
+  <title>棒人間の数を数えるゲーム ＆ 電卓入力</title>
+  <!-- Google Fonts: Roboto -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
   <style>
     * {
@@ -27,7 +27,7 @@
       text-align: center;
       color: #fff;
     }
-    /* キャンバスは固定サイズにし、中央に配置 */
+    /* キャンバス固定サイズ＆中央配置 */
     canvas {
       background: #ffffff;
       border: 2px solid #ccc;
@@ -37,9 +37,8 @@
       width: 800px;
       height: 600px;
     }
-    /* ボタンや入力フィールドのスタイル */
+    /* ゲーム部分のUI */
     #gameControls,
-    #answerSection,
     #result {
       margin: 10px auto;
       text-align: center;
@@ -57,12 +56,16 @@
     button:hover {
       background: #334bb0;
     }
+    /* 答え入力フィールドを左寄せに */
     #answerSection {
       display: flex;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
       gap: 10px;
-      padding: 10px;
+      padding: 10px 10px 10px 50px; /* 左側に余計な余白を設定 */
+    }
+    #answerSection p {
+      margin: 0;
     }
     #answerInput {
       width: 100px;
@@ -75,6 +78,39 @@
       font-size: 1.3em;
       margin-top: 10px;
       color: #fff;
+    }
+    /* --- 電卓のスタイル --- */
+    #calculator {
+      background-color: #fff;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      width: 300px;
+      margin: 20px auto 40px;
+      padding: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    #calcButtons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+    /* 数字ボタンを大きく */
+    .calc-btn {
+      padding: 25px;
+      font-size: 1.5em;
+      border: none;
+      border-radius: 4px;
+      background: #5563DE;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .calc-btn:hover {
+      background: #334bb0;
+    }
+    /* 「＝」ボタンは横に広げる */
+    #calcEquals {
+      grid-column: span 4;
     }
   </style>
 </head>
@@ -92,8 +128,35 @@
   </div>
   <div id="result"></div>
   
+  <!-- 電卓部分 -->
+  <div id="calculator">
+    <div id="calcButtons">
+      <button class="calc-btn" data-value="7">7</button>
+      <button class="calc-btn" data-value="8">8</button>
+      <button class="calc-btn" data-value="9">9</button>
+      <button class="calc-btn" data-value="/">÷</button>
+      
+      <button class="calc-btn" data-value="4">4</button>
+      <button class="calc-btn" data-value="5">5</button>
+      <button class="calc-btn" data-value="6">6</button>
+      <button class="calc-btn" data-value="*">×</button>
+      
+      <button class="calc-btn" data-value="1">1</button>
+      <button class="calc-btn" data-value="2">2</button>
+      <button class="calc-btn" data-value="3">3</button>
+      <button class="calc-btn" data-value="-">−</button>
+      
+      <button class="calc-btn" data-value="0">0</button>
+      <button class="calc-btn" data-value=".">.</button>
+      <button class="calc-btn" id="calcClear">C</button>
+      <button class="calc-btn" data-value="+">+</button>
+      
+      <button class="calc-btn" id="calcEquals">=</button>
+    </div>
+  </div>
+  
   <script>
-    // グローバル変数
+    // ===== ゲーム用コード =====
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const startButton = document.getElementById('startButton');
@@ -101,20 +164,20 @@
     const submitAnswer = document.getElementById('submitAnswer');
     const resultDiv = document.getElementById('result');
     const levelDisplay = document.getElementById('levelDisplay');
-
+  
     let currentLevel = 1;
     let actualCount = 0;
     let stickFigures = [];
     let lastTime = performance.now();
-
-    // レベルに応じた棒人間の個体数（レベル1: 5体, レベル100: 200体）
+  
+    // レベルに応じた棒人間の個体数（レベル1：5体、レベル100：200体）
     function getStickCountForLevel(level) {
       const minCount = 5;
       const maxCount = 200;
       return Math.round(minCount + (maxCount - minCount) * (level - 1) / 99);
     }
-
-    // 棒人間クラス（肘・膝の曲がる動き付き）
+  
+    // 棒人間クラス（肘・膝が曲がるアニメーション付き）
     class StickFigure {
       constructor(x, y, vx, vy, phase) {
         this.x = x;
@@ -122,12 +185,13 @@
         this.vx = vx;
         this.vy = vy;
         this.phase = phase;
+        this.headColor = "black"; // デフォルトは黒
       }
       
       update(dt) {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
-
+  
         if (this.x < 0 || this.x > canvas.width) {
           this.vx = -this.vx;
           this.x = Math.max(0, Math.min(this.x, canvas.width));
@@ -143,87 +207,91 @@
         const bodyLength = 30;
         const armLength = 15;
         const legLength = 20;
-        
+  
         const swingAmplitude = Math.PI / 8;
         const t = time + this.phase;
         const armSwing = Math.sin(t) * swingAmplitude;
         const legSwing = Math.sin(t) * swingAmplitude;
-        
-        // ヘッド
+  
+        // ヘッド：タップで変更された headColor を使用
         const headX = this.x;
         const headY = this.y - bodyLength - headRadius;
         ctx.beginPath();
         ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
-        ctx.fillStyle = "black";
+        ctx.fillStyle = this.headColor;
         ctx.fill();
         ctx.strokeStyle = "black";
         ctx.stroke();
         ctx.closePath();
-        
+  
         // 体
         ctx.beginPath();
         ctx.moveTo(this.x, headY + headRadius);
         ctx.lineTo(this.x, this.y);
         ctx.stroke();
         ctx.closePath();
-        
-        // 腕（肘が曲がる構造）
+  
+        // 腕（肘で曲がる構造）
         const shoulderX = this.x;
         const shoulderY = headY + headRadius + 5;
         const upperArmLength = armLength * 0.5;
         const lowerArmLength = armLength * 0.5;
-        // 左腕
+  
         const baseLeftArmAngle = Math.PI + armSwing;
         const leftElbowX = shoulderX + upperArmLength * Math.cos(baseLeftArmAngle);
         const leftElbowY = shoulderY + upperArmLength * Math.sin(baseLeftArmAngle);
         const lowerLeftArmAngle = baseLeftArmAngle - (Math.PI / 6);
         const leftHandX = leftElbowX + lowerArmLength * Math.cos(lowerLeftArmAngle);
         const leftHandY = leftElbowY + lowerArmLength * Math.sin(lowerLeftArmAngle);
+  
         ctx.beginPath();
         ctx.moveTo(shoulderX, shoulderY);
         ctx.lineTo(leftElbowX, leftElbowY);
         ctx.lineTo(leftHandX, leftHandY);
         ctx.stroke();
         ctx.closePath();
-        // 右腕
+  
         const baseRightArmAngle = armSwing;
         const rightElbowX = shoulderX + upperArmLength * Math.cos(baseRightArmAngle);
         const rightElbowY = shoulderY + upperArmLength * Math.sin(baseRightArmAngle);
         const lowerRightArmAngle = baseRightArmAngle + (Math.PI / 6);
         const rightHandX = rightElbowX + lowerArmLength * Math.cos(lowerRightArmAngle);
         const rightHandY = rightElbowY + lowerArmLength * Math.sin(lowerRightArmAngle);
+  
         ctx.beginPath();
         ctx.moveTo(shoulderX, shoulderY);
         ctx.lineTo(rightElbowX, rightElbowY);
         ctx.lineTo(rightHandX, rightHandY);
         ctx.stroke();
         ctx.closePath();
-        
-        // 脚（膝が曲がる構造）
+  
+        // 脚（膝で曲がる構造）
         const hipX = this.x;
         const hipY = this.y;
         const upperLegLength = legLength * 0.5;
         const lowerLegLength = legLength * 0.5;
-        // 左脚
+  
         const baseLeftLegAngle = Math.PI / 2 + legSwing;
         const leftKneeX = hipX + upperLegLength * Math.cos(baseLeftLegAngle);
         const leftKneeY = hipY + upperLegLength * Math.sin(baseLeftLegAngle);
         const lowerLeftLegAngle = baseLeftLegAngle - (Math.PI / 8);
         const leftFootX = leftKneeX + lowerLegLength * Math.cos(lowerLeftLegAngle);
         const leftFootY = leftKneeY + lowerLegLength * Math.sin(lowerLeftLegAngle);
+  
         ctx.beginPath();
         ctx.moveTo(hipX, hipY);
         ctx.lineTo(leftKneeX, leftKneeY);
         ctx.lineTo(leftFootX, leftFootY);
         ctx.stroke();
         ctx.closePath();
-        // 右脚
+  
         const baseRightLegAngle = Math.PI / 2 - legSwing;
         const rightKneeX = hipX + upperLegLength * Math.cos(baseRightLegAngle);
         const rightKneeY = hipY + upperLegLength * Math.sin(baseRightLegAngle);
         const lowerRightLegAngle = baseRightLegAngle + (Math.PI / 8);
         const rightFootX = rightKneeX + lowerLegLength * Math.cos(lowerRightLegAngle);
         const rightFootY = rightKneeY + lowerLegLength * Math.sin(lowerRightLegAngle);
+  
         ctx.beginPath();
         ctx.moveTo(hipX, hipY);
         ctx.lineTo(rightKneeX, rightKneeY);
@@ -232,7 +300,7 @@
         ctx.closePath();
       }
     }
-
+    
     function animate(now) {
       const dt = (now - lastTime) / 1000;
       lastTime = now;
@@ -243,9 +311,9 @@
       }
       requestAnimationFrame(animate);
     }
-
+    
     function startGame() {
-      // キャンバスサイズと変形状態のリセット
+      // キャンバスサイズと状態のリセット
       canvas.width = 800;
       canvas.height = 600;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -263,9 +331,10 @@
       lastTime = performance.now();
       requestAnimationFrame(animate);
     }
-
+    
     startButton.addEventListener('click', startGame);
-
+    
+    // 回答送信時の処理（難易度調整と新問題開始）
     submitAnswer.addEventListener('click', () => {
       const userAnswer = parseInt(answerInput.value);
       if (userAnswer === actualCount) {
@@ -277,8 +346,45 @@
       }
       answerInput.value = "";
       levelDisplay.textContent = `難易度レベル：${currentLevel}`;
-      // 新たな問題を開始（アニメーションは継続）
       startGame();
+    });
+    
+    // ===== 棒人間タップで頭を赤くする =====
+    canvas.addEventListener('click', (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const clickY = event.clientY - rect.top;
+      // 各棒人間のヘッド（円）の中心をチェック
+      stickFigures.forEach(figure => {
+        const headRadius = 10;
+        const bodyLength = 30;
+        const headX = figure.x;
+        const headY = figure.y - bodyLength - headRadius;
+        const dist = Math.sqrt(Math.pow(clickX - headX, 2) + Math.pow(clickY - headY, 2));
+        if (dist <= headRadius) {
+          figure.headColor = "red";
+        }
+      });
+    });
+    
+    // ===== 電卓入力用コード =====
+    const calcButtons = document.querySelectorAll('.calc-btn');
+    calcButtons.forEach(btn => {
+      if (btn.id === 'calcClear') {
+        btn.addEventListener('click', () => {
+          answerInput.value = "";
+        });
+        return;
+      }
+      if (btn.id === 'calcEquals') {
+        btn.addEventListener('click', () => {
+          submitAnswer.click(); // "="で回答送信
+        });
+        return;
+      }
+      btn.addEventListener('click', () => {
+        answerInput.value += btn.getAttribute('data-value');
+      });
     });
   </script>
 </body>
