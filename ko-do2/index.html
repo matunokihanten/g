@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>コードエディタ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-bottom: 1px solid #ccc;
+    }
+    .controls input[type="text"] {
+      padding: 5px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    .controls button {
+      padding: 5px 10px;
+      border: none;
+      background-color: #007acc;
+      color: #fff;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .controls button:hover {
+      background-color: #005fa3;
+    }
+    .editor-container {
+      display: flex;
+      height: calc(100vh - 120px);
+      border-top: 1px solid #ccc;
+    }
+    .line-numbers {
+      background-color: #f0f0f0;
+      padding: 10px;
+      text-align: right;
+      user-select: none;
+      min-width: 40px;
+      border-right: 1px solid #ddd;
+      font-family: monospace;
+    }
+    .code-editor {
+      flex: 1;
+      padding: 10px;
+      outline: none;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      font-family: monospace;
+    }
+    mark {
+      background-color: purple;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>コードエディタ</h1>
+  </header>
+  
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="検索キーワード">
+    <button id="saveBtn">保存</button>
+    <button id="clearBtn">クリア</button>
+  </div>
+  
+  <div class="editor-container">
+    <div class="line-numbers" id="lineNumbers">1</div>
+    <div class="code-editor" id="codeEditor" contenteditable="true"></div>
+  </div>
+  
+  <script>
+    // エディタ内のプレーンテキストを保存するグローバル変数
+    let baseContent = "";
+
+    // DOM 要素の取得
+    const codeEditor = document.getElementById("codeEditor");
+    const lineNumbers = document.getElementById("lineNumbers");
+    const searchInput = document.getElementById("searchInput");
+    const saveBtn = document.getElementById("saveBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    // HTMLエスケープ関数：特殊文字を変換する
+    function escapeHTML(str) {
+      return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+
+    // 行番号の更新関数
+    function updateLineNumbers() {
+      const text = codeEditor.innerText || "";
+      const numberOfLines = text.split(/\r\n|\r|\n/).length;
+      let numbersHTML = "";
+      for (let i = 1; i <= numberOfLines; i++) {
+        numbersHTML += i + "<br>";
+      }
+      lineNumbers.innerHTML = numbersHTML;
+    }
+
+    // 検索・ハイライト適用関数（エスケープ済みテキストから変換）
+    function applySearchHighlighting() {
+      const keyword = searchInput.value;
+      // baseContent を HTML エスケープして安全な文字列とする
+      const safeText = escapeHTML(baseContent);
+      
+      if (!keyword) {
+        // キーワードが空の場合、プレーンテキストとして表示
+        codeEditor.textContent = baseContent;
+      } else {
+        // 正規表現の特殊文字をエスケープしてから検索
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedKeyword, "gi");
+        // エスケープ済みテキストに対して <mark> タグを適用
+        const highlightedText = safeText.replace(regex, (match) => `<mark>${match}</mark>`);
+        codeEditor.innerHTML = highlightedText;
+      }
+      updateLineNumbers();
+    }
+
+    // エディタ内での入力や貼付け時の処理
+    function handleEditorInput() {
+      // baseContent にプレーンテキストとして保存
+      baseContent = codeEditor.innerText;
+      applySearchHighlighting();
+    }
+
+    // イベントリスナーの設定
+    codeEditor.addEventListener("input", handleEditorInput);
+    codeEditor.addEventListener("paste", function() {
+      setTimeout(handleEditorInput, 0);
+    });
+    searchInput.addEventListener("input", applySearchHighlighting);
+
+    // 保存処理
+    saveBtn.addEventListener("click", function() {
+      const htmlTagRegex = /<[^>]+>/;
+      let fileContent = "";
+      const filename = "output.html";
+
+      if (htmlTagRegex.test(baseContent)) {
+        fileContent = baseContent;
+      } else {
+        fileContent = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body { font-family: monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <pre>${baseContent}</pre>
+</body>
+</html>`;
+      }
+      
+      const blob = new Blob([fileContent], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+
+    // クリア処理
+    clearBtn.addEventListener("click", function() {
+      if (confirm("本当に全ての内容を削除してもよろしいですか？")) {
+        baseContent = "";
+        codeEditor.textContent = "";
+        updateLineNumbers();
+      }
+    });
+
+    // 初期状態の行番号更新
+    updateLineNumbers();
+  </script>
+</body>
+</html>
