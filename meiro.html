@@ -2,492 +2,382 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <!-- ズーム無効化・固定のためのmetaタグ -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- Google Fonts: Noto Sans JP -->
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
-  <title>シンプル迷路ゲーム</title>
+  <title>迷路ゲーム（スワイプ＆傾き操作対応 / 解答は太い赤線）</title>
   <style>
-    /* 全体の背景とフォント */
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: linear-gradient(to bottom, #74ebd5, #ACB6E5);
-      font-family: 'Noto Sans JP', sans-serif;
-      touch-action: manipulation;
-    }
-    /* ゲーム全体のコンテナ：幅100%、最大800px、中央寄せ */
-    /* transform はJSで更新するため初期値を与える */
-    #gameContainer {
-      width: 100%;
-      max-width: 800px;
-      margin: 30px auto;
-      transform-origin: top center;
-      /* 初期は90%に縮小（10%縮小） */
-      transform: scale(0.9);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background-color: rgba(255,255,255,0.92);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    /* ズーム操作用コントロール（上部に配置） */
-    #zoomControls {
-      margin-bottom: 20px;
-    }
-    #zoomControls button {
-      margin: 0 10px;
-      font-size: 16px;
-      background-color: #4CAF50;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 20px;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      transition: background-color 0.2s;
-    }
-    #zoomControls button:hover {
-      background-color: #45a049;
-    }
-    /* キャンバス：HTML属性で800×800、CSSでレスポンシブ表示 */
-    canvas {
-      width: 100%;
-      height: auto;
-      background: #fff;
-      border: 2px solid #333;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      border-radius: 8px;
-    }
-    /* 操作パネル */
-    #controls {
-      margin-top: 20px;
+    body {
+      font-family: sans-serif;
       text-align: center;
-      width: 100%;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 20px;
     }
-    .control-group {
-      margin: 10px;
-    }
-    /* スライダーおよびラベル */
-    #difficultySlider {
-      width: 250px;
-      margin-right: 10px;
-      vertical-align: middle;
-    }
-    #difficultyLabel {
-      font-size: 16px;
-      vertical-align: middle;
-    }
-    /* 共通のボタンスタイル */
-    button {
-      background-color: #4CAF50;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    /* 十字キー領域 */
-    #dpad {
+    #mazeCanvas {
+      border: 2px solid #000;
+      background-color: #fff;
       margin-top: 20px;
-      display: grid;
-      grid-template-columns: 100px 100px 100px;
-      grid-template-rows: 100px 100px 100px;
-      grid-template-areas: 
-        ". up ."
-        "left . right"
-        ". down .";
-      gap: 10px;
-      justify-content: center;
-      width: 100%;
+      touch-action: none; /* タッチ操作によるスクロールを防止 */
     }
-    /* 配置指定 */
-    #upBtn { grid-area: up; }
-    #downBtn { grid-area: down; }
-    #leftBtn { grid-area: left; }
-    #rightBtn { grid-area: right; }
-    /* 十字キー用ボタン */
-    #dpad button {
-      width: 100%;
-      height: 100%;
-      font-size: 28px;
+    button, select {
+      margin-top: 20px;
+      font-size: 16px;
+      padding: 10px;
     }
   </style>
 </head>
 <body>
-  <div id="gameContainer">
-    <!-- ズーム操作用ボタンを迷路の上部に表示 -->
-    <div class="control-group" id="zoomControls">
-      <button id="zoomOutBtn">ズームアウト</button>
-      <button id="zoomInBtn">ズームイン</button>
-    </div>
-    <!-- 迷路描画用キャンバス (800×800px) -->
-    <canvas id="mazeCanvas" width="800" height="800"></canvas>
-    <!-- 操作パネル -->
-    <div id="controls">
-      <div class="control-group">
-        <input type="range" id="difficultySlider" min="1" max="100" value="1">
-        <span id="difficultyLabel">Difficulty: 1 (5x5)</span>
-        <button id="newMazeBtn">新しい迷路</button>
-        <button id="autoSolveBtn">答え</button>
-      </div>
-      <div class="control-group" id="dpad">
-        <button id="upBtn">↑</button>
-        <button id="leftBtn">←</button>
-        <button id="rightBtn">→</button>
-        <button id="downBtn">↓</button>
-      </div>
-    </div>
-  </div>
+  <h1>迷路ゲーム（スワイプ＆傾き操作対応 / 解答は太い赤線）</h1>
+  
+  <label for="difficulty">難易度レベル:</label>
+  <select id="difficulty">
+    <option value="easy">簡単</option>
+    <option value="medium" selected>普通</option>
+    <option value="hard">難しい</option>
+  </select>
+  <br>
+  <button id="generateBtn">新しい迷路</button>
+  <button id="solveBtn">答え</button>
+  <br>
+  <canvas id="mazeCanvas" width="600" height="600"></canvas>
+  
   <script>
-    // ────────────── グローバル変数 ──────────────
-    const canvas = document.getElementById('mazeCanvas');
-    const ctx = canvas.getContext('2d');
-    const gameContainer = document.getElementById('gameContainer');
+    // グローバル変数
+    let cols, rows, cellSize;
     let grid = [];
-    let rows = 5, cols = 5;              // 初期は5×5のグリッド
-    let cellSize = canvas.width / cols;  // セル1つあたりのサイズ
-    let currentCell = null;
-    let stack = [];                      // DFS用スタック
-    let manualTrail = [];                // 手動移動経路（青）
-    let autoTrail = [];                  // 自動解答経路（赤）
-    let autoSolutionPath = [];           // BFSで計算した最短経路
-    let autoSolving = false;             // 自動解答中フラグ
-    let autoStepDelay = 200;             // 自動解答時の移動間隔（ミリ秒）
-    let lastAutoMoveTime = 0;
-    let autoIndex = 0;
-    let difficulty = 1;                  // 現在の難易度
-    // ズームレベル（初期は0.9＝10%縮小）
-    let zoomLevel = 0.9;
+    let stack = [];
+    let mazeGenerated = false;
+    let player = { col: 0, row: 0 };
+    let finish = { col: 0, row: 0 };
 
-    // ────────────── UI 要素 ──────────────
-    const difficultySlider = document.getElementById('difficultySlider');
-    const difficultyLabel = document.getElementById('difficultyLabel');
-    const newMazeBtn = document.getElementById('newMazeBtn');
-    const autoSolveBtn = document.getElementById('autoSolveBtn');
-    const upBtn = document.getElementById('upBtn');
-    const downBtn = document.getElementById('downBtn');
-    const leftBtn = document.getElementById('leftBtn');
-    const rightBtn = document.getElementById('rightBtn');
-    const zoomInBtn = document.getElementById('zoomInBtn');
-    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const canvas = document.getElementById("mazeCanvas");
+    const ctx = canvas.getContext("2d");
 
-    // ────────────── タッチ/クリックイベントのユーティリティ ──────────────
-    function addButtonListener(el, callback) {
-      el.addEventListener('click', callback);
-      el.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        callback();
-      }, { passive: false });
+    // タッチ操作用の変数
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    // セルのクラス
+    class Cell {
+      constructor(col, row) {
+        this.col = col;
+        this.row = row;
+        this.walls = { top: true, right: true, bottom: true, left: true };
+        this.visited = false;
+      }
+      get x() {
+        return this.col * cellSize;
+      }
+      get y() {
+        return this.row * cellSize;
+      }
+      // セルを描画（壁の描画と、訪問済みセルは薄い色で塗る）
+      draw() {
+        let x = this.x;
+        let y = this.y;
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        if (this.walls.top) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + cellSize, y);
+          ctx.stroke();
+        }
+        if (this.walls.right) {
+          ctx.beginPath();
+          ctx.moveTo(x + cellSize, y);
+          ctx.lineTo(x + cellSize, y + cellSize);
+          ctx.stroke();
+        }
+        if (this.walls.bottom) {
+          ctx.beginPath();
+          ctx.moveTo(x + cellSize, y + cellSize);
+          ctx.lineTo(x, y + cellSize);
+          ctx.stroke();
+        }
+        if (this.walls.left) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + cellSize);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+        if (this.visited) {
+          ctx.fillStyle = "#d3e0ea";
+          ctx.fillRect(x, y, cellSize, cellSize);
+        }
+      }
+      // 未訪問の隣接セルをランダムに返す
+      checkNeighbors() {
+        let neighbors = [];
+        let top    = index(this.col, this.row - 1);
+        let right  = index(this.col + 1, this.row);
+        let bottom = index(this.col, this.row + 1);
+        let left   = index(this.col - 1, this.row);
+        if (top && !top.visited)    neighbors.push(top);
+        if (right && !right.visited) neighbors.push(right);
+        if (bottom && !bottom.visited) neighbors.push(bottom);
+        if (left && !left.visited)   neighbors.push(left);
+        if (neighbors.length > 0) {
+          return neighbors[Math.floor(Math.random() * neighbors.length)];
+        } else {
+          return undefined;
+        }
+      }
     }
-
-    // ズーム更新用関数
-    function updateZoom() {
-      gameContainer.style.transform = "scale(" + zoomLevel + ")";
+    
+    // 指定された (col, row) のセルを返す。範囲外なら undefined
+    function index(col, row) {
+      if (col < 0 || row < 0 || col >= cols || row >= rows) return undefined;
+      return grid[col + row * cols];
     }
-
-    // ────────────── セルオブジェクトと迷路生成 ──────────────
-    function Cell(row, col) {
-      this.row = row;
-      this.col = col;
-      this.walls = { top: true, right: true, bottom: true, left: true };
-      this.visited = false;
-    }
-
-    function getUnvisitedNeighbors(cell) {
-      const neighbors = [];
-      const { row, col } = cell;
-      if (row > 0 && !grid[row - 1][col].visited) neighbors.push(grid[row - 1][col]);
-      if (col < cols - 1 && !grid[row][col + 1].visited) neighbors.push(grid[row][col + 1]);
-      if (row < rows - 1 && !grid[row + 1][col].visited) neighbors.push(grid[row + 1][col]);
-      if (col > 0 && !grid[row][col - 1].visited) neighbors.push(grid[row][col - 1]);
-      return neighbors;
-    }
-
-    function removeWalls(current, next) {
-      let x = current.col - next.col;
-      let y = current.row - next.row;
+    
+    // 2つのセル間の壁を削除する
+    function removeWalls(a, b) {
+      let x = a.col - b.col;
       if (x === 1) {
-        current.walls.left = false;
-        next.walls.right = false;
+        a.walls.left = false;
+        b.walls.right = false;
       } else if (x === -1) {
-        current.walls.right = false;
-        next.walls.left = false;
+        a.walls.right = false;
+        b.walls.left = false;
       }
+      let y = a.row - b.row;
       if (y === 1) {
-        current.walls.top = false;
-        next.walls.bottom = false;
+        a.walls.top = false;
+        b.walls.bottom = false;
       } else if (y === -1) {
-        current.walls.bottom = false;
-        next.walls.top = false;
+        a.walls.bottom = false;
+        b.walls.top = false;
       }
     }
-
+    
+    // 難易度に応じたセルサイズの決定（セルが小さいほど区画数が多くなる）
+    function getCellSizeByDifficulty() {
+      let difficulty = document.getElementById("difficulty").value;
+      if (difficulty === "easy")      return 40;
+      else if (difficulty === "medium") return 20;
+      else if (difficulty === "hard")   return 10;
+    }
+    
+    // 迷路を即時生成する（while ループで全セルを訪問）
     function generateMaze() {
+      cellSize = getCellSizeByDifficulty();
+      cols = Math.floor(canvas.width / cellSize);
+      rows = Math.floor(canvas.height / cellSize);
       grid = [];
       stack = [];
-      manualTrail = [];
-      autoTrail = [];
-      autoSolutionPath = [];
-      autoSolving = false;
-      autoIndex = 0;
-      
-      // 難易度スライダーの値に合わせたグリッドサイズ：難易度1→5×5、難易度100→約100×100
-      cols = rows = Math.floor(5 + ((difficulty - 1) / 99) * 95);
-      cellSize = canvas.width / cols;
-      
-      for (let r = 0; r < rows; r++) {
-        grid[r] = [];
-        for (let c = 0; c < cols; c++) {
-          grid[r][c] = new Cell(r, c);
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          grid.push(new Cell(col, row));
         }
       }
-      
-      currentCell = grid[0][0];
-      currentCell.visited = true;
-      manualTrail.push(getCellCenter(currentCell));
-      
-      stack.push(currentCell);
-      while (stack.length > 0) {
-        let current = stack[stack.length - 1];
-        let neighbors = getUnvisitedNeighbors(current);
-        if (neighbors.length > 0) {
-          let next = neighbors[Math.floor(Math.random() * neighbors.length)];
-          next.visited = true;
+      let current = grid[0];
+      while (true) {
+        current.visited = true;
+        let next = current.checkNeighbors();
+        if (next) {
+          stack.push(current);
           removeWalls(current, next);
-          stack.push(next);
+          current = next;
+        } else if (stack.length > 0) {
+          current = stack.pop();
         } else {
-          stack.pop();
+          break;
         }
       }
+      // プレイヤーとゴールの初期設定
+      mazeGenerated = true;
+      player = { col: 0, row: 0 };
+      finish = { col: cols - 1, row: rows - 1 };
+      drawGame();
     }
-
-    function getCellCenter(cell) {
-      return {
-        x: cell.col * cellSize + cellSize / 2,
-        y: cell.row * cellSize + cellSize / 2
-      };
-    }
-
-    // ────────────── 描画関数 ──────────────
+    
+    // 各セルを描画
     function drawMaze() {
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 2;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const cell = grid[r][c];
-          const x = c * cellSize;
-          const y = r * cellSize;
-          if (cell.walls.top) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + cellSize, y);
-            ctx.stroke();
-          }
-          if (cell.walls.right) {
-            ctx.beginPath();
-            ctx.moveTo(x + cellSize, y);
-            ctx.lineTo(x + cellSize, y + cellSize);
-            ctx.stroke();
-          }
-          if (cell.walls.bottom) {
-            ctx.beginPath();
-            ctx.moveTo(x + cellSize, y + cellSize);
-            ctx.lineTo(x, y + cellSize);
-            ctx.stroke();
-          }
-          if (cell.walls.left) {
-            ctx.beginPath();
-            ctx.moveTo(x, y + cellSize);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-          }
-        }
+      for (let cell of grid) {
+        cell.draw();
       }
     }
-
-    function drawGoal() {
-      ctx.fillStyle = 'red';
-      ctx.fillRect((cols - 1) * cellSize + 2, (rows - 1) * cellSize + 2, cellSize - 4, cellSize - 4);
+    
+    // ゴールセルを薄い緑色で描画
+    function drawFinish() {
+      let x = finish.col * cellSize;
+      let y = finish.row * cellSize;
+      ctx.fillStyle = "#badc58";
+      ctx.fillRect(x, y, cellSize, cellSize);
     }
-
-    function drawManualTrail() {
-      if (manualTrail.length < 2) return;
-      ctx.strokeStyle = 'blue';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(manualTrail[0].x, manualTrail[0].y);
-      for (let i = 1; i < manualTrail.length; i++) {
-        ctx.lineTo(manualTrail[i].x, manualTrail[i].y);
-      }
-      ctx.stroke();
-    }
-
-    function drawAutoTrail() {
-      if (autoTrail.length < 2) return;
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(autoTrail[0].x, autoTrail[0].y);
-      for (let i = 1; i < autoTrail.length; i++) {
-        ctx.lineTo(autoTrail[i].x, autoTrail[i].y);
-      }
-      ctx.stroke();
-    }
-
+    
+    // プレイヤー（赤丸）の描画
     function drawPlayer() {
-      let center = getCellCenter(currentCell);
-      ctx.fillStyle = 'blue';
-      let headRadius = cellSize * 0.2;
-      // 頭（円）
+      let x = player.col * cellSize + cellSize / 2;
+      let y = player.row * cellSize + cellSize / 2;
+      ctx.fillStyle = "#e55039";
       ctx.beginPath();
-      ctx.arc(center.x, center.y - headRadius, headRadius, 0, Math.PI * 2);
+      ctx.arc(x, y, cellSize / 3, 0, Math.PI * 2);
       ctx.fill();
-      // 体（線）
-      ctx.beginPath();
-      ctx.moveTo(center.x, center.y);
-      ctx.lineTo(center.x, center.y + headRadius * 2);
-      ctx.strokeStyle = 'blue';
-      ctx.lineWidth = 3;
-      ctx.stroke();
     }
-
-    function gameLoop(timestamp) {
+    
+    // ゲーム全体の再描画
+    function drawGame() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawMaze();
-      drawGoal();
-      drawManualTrail();
-      drawAutoTrail();
+      drawFinish();
       drawPlayer();
-      if (autoSolving) {
-        updateAutoSolve(timestamp);
-      }
-      requestAnimationFrame(gameLoop);
     }
-
-    function updateAutoSolve(timestamp) {
-      if (!lastAutoMoveTime) lastAutoMoveTime = timestamp;
-      if (timestamp - lastAutoMoveTime > autoStepDelay && autoIndex < autoSolutionPath.length) {
-        currentCell = autoSolutionPath[autoIndex];
-        autoTrail.push(getCellCenter(currentCell));
-        manualTrail.push(getCellCenter(currentCell));
-        autoIndex++;
-        lastAutoMoveTime = timestamp;
-        if (autoIndex >= autoSolutionPath.length) {
-          autoSolving = false;
-        }
-      }
-    }
-
-    // 壁がない場合、指定方向へ移動
-    function movePlayer(direction) {
-      if (autoSolving) return;
-      let nextCell = null;
-      const { row, col } = currentCell;
-      if (direction === 'up' && !currentCell.walls.top && row > 0) {
-        nextCell = grid[row - 1][col];
-      } else if (direction === 'right' && !currentCell.walls.right && col < cols - 1) {
-        nextCell = grid[row][col + 1];
-      } else if (direction === 'down' && !currentCell.walls.bottom && row < rows - 1) {
-        nextCell = grid[row + 1][col];
-      } else if (direction === 'left' && !currentCell.walls.left && col > 0) {
-        nextCell = grid[row][col - 1];
-      }
-      if (nextCell) {
-        currentCell = nextCell;
-        manualTrail.push(getCellCenter(currentCell));
-      }
-    }
-
-    function autoSolve() {
-      autoSolutionPath = [];
-      autoTrail = [];
-      autoIndex = 0;
-      autoSolving = false;
-
-      let start = currentCell;
-      let goal = grid[rows - 1][cols - 1];
-      let queue = [];
-      let cameFrom = new Map();
-
-      queue.push(start);
-      cameFrom.set(start, null);
-
+    
+    // 「答え」ボタン：BFSで最短経路を求め、太い赤い線を引いて経路表示
+    function solveMaze() {
+      if (!mazeGenerated) return;
+      const start = grid[0];
+      const goal = grid[cols * rows - 1];
+      let queue = [start];
+      let cameFrom = {};
+      cameFrom[start.col + "_" + start.row] = null;
+      
       while (queue.length > 0) {
         let current = queue.shift();
         if (current === goal) break;
-        const { row, col } = current;
-        let neighbors = [];
-        if (!current.walls.top && row > 0) neighbors.push(grid[row - 1][col]);
-        if (!current.walls.right && col < cols - 1) neighbors.push(grid[row][col + 1]);
-        if (!current.walls.bottom && row < rows - 1) neighbors.push(grid[row + 1][col]);
-        if (!current.walls.left && col > 0) neighbors.push(grid[row][col - 1]);
-        for (let neighbor of neighbors) {
-          if (!cameFrom.has(neighbor)) {
+        // 上方向
+        if (!current.walls.top) {
+          let neighbor = index(current.col, current.row - 1);
+          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
+            cameFrom[neighbor.col + "_" + neighbor.row] = current;
             queue.push(neighbor);
-            cameFrom.set(neighbor, current);
+          }
+        }
+        // 右方向
+        if (!current.walls.right) {
+          let neighbor = index(current.col + 1, current.row);
+          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
+            cameFrom[neighbor.col + "_" + neighbor.row] = current;
+            queue.push(neighbor);
+          }
+        }
+        // 下方向
+        if (!current.walls.bottom) {
+          let neighbor = index(current.col, current.row + 1);
+          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
+            cameFrom[neighbor.col + "_" + neighbor.row] = current;
+            queue.push(neighbor);
+          }
+        }
+        // 左方向
+        if (!current.walls.left) {
+          let neighbor = index(current.col - 1, current.row);
+          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
+            cameFrom[neighbor.col + "_" + neighbor.row] = current;
+            queue.push(neighbor);
           }
         }
       }
-
+      
+      // ゴールからスタートまで経路をたどり、逆順に配列化
       let path = [];
-      let current = goal;
-      while (current !== null) {
-        path.push(current);
-        current = cameFrom.get(current);
+      let curr = goal;
+      while (curr !== null) {
+        path.push(curr);
+        curr = cameFrom[curr.col + "_" + curr.row];
       }
       path.reverse();
-      autoSolutionPath = path;
-      if (autoSolutionPath.length > 0) {
-        autoSolving = true;
-        autoTrail.push(getCellCenter(currentCell));
-        lastAutoMoveTime = 0;
-        autoIndex = 1;
+      
+      // ゲームの描画を更新したうえで、解答経路を太い赤い線で描画
+      drawGame();
+      ctx.beginPath();
+      // 経路上の各セルの中心座標に沿って線を引く
+      ctx.moveTo(path[0].col * cellSize + cellSize/2, path[0].row * cellSize + cellSize/2);
+      for (let i = 1; i < path.length; i++) {
+        let x = path[i].col * cellSize + cellSize/2;
+        let y = path[i].row * cellSize + cellSize/2;
+        ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 4;  // 太さを指定
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    
+    // 共通の移動処理
+    function movePlayer(direction) {
+      let currentCell = index(player.col, player.row);
+      if (direction === "up") {
+        if (!currentCell.walls.top && player.row > 0) player.row--;
+      } else if (direction === "down") {
+        if (!currentCell.walls.bottom && player.row < rows - 1) player.row++;
+      } else if (direction === "left") {
+        if (!currentCell.walls.left && player.col > 0) player.col--;
+      } else if (direction === "right") {
+        if (!currentCell.walls.right && player.col < cols - 1) player.col++;
+      }
+      drawGame();
+      if (player.col === finish.col && player.row === finish.row) {
+        setTimeout(() => alert("クリア！"), 100);
       }
     }
-
-    difficultySlider.addEventListener('input', function() {
-      difficulty = parseInt(this.value);
-      const gridSize = Math.floor(5 + ((difficulty - 1) / 99) * 95);
-      difficultyLabel.textContent = `Difficulty: ${difficulty} (${gridSize}x${gridSize})`;
+    
+    // キーボード操作
+    document.addEventListener("keydown", function(e) {
+      if (!mazeGenerated) return;
+      if (e.key === "ArrowUp") movePlayer("up");
+      else if (e.key === "ArrowDown") movePlayer("down");
+      else if (e.key === "ArrowLeft") movePlayer("left");
+      else if (e.key === "ArrowRight") movePlayer("right");
     });
-
-    addButtonListener(newMazeBtn, generateMaze);
-    addButtonListener(autoSolveBtn, autoSolve);
-    addButtonListener(upBtn, () => movePlayer('up'));
-    addButtonListener(downBtn, () => movePlayer('down'));
-    addButtonListener(leftBtn, () => movePlayer('left'));
-    addButtonListener(rightBtn, () => movePlayer('right'));
-
-    addButtonListener(zoomInBtn, () => {
-      zoomLevel += 0.1;  // 10%拡大
-      updateZoom();
+    
+    // スマホ向けスワイプ操作（touchstart / touchend）
+    canvas.addEventListener("touchstart", function(e) {
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }, {passive: false});
+    
+    canvas.addEventListener("touchend", function(e) {
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      const swipeThreshold = 30;
+      if (Math.abs(dx) < swipeThreshold && Math.abs(dy) < swipeThreshold) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) movePlayer("right");
+        else movePlayer("left");
+      } else {
+        if (dy > 0) movePlayer("down");
+        else movePlayer("up");
+      }
+    }, {passive: false});
+    
+    // デバイスオリエンテーションによる操作
+    let lastOrientationMove = 0;
+    const orientationInterval = 200; // ミリ秒単位の移動間隔
+    window.addEventListener("deviceorientation", function(event) {
+      const now = Date.now();
+      if (now - lastOrientationMove < orientationInterval) return;
+      const beta = event.beta;
+      const gamma = event.gamma;
+      const threshold = 15; // 15度以上の傾きで動作
+      
+      if (Math.abs(gamma) > Math.abs(beta)) {
+        if (gamma > threshold) {
+          movePlayer("right");
+          lastOrientationMove = now;
+        } else if (gamma < -threshold) {
+          movePlayer("left");
+          lastOrientationMove = now;
+        }
+      } else {
+        if (beta > threshold) {
+          movePlayer("down");
+          lastOrientationMove = now;
+        } else if (beta < -threshold) {
+          movePlayer("up");
+          lastOrientationMove = now;
+        }
+      }
     });
-    addButtonListener(zoomOutBtn, () => {
-      zoomLevel = Math.max(0.1, zoomLevel - 0.1);  // 10%縮小（下限は0.1）
-      updateZoom();
-    });
-
-    window.addEventListener('keydown', function(e) {
-      if (e.key === 'ArrowUp') movePlayer('up');
-      else if (e.key === 'ArrowRight') movePlayer('right');
-      else if (e.key === 'ArrowDown') movePlayer('down');
-      else if (e.key === 'ArrowLeft') movePlayer('left');
-    });
-
-    // 初期化してゲーム開始および初期ズーム設定
+    
+    // ボタンイベント
+    document.getElementById("generateBtn").addEventListener("click", generateMaze);
+    document.getElementById("solveBtn").addEventListener("click", solveMaze);
+    
+    // ページロード時に最初の迷路生成
     generateMaze();
-    updateZoom();
-    requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
