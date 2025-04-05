@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>数独ゲーム - 難易度・ヒント・Undo/Redo付き</title>
+  <title>数独ゲーム - PCはキーボード、スマホはキーパッド入力</title>
   <style>
     body {
       font-family: sans-serif;
@@ -16,7 +16,7 @@
       max-width: 400px;
       margin: 0 auto;
     }
-    /* ゲームオプション（難易度選択＆新規ゲーム） */
+    /* ゲームオプション：難易度選択＆新規ゲーム */
     #game-options {
       text-align: center;
       margin-bottom: 10px;
@@ -31,6 +31,7 @@
       border-collapse: collapse;
       margin: 10px auto;
     }
+    /* すべてのセルはデフォルト1pxの境界線 */
     td {
       width: 40px;
       height: 40px;
@@ -39,6 +40,7 @@
       vertical-align: middle;
       font-size: 18px;
     }
+    /* 入力欄：PCの場合は通常入力、スマホの場合はreadonlyでキーパッド専用 */
     input {
       width: 38px;
       height: 38px;
@@ -46,15 +48,21 @@
       outline: none;
       text-align: center;
       font-size: 18px;
-      /* ここで readonly にすることで、モバイルなどでのソフトキーボード表示を防ぎます */
       cursor: pointer;
     }
+    /* 固定セル */
     .prefilled {
       background-color: #eee;
       font-weight: bold;
     }
+    /* エラー表示 */
     .error {
       background-color: #f99;
+    }
+    /* 編集可能なセル（空欄）の<td>：選択時に太線で表示 */
+    td.editable {}
+    td.selected {
+      border: 3px solid #000;
     }
     /* 数字キーパッド用 */
     #keypad-container {
@@ -65,13 +73,13 @@
       border: none;
       padding: 5px;
     }
-    /* 通常の数字ボタン */
+    /* 数字ボタン（通常） */
     #keypad-table button.num-btn {
       width: 60px;
       height: 60px;
       font-size: 20px;
     }
-    /* クリアボタンは横いっぱいに */
+    /* クリアボタン：横いっぱい */
     #keypad-table #clearBtn {
       width: 100%;
       height: 60px;
@@ -126,15 +134,14 @@
   </div>
 
   <script>
-    // グローバル変数
+    // デバイス判定：スマホなら isMobile = true、PCは false
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     let activeCell = null;
     let puzzleBoard, solvedBoard;
     let undoStack = [];
     let redoStack = [];
 
     // --- 盤面生成用ヘルパー関数 --- //
-
-    // フィッシャー–イェーツアルゴリズムで配列をシャッフル
     function shuffleArray(arr) {
       for (let i = arr.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1));
@@ -143,7 +150,6 @@
       return arr;
     }
 
-    // 指定位置に num を配置可能かチェック
     function isValid(board, row, col, num) {
       for (let i = 0; i < 9; i++) {
         if (board[row][i] === num) return false;
@@ -161,12 +167,11 @@
       return true;
     }
 
-    // 盤面をランダムな順序で再帰的に埋める（完全な解答盤面を生成）
     function fillBoard(board) {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           if (board[row][col] === 0) {
-            let numbers = shuffleArray([1,2,3,4,5,6,7,8,9]);
+            let numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
             for (let num of numbers) {
               if (isValid(board, row, col, num)) {
                 board[row][col] = num;
@@ -183,7 +188,6 @@
       return true;
     }
 
-    // 完全な解答盤面を生成
     function generateCompleteBoard() {
       let board = [];
       for (let i = 0; i < 9; i++) {
@@ -193,7 +197,6 @@
       return board;
     }
 
-    // 完全解答盤面から指定セル数を空にしてパズルを作成
     function generatePuzzle(solvedBoard, removalCount) {
       let puzzle = solvedBoard.map(row => row.slice());
       let removed = 0;
@@ -208,19 +211,50 @@
       return puzzle;
     }
 
-    // --- ゲーム初期化・表示 --- //
+    // --- セル選択用関数 --- //
+    function selectCell(input) {
+      activeCell = input;
+      // 既に選択中のセルから selected クラスを除去
+      const selectedCells = document.querySelectorAll("td.editable.selected");
+      selectedCells.forEach(function(td) {
+        td.classList.remove("selected");
+      });
+      // クリックされたセルの親 <td> に selected クラスを追加
+      input.parentElement.classList.add("selected");
+      // PCの場合は、現在の値を記録（キーボード入力用）
+      if (!isMobile) {
+        input.lastValue = input.value;
+      }
+    }
 
-    // 難易度セレクトの値をもとに新しいパズルと解答盤面を生成
+    // --- PC用：キーボード入力処理 ---
+    function processKeyboardInput(el) {
+      // 数字以外を排除
+      const newValue = el.value.replace(/[^1-9]/g, '');
+      if (el.value !== newValue) {
+        el.value = newValue;
+      }
+      if (el.lastValue === undefined) {
+        el.lastValue = "";
+      }
+      if (newValue !== el.lastValue) {
+        // キーボード入力時の変更もUndoスタックに記録
+        undoStack.push({ cellId: el.id, prev: el.lastValue, next: newValue });
+        redoStack = [];
+        el.lastValue = newValue;
+      }
+    }
+
+    // --- ゲーム初期化・表示 --- //
     function initializeGame() {
       const removalCount = parseInt(document.getElementById("difficultySelect").value, 10);
       solvedBoard = generateCompleteBoard();
       puzzleBoard = generatePuzzle(solvedBoard, removalCount);
-      // クリア時は Undo/Redo スタックもリセット
+      // 新規ゲーム開始時にUndo/Redoスタックをリセット
       undoStack = [];
       redoStack = [];
     }
 
-    // 数独盤を HTML テーブルとして表示する
     function displayBoard() {
       const boardDiv = document.getElementById("sudoku-board");
       let html = "<table>";
@@ -231,9 +265,12 @@
           if (puzzleBoard[row][col] !== 0) {
             html += `<td class="prefilled">${puzzleBoard[row][col]}</td>`;
           } else {
-            // 入力セルは readonly にしているので、タップ時にソフトキーボードが表示されません
-            // onfocus と onclick で activeCell を設定
-            html += `<td><input type="text" id="${cellId}" maxlength="1" readonly onfocus="activeCell=this" onclick="activeCell=this"></td>`;
+            // PCならキーボード入力可能（readonly属性を付加しない）、スマホはreadonly
+            if (isMobile) {
+              html += `<td class="editable"><input type="text" id="${cellId}" maxlength="1" readonly onfocus="selectCell(this)" onclick="selectCell(this)"></td>`;
+            } else {
+              html += `<td class="editable"><input type="text" id="${cellId}" maxlength="1" onfocus="selectCell(this)" onclick="selectCell(this)" oninput="processKeyboardInput(this)"></td>`;
+            }
           }
         }
         html += "</tr>";
@@ -242,7 +279,7 @@
       boardDiv.innerHTML = html;
     }
 
-    // 数字キーパッド（電卓レイアウト＋クリアボタン）を生成
+    // --- 数字キーパッド --- //
     function createKeypad() {
       const keypadContainer = document.getElementById("keypad-container");
       let keypadHTML = '<table id="keypad-table">';
@@ -261,25 +298,27 @@
       keypadHTML += '<td><button class="num-btn" data-value="2">2</button></td>';
       keypadHTML += '<td><button class="num-btn" data-value="3">3</button></td>';
       keypadHTML += "</tr>";
-      // 0ボタンは削除し、クリアボタンを横いっぱいに配置
+      // 0ボタンは削除、代わりにクリアボタン
       keypadHTML += "<tr>";
       keypadHTML += '<td colspan="3"><button id="clearBtn">クリア</button></td>';
       keypadHTML += "</tr>";
       keypadHTML += "</table>";
       keypadContainer.innerHTML = keypadHTML;
 
-      // 数字ボタンを押すと、現在選択中のセルに値をセット（Undo/Redo 対象）
+      // キーパッドの数字ボタンによる入力（Undo/Redo 対象）
       const numButtons = document.querySelectorAll(".num-btn");
       numButtons.forEach(button => {
         button.addEventListener("click", function() {
           if (activeCell) {
             const newValue = this.getAttribute("data-value");
             if (activeCell.value !== newValue) {
-              // 変更前後の状態を Undo スタックに記録し、Redo はクリア
               undoStack.push({ cellId: activeCell.id, prev: activeCell.value, next: newValue });
               redoStack = [];
               activeCell.value = newValue;
               activeCell.classList.remove("error");
+              if (!isMobile) {
+                activeCell.lastValue = newValue; // PCの場合はlastValueも更新
+              }
             }
           }
         });
@@ -287,20 +326,19 @@
 
       // クリアボタンの処理
       document.getElementById("clearBtn").addEventListener("click", function() {
-        if (activeCell) {
-          if (activeCell.value !== "") {
-            undoStack.push({ cellId: activeCell.id, prev: activeCell.value, next: "" });
-            redoStack = [];
-            activeCell.value = "";
-            activeCell.classList.remove("error");
+        if (activeCell && activeCell.value !== "") {
+          undoStack.push({ cellId: activeCell.id, prev: activeCell.value, next: "" });
+          redoStack = [];
+          activeCell.value = "";
+          activeCell.classList.remove("error");
+          if (!isMobile) {
+            activeCell.lastValue = "";
           }
         }
       });
     }
 
-    // --- コントロールボタン用の関数 --- //
-
-    // ヒント：選択中のセルに正解をセット
+    // --- コントロールボタン --- //
     function provideHint() {
       if (!activeCell) {
         alert("ヒントを適用するセルを選択してください。");
@@ -315,10 +353,12 @@
         redoStack = [];
         activeCell.value = hintVal;
         activeCell.classList.remove("error");
+        if (!isMobile) {
+          activeCell.lastValue = hintVal;
+        }
       }
     }
 
-    // Undo：直前の操作を取り消す
     function doUndo() {
       if (undoStack.length === 0) {
         alert("これ以上戻せません。");
@@ -328,9 +368,11 @@
       const cell = document.getElementById(move.cellId);
       redoStack.push({ cellId: move.cellId, prev: cell.value, next: move.prev });
       cell.value = move.prev;
+      if (!isMobile) {
+        cell.lastValue = move.prev;
+      }
     }
 
-    // Redo：取り消した操作を再適用
     function doRedo() {
       if (redoStack.length === 0) {
         alert("これ以上進めません。");
@@ -340,13 +382,14 @@
       const cell = document.getElementById(move.cellId);
       undoStack.push({ cellId: move.cellId, prev: cell.value, next: move.next });
       cell.value = move.next;
+      if (!isMobile) {
+        cell.lastValue = move.next;
+      }
     }
 
-    // 答えチェック：ユーザー入力と正解を照合
     function checkAnswer() {
       const messageDiv = document.getElementById("message");
       let correct = true;
-      // すべての入力セルのエラー表示をリセット
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           const cellId = "cell-" + row + "-" + col;
@@ -372,7 +415,6 @@
       messageDiv.textContent = correct ? "おめでとうございます！正解です。" : "入力に誤りがあります。再度挑戦してください。";
     }
 
-    // 解答表示：すべての空セルに正解を表示する
     function showSolution() {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
@@ -381,6 +423,9 @@
             const input = document.getElementById(cellId);
             input.value = solvedBoard[row][col];
             input.classList.remove("error");
+            if (!isMobile) {
+              input.lastValue = String(solvedBoard[row][col]);
+            }
           }
         }
       }
@@ -388,18 +433,14 @@
     }
 
     // --- 初期化＆イベント設定 --- //
-
-    // 新規ゲーム開始時の処理
     function newGame() {
       initializeGame();
       displayBoard();
       createKeypad();
     }
 
-    // ページロード時の初期化
     newGame();
 
-    // 各ボタンのイベント設定
     document.getElementById("newGameBtn").addEventListener("click", newGame);
     document.getElementById("undoBtn").addEventListener("click", doUndo);
     document.getElementById("redoBtn").addEventListener("click", doRedo);
