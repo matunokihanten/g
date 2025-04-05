@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>数独ゲーム with キーパッド</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    #game-container {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    table {
+      border-collapse: collapse;
+      margin: 10px auto;
+    }
+    td {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #333;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 18px;
+    }
+    input {
+      width: 38px;
+      height: 38px;
+      border: none;
+      outline: none;
+      text-align: center;
+      font-size: 18px;
+    }
+    .prefilled {
+      background-color: #eee;
+      font-weight: bold;
+    }
+    .error {
+      background-color: #f99;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    /* 数字キーパッド用 */
+    #keypad-container {
+      margin: 20px auto;
+      text-align: center;
+    }
+    #keypad-table td {
+      border: none;
+      padding: 5px;
+    }
+    /* 通常の数字ボタン */
+    #keypad-table button.num-btn {
+      width: 60px;
+      height: 60px;
+      font-size: 20px;
+    }
+    /* クリアボタンは横長に */
+    #keypad-table #clearBtn {
+      width: 100%;
+      height: 60px;
+      font-size: 20px;
+    }
+    /* チェック・解答表示ボタン */
+    #control-buttons {
+      text-align: center;
+      margin-top: 10px;
+    }
+    #message {
+      text-align: center;
+      font-size: 18px;
+      margin-top: 10px;
+      min-height: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>数独ゲーム</h1>
+  <div id="game-container">
+    <!-- 数独盤 -->
+    <div id="sudoku-board"></div>
+    <!-- 数字キーパッド -->
+    <div id="keypad-container"></div>
+    <!-- 操作用ボタン -->
+    <div id="control-buttons">
+      <button id="checkBtn">答えをチェック</button>
+      <button id="solveBtn">答えを表示</button>
+    </div>
+    <div id="message"></div>
+  </div>
+
+  <script>
+    // グローバル変数：選択中のセル
+    let activeCell = null;
+
+    // 初期盤面（0 は空欄を示す）
+    const puzzleBoard = [
+      [5, 3, 0, 0, 7, 0, 0, 0, 0],
+      [6, 0, 0, 1, 9, 5, 0, 0, 0],
+      [0, 9, 8, 0, 0, 0, 0, 6, 0],
+      [8, 0, 0, 0, 6, 0, 0, 0, 3],
+      [4, 0, 0, 8, 0, 3, 0, 0, 1],
+      [7, 0, 0, 0, 2, 0, 0, 0, 6],
+      [0, 6, 0, 0, 0, 0, 2, 8, 0],
+      [0, 0, 0, 4, 1, 9, 0, 0, 5],
+      [0, 0, 0, 0, 8, 0, 0, 7, 9]
+    ];
+
+    // 数独の制約チェック（行・列・3×3ブロック内の重複確認）
+    function isValid(board, row, col, num) {
+      for (let i = 0; i < 9; i++) {
+        if (board[row][i] === num) return false;
+      }
+      for (let i = 0; i < 9; i++) {
+        if (board[i][col] === num) return false;
+      }
+      const startRow = Math.floor(row / 3) * 3;
+      const startCol = Math.floor(col / 3) * 3;
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          if (board[startRow + r][startCol + c] === num) return false;
+        }
+      }
+      return true;
+    }
+
+    // バックトラッキングによる数独解法
+    function solveSudoku(board) {
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          if (board[row][col] === 0) {
+            for (let num = 1; num <= 9; num++) {
+              if (isValid(board, row, col, num)) {
+                board[row][col] = num;
+                if (solveSudoku(board)) {
+                  return true;
+                }
+                board[row][col] = 0;
+              }
+            }
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    // 盤面のディープコピー作成
+    function copyBoard(board) {
+      return board.map(row => row.slice());
+    }
+
+    // 初期盤面の正解解答を計算して保存
+    let solvedBoard;
+    (function computeSolution() {
+      let boardCopy = copyBoard(puzzleBoard);
+      if (solveSudoku(boardCopy)) {
+        solvedBoard = boardCopy;
+      } else {
+        console.error("この盤面は解けません。");
+      }
+    })();
+
+    // 数独盤を HTML テーブルとして表示する
+    function displayBoard() {
+      const boardDiv = document.getElementById("sudoku-board");
+      let html = "<table>";
+      for (let row = 0; row < 9; row++) {
+        html += "<tr>";
+        for (let col = 0; col < 9; col++) {
+          const cellId = "cell-" + row + "-" + col;
+          if (puzzleBoard[row][col] !== 0) {
+            // 固定された数字は編集不可として表示
+            html += `<td class="prefilled">${puzzleBoard[row][col]}</td>`;
+          } else {
+            // 入力可能セルには onfocus 属性で activeCell をセット
+            html += `<td><input type="text" id="${cellId}" maxlength="1" onfocus="activeCell = this" oninput="this.value = this.value.replace(/[^1-9]/g, '')"></td>`;
+          }
+        }
+        html += "</tr>";
+      }
+      html += "</table>";
+      boardDiv.innerHTML = html;
+    }
+
+    // 数字キーパッドを生成して設置（電卓レイアウト）
+    function createKeypad() {
+      const keypadContainer = document.getElementById("keypad-container");
+      let keypadHTML = '<table id="keypad-table">';
+      keypadHTML += "<tr>";
+      keypadHTML += '<td><button class="num-btn" data-value="7">7</button></td>';
+      keypadHTML += '<td><button class="num-btn" data-value="8">8</button></td>';
+      keypadHTML += '<td><button class="num-btn" data-value="9">9</button></td>';
+      keypadHTML += "</tr>";
+      keypadHTML += "<tr>";
+      keypadHTML += '<td><button class="num-btn" data-value="4">4</button></td>';
+      keypadHTML += '<td><button class="num-btn" data-value="5">5</button></td>';
+      keypadHTML += '<td><button class="num-btn" data-value="6">6</button></td>';
+      keypadHTML += "</tr>";
+      keypadHTML += "<tr>";
+      keypadHTML += '<td><button class="num-btn" data-value="1">1</button></td>';
+      keypadHTML += '<td><button class="num-btn" data-value="2">2</button></td>';
+      keypadHTML += '<td><button class="num-btn" data-value="3">3</button></td>';
+      keypadHTML += "</tr>";
+      // 0ボタンは削除し、クリアボタンを1行で横いっぱいに配置
+      keypadHTML += "<tr>";
+      keypadHTML += '<td colspan="3"><button id="clearBtn">クリア</button></td>';
+      keypadHTML += "</tr>";
+      keypadHTML += "</table>";
+      keypadContainer.innerHTML = keypadHTML;
+
+      // 数字ボタンをクリックしたら、現在選択中のセルに数値をセット
+      const numButtons = document.querySelectorAll(".num-btn");
+      numButtons.forEach(button => {
+        button.addEventListener("click", function() {
+          if (activeCell) {
+            activeCell.value = this.getAttribute("data-value");
+            activeCell.classList.remove("error");
+          }
+        });
+      });
+
+      // クリアボタンがクリックされたとき、選択中のセルの値を消す
+      document.getElementById("clearBtn").addEventListener("click", function() {
+        if (activeCell) {
+          activeCell.value = "";
+          activeCell.classList.remove("error");
+        }
+      });
+    }
+
+    // ユーザーの入力をチェック（正解盤面と照合）
+    function checkAnswer() {
+      const messageDiv = document.getElementById("message");
+      let correct = true;
+      // 事前にエラー表示をリセット
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          const cellId = "cell-" + row + "-" + col;
+          const input = document.getElementById(cellId);
+          if (input) {
+            input.classList.remove("error");
+          }
+        }
+      }
+      // 入力セルの値を正解解答と比較
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          if (puzzleBoard[row][col] === 0) { // 入力可能なセルのみ
+            const cellId = "cell-" + row + "-" + col;
+            const input = document.getElementById(cellId);
+            const userVal = parseInt(input.value);
+            if (userVal !== solvedBoard[row][col]) {
+              correct = false;
+              input.classList.add("error");
+            }
+          }
+        }
+      }
+      messageDiv.textContent = correct ? "おめでとうございます！正解です。" : "入力に誤りがあります。再度挑戦してください。";
+    }
+
+    // 「答えを表示」ボタンがクリックされたとき、解答を盤面に反映
+    function showSolution() {
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          if (puzzleBoard[row][col] === 0) {
+            const cellId = "cell-" + row + "-" + col;
+            const input = document.getElementById(cellId);
+            input.value = solvedBoard[row][col];
+            input.classList.remove("error");
+          }
+        }
+      }
+      document.getElementById("message").textContent = "解答が表示されました。";
+    }
+
+    // ページロード時の初期化処理
+    displayBoard();
+    createKeypad();
+
+    // 各種ボタンのイベント設定
+    document.getElementById("checkBtn").addEventListener("click", checkAnswer);
+    document.getElementById("solveBtn").addEventListener("click", showSolution);
+  </script>
+</body>
+</html>
