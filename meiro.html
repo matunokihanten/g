@@ -118,7 +118,7 @@
   <canvas id="mazeCanvas" width="600" height="600"></canvas>
 
   <div id="controls">
-    <!-- 新しい迷路＆難易度選択エリア。初期値は1に設定。 -->
+    <!-- 新しい迷路＆難易度選択エリア。初期値は1（最も簡単）に設定。 -->
     <div id="newMazeControls">
       <div>
         <input id="difficulty" type="range" min="1" max="100" value="1">
@@ -146,7 +146,8 @@
     // --- グローバル変数 ---
     const canvas = document.getElementById('mazeCanvas');
     const ctx = canvas.getContext("2d");
-    let cols = 20, rows = 20;
+    // 当初は難易度1なので、初期グリッドは簡単な5×5に設定
+    let cols = 5, rows = 5;
     let cellSize = canvas.width / cols;
     let grid = [];
     let stack = [];
@@ -215,6 +216,7 @@
       stack = [];
       mazeGenerated = false;
       grid = [];
+      // グリッドサイズに合わせて cellSize を再計算
       cellSize = canvas.width / cols;
       player.radius = cellSize / 4;
       for (let j = 0; j < rows; j++) {
@@ -480,19 +482,30 @@
     document.getElementById("btnLeft").addEventListener("click", () => { handleMovement("left"); });
     document.getElementById("btnRight").addEventListener("click", () => { handleMovement("right"); });
     document.getElementById("btnAnswer").addEventListener("click", () => { startAutoSolve(); });
+    
     document.getElementById("btnNewMaze").addEventListener("click", () => {
+      // 難易度スライダーの値に基づいてグリッドサイズを再設定
       const difficulty = parseInt(document.getElementById("difficulty").value);
-      // マッピング例：難易度1で10×10、難易度100で50×50
-      const minCells = 10, maxCells = 50;
+      // マッピング例：難易度1なら 5×5、難易度100なら 50×50
+      const minCells = 5, maxCells = 50;
       const gridSize = Math.round(minCells + (maxCells - minCells) * ((difficulty - 1) / 99));
       cols = gridSize;
       rows = gridSize;
       newMaze();
     });
+    
     document.getElementById("difficulty").addEventListener("input", (e) => {
       document.getElementById("difficultyLabel").innerText = "難易度: " + e.target.value;
     });
     
+    // 初回は難易度1（簡単）として初期グリッドを作成
+    {
+      const difficulty = parseInt(document.getElementById("difficulty").value);
+      const minCells = 5, maxCells = 50;
+      const gridSize = Math.round(minCells + (maxCells - minCells) * ((difficulty - 1) / 99));
+      cols = gridSize;
+      rows = gridSize;
+    }
     newMaze();
     gameLoop();
   </script>
