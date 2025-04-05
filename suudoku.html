@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>数独ゲーム with キーパッド</title>
+  <title>数独ゲーム with キーパッド & ランダム生成</title>
   <style>
     body {
       font-family: sans-serif;
@@ -100,21 +100,20 @@
   <script>
     // グローバル変数：選択中のセル
     let activeCell = null;
+    let puzzleBoard, solvedBoard;
 
-    // 初期盤面（0 は空欄を示す）
-    const puzzleBoard = [
-      [5, 3, 0, 0, 7, 0, 0, 0, 0],
-      [6, 0, 0, 1, 9, 5, 0, 0, 0],
-      [0, 9, 8, 0, 0, 0, 0, 6, 0],
-      [8, 0, 0, 0, 6, 0, 0, 0, 3],
-      [4, 0, 0, 8, 0, 3, 0, 0, 1],
-      [7, 0, 0, 0, 2, 0, 0, 0, 6],
-      [0, 6, 0, 0, 0, 0, 2, 8, 0],
-      [0, 0, 0, 4, 1, 9, 0, 0, 5],
-      [0, 0, 0, 0, 8, 0, 0, 7, 9]
-    ];
+    // --- 数独盤面生成用ヘルパー関数 --- //
 
-    // 数独の制約チェック（行・列・3×3ブロック内の重複確認）
+    // 配列のシャッフルを行う関数（フィッシャー–イェーツアルゴリズム）
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // 盤面内の (row, col) 位置に num を配置できるかチェック
     function isValid(board, row, col, num) {
       for (let i = 0; i < 9; i++) {
         if (board[row][i] === num) return false;
@@ -132,15 +131,16 @@
       return true;
     }
 
-    // バックトラッキングによる数独解法
-    function solveSudoku(board) {
+    // 再帰的に盤面をランダムな順番で埋める（完全な解答盤面を生成）
+    function fillBoard(board) {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           if (board[row][col] === 0) {
-            for (let num = 1; num <= 9; num++) {
+            let numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            for (let num of numbers) {
               if (isValid(board, row, col, num)) {
                 board[row][col] = num;
-                if (solveSudoku(board)) {
+                if (fillBoard(board)) {
                   return true;
                 }
                 board[row][col] = 0;
@@ -153,21 +153,39 @@
       return true;
     }
 
-    // 盤面のディープコピー作成
-    function copyBoard(board) {
-      return board.map(row => row.slice());
+    // 完全な解答盤面を生成して返す関数
+    function generateCompleteBoard() {
+      let board = [];
+      for (let i = 0; i < 9; i++) {
+        board.push(new Array(9).fill(0));
+      }
+      fillBoard(board);
+      return board;
     }
 
-    // 初期盤面の正解解答を計算して保存
-    let solvedBoard;
-    (function computeSolution() {
-      let boardCopy = copyBoard(puzzleBoard);
-      if (solveSudoku(boardCopy)) {
-        solvedBoard = boardCopy;
-      } else {
-        console.error("この盤面は解けません。");
+    // 完全解答盤から指定数のセルを空にしてパズルを作成する
+    function generatePuzzle(solvedBoard, removalCount) {
+      let puzzle = solvedBoard.map(row => row.slice());
+      let removed = 0;
+      while (removed < removalCount) {
+        let r = Math.floor(Math.random() * 9);
+        let c = Math.floor(Math.random() * 9);
+        if (puzzle[r][c] !== 0) {
+          puzzle[r][c] = 0;
+          removed++;
+        }
       }
-    })();
+      return puzzle;
+    }
+
+    // --- ゲーム盤表示・操作用関数 --- //
+
+    // 初期化：ランダムに生成したパズルとその解答を設定
+    function initializeGame() {
+      solvedBoard = generateCompleteBoard();
+      // 例：40個のセルを除去してパズルを作成（難易度調整可）
+      puzzleBoard = generatePuzzle(solvedBoard, 40);
+    }
 
     // 数独盤を HTML テーブルとして表示する
     function displayBoard() {
@@ -178,10 +196,8 @@
         for (let col = 0; col < 9; col++) {
           const cellId = "cell-" + row + "-" + col;
           if (puzzleBoard[row][col] !== 0) {
-            // 固定された数字は編集不可として表示
             html += `<td class="prefilled">${puzzleBoard[row][col]}</td>`;
           } else {
-            // 入力可能セルには onfocus 属性で activeCell をセット
             html += `<td><input type="text" id="${cellId}" maxlength="1" onfocus="activeCell = this" oninput="this.value = this.value.replace(/[^1-9]/g, '')"></td>`;
           }
         }
@@ -191,7 +207,7 @@
       boardDiv.innerHTML = html;
     }
 
-    // 数字キーパッドを生成して設置（電卓レイアウト）
+    // 数字キーパッド（電卓レイアウト）を生成して設置
     function createKeypad() {
       const keypadContainer = document.getElementById("keypad-container");
       let keypadHTML = '<table id="keypad-table">';
@@ -210,17 +226,16 @@
       keypadHTML += '<td><button class="num-btn" data-value="2">2</button></td>';
       keypadHTML += '<td><button class="num-btn" data-value="3">3</button></td>';
       keypadHTML += "</tr>";
-      // 0ボタンは削除し、クリアボタンを1行で横いっぱいに配置
+      // 0 のボタンは削除し、クリアボタンを横いっぱいに配置
       keypadHTML += "<tr>";
       keypadHTML += '<td colspan="3"><button id="clearBtn">クリア</button></td>';
       keypadHTML += "</tr>";
       keypadHTML += "</table>";
       keypadContainer.innerHTML = keypadHTML;
 
-      // 数字ボタンをクリックしたら、現在選択中のセルに数値をセット
       const numButtons = document.querySelectorAll(".num-btn");
       numButtons.forEach(button => {
-        button.addEventListener("click", function() {
+        button.addEventListener("click", function () {
           if (activeCell) {
             activeCell.value = this.getAttribute("data-value");
             activeCell.classList.remove("error");
@@ -228,8 +243,7 @@
         });
       });
 
-      // クリアボタンがクリックされたとき、選択中のセルの値を消す
-      document.getElementById("clearBtn").addEventListener("click", function() {
+      document.getElementById("clearBtn").addEventListener("click", function () {
         if (activeCell) {
           activeCell.value = "";
           activeCell.classList.remove("error");
@@ -237,11 +251,10 @@
       });
     }
 
-    // ユーザーの入力をチェック（正解盤面と照合）
+    // ユーザーの入力をチェック（正解と照合）
     function checkAnswer() {
       const messageDiv = document.getElementById("message");
       let correct = true;
-      // 事前にエラー表示をリセット
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           const cellId = "cell-" + row + "-" + col;
@@ -251,10 +264,9 @@
           }
         }
       }
-      // 入力セルの値を正解解答と比較
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
-          if (puzzleBoard[row][col] === 0) { // 入力可能なセルのみ
+          if (puzzleBoard[row][col] === 0) {
             const cellId = "cell-" + row + "-" + col;
             const input = document.getElementById(cellId);
             const userVal = parseInt(input.value);
@@ -268,7 +280,7 @@
       messageDiv.textContent = correct ? "おめでとうございます！正解です。" : "入力に誤りがあります。再度挑戦してください。";
     }
 
-    // 「答えを表示」ボタンがクリックされたとき、解答を盤面に反映
+    // 「答えを表示」ボタンで解答を盤面に反映
     function showSolution() {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
@@ -283,11 +295,10 @@
       document.getElementById("message").textContent = "解答が表示されました。";
     }
 
-    // ページロード時の初期化処理
+    // --- 初期化処理 --- //
+    initializeGame();
     displayBoard();
     createKeypad();
-
-    // 各種ボタンのイベント設定
     document.getElementById("checkBtn").addEventListener("click", checkAnswer);
     document.getElementById("solveBtn").addEventListener("click", showSolution);
   </script>
