@@ -17,7 +17,7 @@
       font-family: Arial, sans-serif;
     }
     canvas { display: block; }
-    /* オーバーレイ：画面上部の情報、ズーム&表示角度調整 */
+    /* オーバーレイ：画面上部の情報・ズーム・表示角度調整 */
     #overlay {
       position: absolute;
       top: 10px;
@@ -33,30 +33,13 @@
       margin-top: 8px;
     }
     #zoomControl, #angleControl { margin-top: 8px; }
-    /* 横向き時の注意表示 */
-    #orientationOverlay {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.9);
-      display: none;
-      z-index: 100;
-      text-align: center;
-      padding-top: 40%;
-      box-sizing: border-box;
-    }
-    #orientationOverlay p {
-      color: #fff;
-      font-size: 24px;
-      margin: 0;
-    }
+    /* ※ 画面の向きに関するオーバーレイは削除しています */
   </style>
 </head>
 <body>
-  <!-- オーバーレイ：ゲーム情報・ズーム調整・表示角度調整 -->
+  <!-- オーバーレイ：ゲーム情報、ズーム調整、表示角度調整 -->
   <div id="overlay">
-    <div id="instruction">一番赤い面が多い立体をタップしてください。</div>
+    <div id="instruction">一番赤い面が多い立方体をタップしてください。</div>
     <div id="status">
       <span id="round">ラウンド: 1</span> ｜ 
       <span id="score">スコア: 0</span>
@@ -68,26 +51,21 @@
     </div>
     <div id="angleControl">
       <label for="angleSlider">表示角度調整: </label>
-      <!-- -180° ～ 180° の範囲、初期値 0° -->
+      <!-- -180° ～ 180° の範囲。初期値 0° -->
       <input type="range" id="angleSlider" min="-180" max="180" value="0" step="1">
     </div>
     <button id="restartBtn" style="display:none;">スタートから挑戦する</button>
   </div>
   
-  <!-- 横向き時の注意表示 -->
-  <div id="orientationOverlay">
-    <p>縦に回転して遊んでください</p>
-  </div>
-  
   <!-- Three.js ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
   <script>
-    // シーン・カメラ・レンダラーの初期設定
+    // シーン、カメラ、レンダラーの初期設定
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
     
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.zoom = 0.5; // 初期はズームアウト状態
+    camera.zoom = 0.5; // 初期はズームアウト状態（立方体が小さく写る）
     camera.updateProjectionMatrix();
     camera.position.set(0, 5, 20);
     
@@ -99,7 +77,7 @@
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10,20,10);
+    directionalLight.position.set(10, 20, 10);
     scene.add(directionalLight);
     
     // ゲーム変数
@@ -114,7 +92,6 @@
     const roundDisplay   = document.getElementById('round');
     const scoreDisplay   = document.getElementById('score');
     const restartBtn     = document.getElementById('restartBtn');
-    const orientationOverlay = document.getElementById('orientationOverlay');
     
     // ズーム調整用スライダー
     const zoomSlider = document.getElementById('zoomSlider');
@@ -123,7 +100,7 @@
       camera.updateProjectionMatrix();
     });
     
-    // 表示角度調整用スライダー（角度は度数、グローバルな displayAngle にラジアンで保存）
+    // 表示角度調整用スライダー（角度は度数、グローバル変数 displayAngle にラジアンで保持）
     let displayAngle = 0;
     const angleSlider = document.getElementById('angleSlider');
     angleSlider.addEventListener('input', (event) => {
@@ -138,14 +115,14 @@
     // 利用する色（赤以外）
     const colors = ['blue', 'green', 'yellow', 'purple', 'orange'];
     
-    // グリッド境界用global変数（各ラウンド開始時に設定）
+    // グリッド境界用global変数―各ラウンド開始時に設定
     let gridXMin, gridXMax, gridZMin, gridZMax;
-    const margin = 2;
+    const margin = 2;  // 余裕をもたせる
     
     /**
      * 立方体作成関数
-     * 各面のうち、指定された枚数を赤にし、その他はランダムな色に設定。
-     * MeshPhysicalMaterial で豪華な質感を表現し、透明なヒットボックスを追加してタップ補助を実装。
+     * 指定枚数を赤に設定し、それ以外はランダムな色の豪華な質感を MeshPhysicalMaterial で表現します。
+     * さらに透明なヒットボックスを追加してタップ補助も実装。
      */
     function createCube(redFaces) {
       const materials = [];
@@ -172,12 +149,11 @@
       cube.userData = {
         redCount: redFaces,
         rotationSpeed: 0.01 + Math.random() * 0.01,
-        // Y軸のバウンド振幅拡大（2～4の範囲）
-        bounceAmplitude: 2 + Math.random() * 2,
+        bounceAmplitude: 2 + Math.random() * 2,  // 2～4 の範囲
         bounceSpeed: 0.002 + Math.random() * 0.002,
         baseY: 0
       };
-      // 透明なヒットボックス（20%大きい）追加
+      // 透明なヒットボックス（20%拡大）を追加
       const scaleFactor = 1.2;
       const hitboxGeometry = new THREE.BoxGeometry(4 * scaleFactor, 4 * scaleFactor, 4 * scaleFactor);
       const hitboxMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, transparent: true });
@@ -189,12 +165,13 @@
     }
     
     /**
-     * 新しいラウンド開始
-     * グリッド（3列）上に立方体を配置し、各立方体の基準位置（baseX, baseZ）を保持。
-     * また、グリッドの端（X軸・Z軸）を計算してglobal変数に設定。
-     * ここで、各立方体の移動パラメータも設定します。
+     * 新しいラウンド開始関数
+     * グリッド（3列）上に立方体を配置し、各立方体の基準位置（baseX, baseZ）を保存します。
+     * さらに、グリッド全体の端（X軸、Z軸）を計算して global 変数に設定します。
+     * 各立方体には、X/Z軸方向の移動パラメータも設定します。
      */
     function startNewRound() {
+      // 既存の立方体をすべて除去
       cubes.forEach(cube => scene.remove(cube));
       cubes = [];
       
@@ -205,7 +182,7 @@
       const startX = -((columns - 1) * spacing) / 2;
       const startZ = -((rows - 1) * spacing) / 2;
       
-      // グリッド境界の設定（各辺に margin 分の余裕）
+      // グリッド境界の設定（各側に margin の余裕）
       gridXMin = startX + margin;
       gridXMax = startX + (columns - 1) * spacing - margin;
       gridZMin = startZ + margin;
@@ -222,7 +199,7 @@
         const rowIndex = Math.floor(i / columns);
         cube.position.x = startX + col * spacing;
         cube.position.z = startZ + rowIndex * spacing;
-        // 各立方体の基準位置として保存
+        // 保存：各立方体の基準位置
         cube.userData.baseX = cube.position.x;
         cube.userData.baseZ = cube.position.z;
         // X/Z軸の移動振幅を大きめに（4～7の範囲）
@@ -233,7 +210,7 @@
         cube.userData.zSpeed = 0.0005 + Math.random() * 0.001;
         cube.userData.zPhase = Math.random() * Math.PI * 2;
         
-        // 初回の回転角度（基準）を保存（displayAngle 調整用）
+        // 各立方体の初回の回転角度（Y軸）を保存（表示角度調整用）
         cube.userData.baseRotationY = cube.rotation.y;
         
         cubes.push(cube);
@@ -243,7 +220,7 @@
       correctCube = cubes[correctIndex];
       roundDisplay.innerText = "ラウンド: " + round;
       
-      // カメラ位置はグリッド全体が見渡せるよう自動調整
+      // カメラ位置の自動調整（グリッド全体が見渡せるように）
       const gridHeight = (rows - 1) * spacing;
       const newZ = Math.max(20, gridHeight + 10);
       const newY = Math.max(5, gridHeight / 2 + 2);
@@ -253,18 +230,20 @@
     
     /**
      * 不正解時の処理
-     * 正解となる立方体の emissive 色を緑に変更し、
-     * さらに一時的にスケールアップしてどれが正解かを強調表示します。
-     * オーバーレイに正解情報を表示し、ラウンドを1段階下げた上で次のラウンドへ進みます。
+     * 正解の立方体の emissive 色を緑に変更し、一時的にスケールアップして強調表示します。
+     * オーバーレイに正解情報を表示後、ラウンドを1段階下げて次のラウンドへ進みます。
      */
     function handleIncorrect() {
       gameIsRunning = false;
       if (correctCube) {
         if (Array.isArray(correctCube.material)) {
-          correctCube.material.forEach(mat => { if (mat.emissive) { mat.emissive.set(0x00ff00); } });
+          correctCube.material.forEach(mat => {
+            if (mat.emissive) { mat.emissive.set(0x00ff00); }
+          });
         } else {
           if (correctCube.material.emissive) { correctCube.material.emissive.set(0x00ff00); }
         }
+        // 正解立方体を大きくして強調表示
         correctCube.scale.set(1.3, 1.3, 1.3);
       }
       overlayMessage.innerText = "不正解！ 正解の立方体が緑に光っています。（赤面 " + correctCube.userData.redCount + " 枚）\nレベルを下げます。";
@@ -305,35 +284,32 @@
       }
     });
     
-    // アニメーションループ－滑らかな動きを実現（lerp を使用）
+    // アニメーションループ（各立方体の滑らかな移動と表示角度調整）
     function animate() {
       requestAnimationFrame(animate);
       const elapsed = Date.now();
-      
-      // 各立方体の基本動作：回転（滑らか）・Y軸バウンド・X/Z軸周期運動
       cubes.forEach(cube => {
-        // X軸回転はそのまま
+        // 回転
         cube.rotation.x += cube.userData.rotationSpeed;
-        // Y軸：まず基準回転値を更新
+        // Y軸回転：基準回転値に displayAngle を加える
         if (cube.userData.baseRotationY === undefined) {
           cube.userData.baseRotationY = cube.rotation.y;
         }
         cube.userData.baseRotationY += cube.userData.rotationSpeed;
-        // 表示角度スライダーのオフセットを加える
         cube.rotation.y = cube.userData.baseRotationY + displayAngle;
         
-        // Y軸（バウンド）の目標値を計算し、ラグをもって更新
+        // Y軸バウンド: ターゲット値へ滑らかに更新
         const targetY = cube.userData.baseY + cube.userData.bounceAmplitude * Math.sin(elapsed * cube.userData.bounceSpeed);
         cube.position.y = THREE.MathUtils.lerp(cube.position.y, targetY, 0.05);
         
-        // X/Z軸の目標値（周期運動）
+        // X/Z軸: 目標位置の計算と lerp による更新
         const targetX = cube.userData.baseX + cube.userData.xAmplitude * Math.sin(elapsed * cube.userData.xSpeed + cube.userData.xPhase);
         const targetZ = cube.userData.baseZ + cube.userData.zAmplitude * Math.cos(elapsed * cube.userData.zSpeed + cube.userData.zPhase);
         cube.position.x = THREE.MathUtils.lerp(cube.position.x, targetX, 0.05);
         cube.position.z = THREE.MathUtils.lerp(cube.position.z, targetZ, 0.05);
       });
       
-      // 衝突回避：複数回の反発処理ループ
+      // 衝突回避：複数回反発処理ループ
       const safeDistance = 5.7;
       for (let iter = 0; iter < 3; iter++) {
         for (let i = 0; i < cubes.length; i++) {
@@ -361,25 +337,15 @@
     }
     animate();
     
-    // 画面リサイズ＆向きチェック
+    // 画面リサイズ処理（アスペクト比更新）
     function onResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      checkOrientation();
     }
     window.addEventListener('resize', onResize);
     
-    function checkOrientation() {
-      if (window.innerWidth > window.innerHeight) {
-        orientationOverlay.style.display = "block";
-      } else {
-        orientationOverlay.style.display = "none";
-      }
-    }
-    checkOrientation();
-    
-    // 初回：リスタート前、リスタートボタン表示
+    // 初回：リスタートボタン表示、開始メッセージ
     restartBtn.style.display = "inline-block";
     overlayMessage.innerText = "下のボタンをクリックしてゲーム開始";
     
