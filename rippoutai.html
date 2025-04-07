@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 
-<script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
+<script type="text/javascript" src="//rot0.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
 
   <meta charset="UTF-8">
   <title>
@@ -16,34 +16,31 @@
       margin: 0;
       height: 100%;
       overflow: hidden;
-      background-color: #000; /* 背景を黒に戻す */
+      background-color: #000;
       font-family: Arial, sans-serif;
     }
     canvas { display: block; }
-    /* オーバーレイ：画面上部（小さめ） */
+    /* オーバーレイ：画面上部に表示する情報（ゲーム状態、ズーム・表示角度・列数調整・ヒント・リスタート） */
     #overlay {
       position: absolute;
       top: 10px;
       left: 10px;
       background: rgba(255,255,255,0.85);
-      padding: 5px;
+      padding: 10px;
       border-radius: 4px;
       z-index: 10;
-      font-size: 12px;
     }
     #overlay button {
-      padding: 4px 8px;
-      font-size: 12px;
-      margin-top: 4px;
-      margin-right: 3px;
+      padding: 6px 10px;
+      font-size: 14px;
+      margin-top: 8px;
+      margin-right: 5px;
     }
-    #zoomControl, #angleControl, #columnControl {
-      margin-top: 4px;
-    }
+    #zoomControl, #angleControl, #columnControl { margin-top: 8px; }
   </style>
 </head>
 <body>
-  <!-- オーバーレイ：ゲーム情報、ズーム調整、表示角度調整、列数調整、ヒント、リスタートボタン -->
+  <!-- オーバーレイ：ゲーム情報、ズーム調整、表示角度調整、列数調整、ヒント・リスタートボタン -->
   <div id="overlay">
     <div id="instruction">一番赤い面が多い立方体をタップしてください。</div>
     <div id="status">
@@ -57,10 +54,12 @@
     </div>
     <div id="angleControl">
       <label for="angleSlider">表示角度調整: </label>
+      <!-- -180° ～ 180° の範囲、初期値 0° -->
       <input type="range" id="angleSlider" min="-180" max="180" value="0" step="1">
     </div>
     <div id="columnControl">
       <label for="columnSlider">列数調整: </label>
+      <!-- 1～12 の範囲、初期値は 3 -->
       <input type="range" id="columnSlider" min="1" max="12" value="3" step="1">
     </div>
     <button id="hintBtn">ヒント</button>
@@ -72,11 +71,10 @@
   <script>
     // --- 初期設定 ---
     const scene = new THREE.Scene();
-    // シーン背景を黒に設定
-    scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0x202020);
     
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.zoom = 0.5;
+    camera.zoom = 0.5; // 初期はズームアウト状態（立方体が小さめに表示）
     camera.updateProjectionMatrix();
     camera.position.set(0, 5, 20);
     
@@ -84,27 +82,26 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     
-    // --- 照明設定 --- 
-    // 背景が黒なので全体を明るく照らす
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    // 照明
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    directionalLight.position.set(10, 20, 10);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10,20,10);
     scene.add(directionalLight);
     
     // --- ゲーム変数 ---
-    let cubes = [];
-    let correctCube = null;
+    let cubes = [];         // 現在のラウンドの立方体群
+    let correctCube = null; // 正解の立方体
     let score = 0;
     let round = 1;
     const baseCubeCount = 4;
     let gameIsRunning = false;
     
-    // グリッド境界用global変数（各ラウンド開始時に設定）
+    // グリッド境界（各ラウンド開始時に設定）
     let gridXMin, gridXMax, gridZMin, gridZMax;
-    const margin = 2;
+    const margin = 2;  // 余裕
     
-    // 表示角度調整用グローバル変数（ラジアン）
+    // 表示角度調整用グローバル変数（単位：ラジアン）
     let displayAngle = 0;
     
     // --- DOM要素 ---
@@ -129,9 +126,13 @@
     });
     
     columnSlider.addEventListener('input', () => {
-      if (gameIsRunning) { startNewRound(); }
+      // 列数が変更されたら次のラウンドに反映させるため、新しくラウンドを開始
+      if (gameIsRunning) {
+        startNewRound();
+      }
     });
     
+    // ヒントボタン
     hintBtn.addEventListener('click', showHint);
     function showHint() {
       if (!gameIsRunning || !correctCube) return;
@@ -140,8 +141,7 @@
       if (Array.isArray(correctCube.material)) {
         correctCube.material.forEach(mat => {
           originalEmissives.push(mat.emissive.clone());
-          // 明るく強調：黄色
-          if (mat.emissive) { mat.emissive.set(0xffff00); }
+          if (mat.emissive) { mat.emissive.set(0xffff00); } // 黄色
         });
       } else {
         originalEmissives.push(correctCube.material.emissive.clone());
@@ -160,9 +160,11 @@
       }, 3000);
     }
     
+    // Raycaster とマウス座標
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     
+    // 利用する色（赤以外）
     const colors = ['blue', 'green', 'yellow', 'purple', 'orange'];
     
     // --- 立方体作成関数 ---
@@ -174,16 +176,14 @@
         if (!redIndices.includes(idx)) { redIndices.push(idx); }
       }
       for (let i = 0; i < 6; i++) {
-        const color = redIndices.includes(i)
-          ? 'red'
-          : colors[Math.floor(Math.random() * colors.length)];
+        const color = redIndices.includes(i) ? 'red' : colors[Math.floor(Math.random() * colors.length)];
         materials.push(new THREE.MeshPhysicalMaterial({
           color: color,
           metalness: 0.8,
-          roughness: 0.1,           // 低い roughness でツヤっと
+          roughness: 0.3,
           clearcoat: 1.0,
-          clearcoatRoughness: 0.05, // よりクリアな反射
-          emissive: 0x222222        // 軽めの自己発光
+          clearcoatRoughness: 0.1,
+          emissive: 0x000000
         }));
       }
       const geometry = new THREE.BoxGeometry(4, 4, 4);
@@ -196,14 +196,13 @@
         bounceSpeed: 0.002 + Math.random() * 0.002,
         baseY: 0
       };
-      
+      // 透明ヒットボックス（20%拡大）
       const scaleFactor = 1.2;
       const hitboxGeometry = new THREE.BoxGeometry(4 * scaleFactor, 4 * scaleFactor, 4 * scaleFactor);
       const hitboxMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, transparent: true });
       const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
       hitbox.name = "hitbox";
       cube.add(hitbox);
-      
       return cube;
     }
     
@@ -228,9 +227,7 @@
       const correctRedCount = Math.floor(Math.random() * 4) + 3;
       
       for (let i = 0; i < numCubes; i++) {
-        const redCount = (i === correctIndex)
-          ? correctRedCount
-          : Math.floor(Math.random() * (correctRedCount - 1)) + 1;
+        const redCount = (i === correctIndex) ? correctRedCount : Math.floor(Math.random() * (correctRedCount - 1)) + 1;
         const cube = createCube(redCount);
         const col = i % columns;
         const rowIndex = Math.floor(i / columns);
@@ -266,9 +263,7 @@
       gameIsRunning = false;
       if (correctCube) {
         if (Array.isArray(correctCube.material)) {
-          correctCube.material.forEach(mat => {
-            if (mat.emissive) { mat.emissive.set(0x00ff00); }
-          });
+          correctCube.material.forEach(mat => { if (mat.emissive) { mat.emissive.set(0x00ff00); } });
         } else {
           if (correctCube.material.emissive) { correctCube.material.emissive.set(0x00ff00); }
         }
@@ -284,16 +279,13 @@
       }, 1500);
     }
     
-    // --- タップ判定 ---
+    // --- タップ（クリック）判定 ---
     window.addEventListener('click', (event) => {
       if (!gameIsRunning) return;
-      
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-      
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(cubes, true);
-      
       if (intersects.length > 0) {
         let selectedCube = intersects[0].object;
         if (selectedCube.name === "hitbox" && selectedCube.parent) {
@@ -312,7 +304,7 @@
       }
     });
     
-    // --- アニメーションループ ---
+    // --- アニメーションループ（滑らかな動き＋表示角度調整） ---
     function animate() {
       requestAnimationFrame(animate);
       const elapsed = Date.now();
@@ -323,16 +315,15 @@
         }
         cube.userData.baseRotationY += cube.userData.rotationSpeed;
         cube.rotation.y = cube.userData.baseRotationY + displayAngle;
-        
         const targetY = cube.userData.baseY + cube.userData.bounceAmplitude * Math.sin(elapsed * cube.userData.bounceSpeed);
         cube.position.y = THREE.MathUtils.lerp(cube.position.y, targetY, 0.05);
-        
         const targetX = cube.userData.baseX + cube.userData.xAmplitude * Math.sin(elapsed * cube.userData.xSpeed + cube.userData.xPhase);
         const targetZ = cube.userData.baseZ + cube.userData.zAmplitude * Math.cos(elapsed * cube.userData.zSpeed + cube.userData.zPhase);
         cube.position.x = THREE.MathUtils.lerp(cube.position.x, targetX, 0.05);
         cube.position.z = THREE.MathUtils.lerp(cube.position.z, targetZ, 0.05);
       });
       
+      // 衝突回避（複数回反発処理）
       const safeDistance = 5.7;
       for (let iter = 0; iter < 3; iter++) {
         for (let i = 0; i < cubes.length; i++) {
@@ -371,6 +362,7 @@
     // --- 初回：リスタート前状態 ---
     restartBtn.style.display = "inline-block";
     overlayMessage.innerText = "下のボタンをクリックしてゲーム開始";
+    
     restartBtn.addEventListener('click', () => {
       score = 0;
       round = 1;
