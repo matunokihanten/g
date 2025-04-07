@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-<script type="text/javascript" src="//rot0.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
-
   <meta charset="UTF-8">
   <title>
     動く立体オブジェクト認識チャレンジ
@@ -20,7 +17,7 @@
       font-family: Arial, sans-serif;
     }
     canvas { display: block; }
-    /* オーバーレイ：画面上部に表示する情報（ゲーム状態、ズーム・表示角度・列数調整・ヒント・リスタート） */
+    /* オーバーレイ：画面上部の情報・ズーム・表示角度・列数調整・ヒント・リスタート */
     #overlay {
       position: absolute;
       top: 10px;
@@ -40,7 +37,7 @@
   </style>
 </head>
 <body>
-  <!-- オーバーレイ：ゲーム情報、ズーム調整、表示角度調整、列数調整、ヒント・リスタートボタン -->
+  <!-- オーバーレイ：ゲーム情報、ズーム調整、表示角度調整、列数調整、ヒントボタン、リスタートボタン -->
   <div id="overlay">
     <div id="instruction">一番赤い面が多い立方体をタップしてください。</div>
     <div id="status">
@@ -54,12 +51,12 @@
     </div>
     <div id="angleControl">
       <label for="angleSlider">表示角度調整: </label>
-      <!-- -180° ～ 180° の範囲、初期値 0° -->
+      <!-- -180° ～ 180° の範囲。初期値 0° -->
       <input type="range" id="angleSlider" min="-180" max="180" value="0" step="1">
     </div>
     <div id="columnControl">
-      <label for="columnSlider">列数調整: </label>
-      <!-- 1～12 の範囲、初期値は 3 -->
+      <label for="columnSlider">列の数調整: </label>
+      <!-- 1～12 の範囲。初期値は 3 -->
       <input type="range" id="columnSlider" min="1" max="12" value="3" step="1">
     </div>
     <button id="hintBtn">ヒント</button>
@@ -69,309 +66,14 @@
   <!-- Three.js ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
   <script>
-    // --- 初期設定 ---
+    // シーン、カメラ、レンダラーの初期設定
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
     
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.zoom = 0.5; // 初期はズームアウト状態（立方体が小さめに表示）
+    camera.zoom = 0.5; // 初期はズームアウト状態
     camera.updateProjectionMatrix();
     camera.position.set(0, 5, 20);
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-    
-    // 照明
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10,20,10);
-    scene.add(directionalLight);
-    
-    // --- ゲーム変数 ---
-    let cubes = [];         // 現在のラウンドの立方体群
-    let correctCube = null; // 正解の立方体
-    let score = 0;
-    let round = 1;
-    const baseCubeCount = 4;
-    let gameIsRunning = false;
-    
-    // グリッド境界（各ラウンド開始時に設定）
-    let gridXMin, gridXMax, gridZMin, gridZMax;
-    const margin = 2;  // 余裕
-    
-    // 表示角度調整用グローバル変数（単位：ラジアン）
-    let displayAngle = 0;
-    
-    // --- DOM要素 ---
-    const overlayMessage = document.getElementById('message');
-    const roundDisplay   = document.getElementById('round');
-    const scoreDisplay   = document.getElementById('score');
-    const restartBtn     = document.getElementById('restartBtn');
-    const zoomSlider     = document.getElementById('zoomSlider');
-    const angleSlider    = document.getElementById('angleSlider');
-    const columnSlider   = document.getElementById('columnSlider');
-    const hintBtn        = document.getElementById('hintBtn');
-    
-    // --- イベントリスナー ---
-    zoomSlider.addEventListener('input', () => {
-      camera.zoom = parseFloat(zoomSlider.value);
-      camera.updateProjectionMatrix();
-    });
-    
-    angleSlider.addEventListener('input', (event) => {
-      let deg = parseFloat(event.target.value);
-      displayAngle = THREE.MathUtils.degToRad(deg);
-    });
-    
-    columnSlider.addEventListener('input', () => {
-      // 列数が変更されたら次のラウンドに反映させるため、新しくラウンドを開始
-      if (gameIsRunning) {
-        startNewRound();
-      }
-    });
-    
-    // ヒントボタン
-    hintBtn.addEventListener('click', showHint);
-    function showHint() {
-      if (!gameIsRunning || !correctCube) return;
-      const originalScale = correctCube.scale.clone();
-      const originalEmissives = [];
-      if (Array.isArray(correctCube.material)) {
-        correctCube.material.forEach(mat => {
-          originalEmissives.push(mat.emissive.clone());
-          if (mat.emissive) { mat.emissive.set(0xffff00); } // 黄色
-        });
-      } else {
-        originalEmissives.push(correctCube.material.emissive.clone());
-        if (correctCube.material.emissive) { correctCube.material.emissive.set(0xffff00); }
-      }
-      correctCube.scale.set(originalScale.x * 1.3, originalScale.y * 1.3, originalScale.z * 1.3);
-      setTimeout(() => {
-        correctCube.scale.copy(originalScale);
-        if (Array.isArray(correctCube.material)) {
-          correctCube.material.forEach((mat, i) => {
-            mat.emissive.copy(originalEmissives[i]);
-          });
-        } else {
-          correctCube.material.emissive.copy(originalEmissives[0]);
-        }
-      }, 3000);
-    }
-    
-    // Raycaster とマウス座標
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    
-    // 利用する色（赤以外）
-    const colors = ['blue', 'green', 'yellow', 'purple', 'orange'];
-    
-    // --- 立方体作成関数 ---
-    function createCube(redFaces) {
-      const materials = [];
-      const redIndices = [];
-      while (redIndices.length < redFaces) {
-        const idx = Math.floor(Math.random() * 6);
-        if (!redIndices.includes(idx)) { redIndices.push(idx); }
-      }
-      for (let i = 0; i < 6; i++) {
-        const color = redIndices.includes(i) ? 'red' : colors[Math.floor(Math.random() * colors.length)];
-        materials.push(new THREE.MeshPhysicalMaterial({
-          color: color,
-          metalness: 0.8,
-          roughness: 0.3,
-          clearcoat: 1.0,
-          clearcoatRoughness: 0.1,
-          emissive: 0x000000
-        }));
-      }
-      const geometry = new THREE.BoxGeometry(4, 4, 4);
-      const cube = new THREE.Mesh(geometry, materials);
-      
-      cube.userData = {
-        redCount: redFaces,
-        rotationSpeed: 0.01 + Math.random() * 0.01,
-        bounceAmplitude: 2 + Math.random() * 2,
-        bounceSpeed: 0.002 + Math.random() * 0.002,
-        baseY: 0
-      };
-      // 透明ヒットボックス（20%拡大）
-      const scaleFactor = 1.2;
-      const hitboxGeometry = new THREE.BoxGeometry(4 * scaleFactor, 4 * scaleFactor, 4 * scaleFactor);
-      const hitboxMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, transparent: true });
-      const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
-      hitbox.name = "hitbox";
-      cube.add(hitbox);
-      return cube;
-    }
-    
-    // --- 新しいラウンド開始 ---
-    function startNewRound() {
-      cubes.forEach(cube => scene.remove(cube));
-      cubes = [];
-      
-      const numCubes = baseCubeCount + round - 1;
-      const columns = parseInt(columnSlider.value);
-      const rows = Math.ceil(numCubes / columns);
-      const spacing = 8;
-      const startX = -((columns - 1) * spacing) / 2;
-      const startZ = -((rows - 1) * spacing) / 2;
-      
-      gridXMin = startX + margin;
-      gridXMax = startX + (columns - 1) * spacing - margin;
-      gridZMin = startZ + margin;
-      gridZMax = startZ + (rows - 1) * spacing - margin;
-      
-      const correctIndex = Math.floor(Math.random() * numCubes);
-      const correctRedCount = Math.floor(Math.random() * 4) + 3;
-      
-      for (let i = 0; i < numCubes; i++) {
-        const redCount = (i === correctIndex) ? correctRedCount : Math.floor(Math.random() * (correctRedCount - 1)) + 1;
-        const cube = createCube(redCount);
-        const col = i % columns;
-        const rowIndex = Math.floor(i / columns);
-        cube.position.x = startX + col * spacing;
-        cube.position.z = startZ + rowIndex * spacing;
-        cube.userData.baseX = cube.position.x;
-        cube.userData.baseZ = cube.position.z;
-        cube.userData.xAmplitude = 4 + Math.random() * 3;
-        cube.userData.xSpeed = 0.0005 + Math.random() * 0.001;
-        cube.userData.xPhase = Math.random() * Math.PI * 2;
-        cube.userData.zAmplitude = 4 + Math.random() * 3;
-        cube.userData.zSpeed = 0.0005 + Math.random() * 0.001;
-        cube.userData.zPhase = Math.random() * Math.PI * 2;
-        
-        cube.userData.baseRotationY = cube.rotation.y;
-        
-        cubes.push(cube);
-        scene.add(cube);
-      }
-      
-      correctCube = cubes[correctIndex];
-      roundDisplay.innerText = "ラウンド: " + round;
-      
-      const gridHeight = (rows - 1) * spacing;
-      const newZ = Math.max(20, gridHeight + 10);
-      const newY = Math.max(5, gridHeight / 2 + 2);
-      camera.position.set(0, newY, newZ);
-      camera.lookAt(0, 0, 0);
-    }
-    
-    // --- 不正解時の処理 ---
-    function handleIncorrect() {
-      gameIsRunning = false;
-      if (correctCube) {
-        if (Array.isArray(correctCube.material)) {
-          correctCube.material.forEach(mat => { if (mat.emissive) { mat.emissive.set(0x00ff00); } });
-        } else {
-          if (correctCube.material.emissive) { correctCube.material.emissive.set(0x00ff00); }
-        }
-        correctCube.scale.set(1.3, 1.3, 1.3);
-      }
-      overlayMessage.innerText = "不正解！ 正解の立方体が緑に光っています。（赤面 " + correctCube.userData.redCount + " 枚）\nレベルを下げます。";
-      if (round > 1) { round--; }
-      roundDisplay.innerText = "ラウンド: " + round;
-      setTimeout(() => {
-        if (correctCube) { correctCube.scale.set(1, 1, 1); }
-        gameIsRunning = true;
-        startNewRound();
-      }, 1500);
-    }
-    
-    // --- タップ（クリック）判定 ---
-    window.addEventListener('click', (event) => {
-      if (!gameIsRunning) return;
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(cubes, true);
-      if (intersects.length > 0) {
-        let selectedCube = intersects[0].object;
-        if (selectedCube.name === "hitbox" && selectedCube.parent) {
-          selectedCube = selectedCube.parent;
-        }
-        if (selectedCube === correctCube) {
-          score++;
-          scoreDisplay.innerText = "スコア: " + score;
-          overlayMessage.innerText = "正解！ +1 ポイント";
-          round++;
-          gameIsRunning = false;
-          setTimeout(() => { gameIsRunning = true; startNewRound(); }, 1000);
-        } else {
-          handleIncorrect();
-        }
-      }
-    });
-    
-    // --- アニメーションループ（滑らかな動き＋表示角度調整） ---
-    function animate() {
-      requestAnimationFrame(animate);
-      const elapsed = Date.now();
-      cubes.forEach(cube => {
-        cube.rotation.x += cube.userData.rotationSpeed;
-        if (cube.userData.baseRotationY === undefined) {
-          cube.userData.baseRotationY = cube.rotation.y;
-        }
-        cube.userData.baseRotationY += cube.userData.rotationSpeed;
-        cube.rotation.y = cube.userData.baseRotationY + displayAngle;
-        const targetY = cube.userData.baseY + cube.userData.bounceAmplitude * Math.sin(elapsed * cube.userData.bounceSpeed);
-        cube.position.y = THREE.MathUtils.lerp(cube.position.y, targetY, 0.05);
-        const targetX = cube.userData.baseX + cube.userData.xAmplitude * Math.sin(elapsed * cube.userData.xSpeed + cube.userData.xPhase);
-        const targetZ = cube.userData.baseZ + cube.userData.zAmplitude * Math.cos(elapsed * cube.userData.zSpeed + cube.userData.zPhase);
-        cube.position.x = THREE.MathUtils.lerp(cube.position.x, targetX, 0.05);
-        cube.position.z = THREE.MathUtils.lerp(cube.position.z, targetZ, 0.05);
-      });
-      
-      // 衝突回避（複数回反発処理）
-      const safeDistance = 5.7;
-      for (let iter = 0; iter < 3; iter++) {
-        for (let i = 0; i < cubes.length; i++) {
-          let offset = new THREE.Vector3(0, 0, 0);
-          for (let j = 0; j < cubes.length; j++) {
-            if (i === j) continue;
-            let dx = cubes[i].position.x - cubes[j].position.x;
-            let dz = cubes[i].position.z - cubes[j].position.z;
-            let dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < safeDistance && dist > 0) {
-              let diff = safeDistance - dist;
-              let repulse = diff * 0.2;
-              offset.x += (dx / dist) * repulse;
-              offset.z += (dz / dist) * repulse;
-            }
-          }
-          cubes[i].position.x += offset.x;
-          cubes[i].position.z += offset.z;
-          cubes[i].position.x = THREE.MathUtils.clamp(cubes[i].position.x, gridXMin, gridXMax);
-          cubes[i].position.z = THREE.MathUtils.clamp(cubes[i].position.z, gridZMin, gridZMax);
-        }
-      }
-      
-      renderer.render(scene, camera);
-    }
-    animate();
-    
-    // --- 画面リサイズ ---
-    function onResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    window.addEventListener('resize', onResize);
-    
-    // --- 初回：リスタート前状態 ---
-    restartBtn.style.display = "inline-block";
-    overlayMessage.innerText = "下のボタンをクリックしてゲーム開始";
-    
-    restartBtn.addEventListener('click', () => {
-      score = 0;
-      round = 1;
-      scoreDisplay.innerText = "スコア: 0";
-      restartBtn.style.display = "none";
-      overlayMessage.innerText = "";
-      gameIsRunning = true;
-      startNewRound();
-    });
-  </script>
-</body>
-</html>
