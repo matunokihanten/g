@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- 画面幅に合わせ、ズーム・拡大操作無効 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tetris Game - 3D Blocks</title>
+  <style>
+    :root {
+      --primary-bg: #1a1a1a;
+      --accent-bg: #000;
+      --container-bg: rgba(0, 0, 0, 0.6);
+      --canvas-bg: #111;
+      --button-bg: #444;
+      --button-active-bg: #666;
+      --text-color: #fff;
+      --border-color: #fff;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: linear-gradient(to bottom, var(--primary-bg), var(--accent-bg));
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+    }
+    .game-container {
+      width: 100%;
+      max-width: 360px;
+      background: var(--container-bg);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      text-align: center;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 180px;
+    }
+    #score {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: var(--text-color);
+    }
+    /* キャンバス：280×560px、上に6cmシフト */
+    canvas {
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--canvas-bg);
+      width: 280px;
+      height: 560px;
+      margin-bottom: 10px;
+      margin-top: -6cm; /* 6cm上に移動 */
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    }
+    /* スタートボタン */
+    #startButton {
+      padding: 15px 30px;
+      font-size: 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      background: var(--button-bg);
+      color: var(--text-color);
+      transition: background 0.2s ease;
+      margin-bottom: 20px;
+    }
+    #startButton:active {
+      background: var(--button-active-bg);
+    }
+    /* 操作ボタン領域：画面下部に固定 */
+    #controls {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none; /* 初期は非表示 */
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      grid-gap: 10px;
+      grid-template-areas: 
+        "rotateLeft rotateRight"
+        "left         right"
+        "down         down";
+      justify-items: center;
+      width: 100%;
+      max-width: 360px;
+      z-index: 10;
+    }
+    /* 各操作ボタンのスタイル */
+    #controls button {
+      width: 80px;
+      height: 80px;
+      font-size: 20px;
+      border: none;
+      border-radius: 12px;
+      background: var(--button-bg);
+      color: var(--text-color);
+      cursor: pointer;
+      transition: background 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+    #controls button:active {
+      background: var(--button-active-bg);
+    }
+    /* グリッドエリアの割り当て */
+    #btnRotateLeft { grid-area: rotateLeft; }
+    #btnRotateRight { grid-area: rotateRight; }
+    #btnLeft { grid-area: left; }
+    #btnRight { grid-area: right; }
+    #btnDown { grid-area: down; }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div id="score">Score: 0</div>
+    <canvas id="tetris" width="280" height="560"></canvas>
+    <button id="startButton">スタート</button>
+  </div>
+  <div id="controls">
+    <button id="btnRotateLeft">回転左</button>
+    <button id="btnRotateRight">回転右</button>
+    <button id="btnLeft">左</button>
+    <button id="btnRight">右</button>
+    <button id="btnDown">下</button>
+  </div>
+
+  <script>
+    // ブロックの立体感を出すための色調補正関数
+    function lightenColor(hex, lum) {
+      hex = hex.replace(/[^0-9a-f]/gi, '');
+      if(hex.length < 6) {
+        hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+      }
+      lum = lum || 0;
+      let rgb = "#", c, i;
+      for(i = 0; i < 3; i++){
+        c = parseInt(hex.substr(i*2, 2), 16);
+        c = Math.round(Math.min(Math.max(0, c + (255 - c) * lum), 255)).toString(16);
+        rgb += ("00"+c).substr(c.length);
+      }
+      return rgb;
+    }
+
+    function darkenColor(hex, lum) {
+      hex = hex.replace(/[^0-9a-f]/gi, '');
+      if(hex.length < 6) {
+        hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+      }
+      lum = lum || 0;
+      let rgb = "#", c, i;
+      for(i = 0; i < 3; i++){
+        c = parseInt(hex.substr(i*2, 2), 16);
+        c = Math.round(Math.max(0, c - c * lum)).toString(16);
+        rgb += ("00"+c).substr(c.length);
+      }
+      return rgb;
+    }
+
+    // キャンバスとコンテキストの設定
+    const canvas = document.getElementById('tetris');
+    const context = canvas.getContext('2d');
+    // 各ブロックのサイズを28pxに設定（280×560px = 10×20ブロック）
+    context.scale(28, 28);
+
+    // アリーナ作成（10×20の配列）
+    function createMatrix(w, h) {
+      const matrix = [];
+      while (h--) {
+        matrix.push(new Array(w).fill(0));
+      }
+      return matrix;
+    }
+    const arena = createMatrix(10, 20);
+
+    // 各ピースの定義
+    function createPiece(type) {
+      if (type === 'T') {
+        return [
+          [0, 0, 0],
+          [1, 1, 1],
+          [0, 1, 0],
+        ];
+      } else if (type === 'O') {
+        return [
+          [2, 2],
+          [2, 2],
+        ];
+      } else if (type === 'L') {
+        return [
+          [0, 3, 0],
+          [0, 3, 0],
+          [0, 3, 3],
+        ];
+      } else if (type === 'J') {
+        return [
+          [0, 4, 0],
+          [0, 4, 0],
+          [4, 4, 0],
+        ];
+      } else if (type === 'I') {
+        return [
+          [0, 5, 0, 0],
+          [0, 5, 0, 0],
+          [0, 5, 0, 0],
+          [0, 5, 0, 0],
+        ];
+      } else if (type === 'S') {
+        return [
+          [0, 6, 6],
+          [6, 6, 0],
+          [0, 0, 0],
+        ];
+      } else if (type === 'Z') {
+        return [
+          [7, 7, 0],
+          [0, 7, 7],
+          [0, 0, 0],
+        ];
+      }
+    }
+
+    // プレイヤーの状態
+    const player = {
+      pos: { x: 0, y: 0 },
+      matrix: null,
+      score: 0,
+    };
+
+    // 各ピースカラー（0は空白）
+    const colors = [
+      null,
+      '#FF0D72',
+      '#0DC2FF',
+      '#0DFF72',
+      '#F538FF',
+      '#FF8E0D',
+      '#FFE138',
+      '#3877FF',
+    ];
+
+    // 衝突判定関数
+    function collide(arena, player) {
+      const m = player.matrix;
+      const o = player.pos;
+      for (let y = 0; y < m.length; ++y) {
+        for (let x = 0; x < m[y].length; ++x) {
+          if (m[y][x] !== 0 &&
+              (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // ピース統合
+    function merge(arena, player) {
+      player.matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            arena[y + player.pos.y][x + player.pos.x] = value;
+          }
+        });
+      });
+    }
+
+    // ラインクリア処理
+    function arenaSweep() {
+      let rowCount = 1;
+      outer: for (let y = arena.length - 1; y >= 0; --y) {
+        for (let x = 0; x < arena[y].length; ++x) {
+          if (arena[y][x] === 0) {
+            continue outer;
+          }
+        }
+        const row = arena.splice(y, 1)[0].fill(0);
+        arena.unshift(row);
+        ++y;
+        player.score += rowCount * 10;
+        rowCount *= 2;
+      }
+    }
+
+    // 立体的に見せるためのグラデーションでブロックを描画する関数
+    function drawMatrix(matrix, offset) {
+      matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            // ベースカラー
+            const baseColor = colors[value];
+            // 上部は明るく、下部は暗くなるようにグラデーション作成
+            const gradient = context.createLinearGradient(x + offset.x, y + offset.y, x + offset.x, y + offset.y + 1);
+            gradient.addColorStop(0, lightenColor(baseColor, 0.4));
+            gradient.addColorStop(1, darkenColor(baseColor, 0.4));
+            context.fillStyle = gradient;
+            context.fillRect(x + offset.x, y + offset.y, 1, 1);
+          }
+        });
+      });
+    }
+
+    // 全体描画
+    function draw() {
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      drawMatrix(arena, { x: 0, y: 0 });
+      drawMatrix(player.matrix, player.pos);
+    }
+
+    // 回転処理
+    function rotate(matrix, dir) {
+      for (let y = 0; y < matrix.length; ++y) {
+        for (let x = 0; x < y; ++x) {
+          [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+        }
+      }
+      if (dir > 0) {
+        matrix.forEach(row => row.reverse());
+      } else {
+        matrix.reverse();
+      }
+    }
+
+    // プレイヤー移動処理
+    function playerMove(dir) {
+      player.pos.x += dir;
+      if (collide(arena, player)) {
+        player.pos.x -= dir;
+      }
+      draw();
+    }
+
+    // プレイヤー回転処理
+    function playerRotate(dir) {
+      const pos = player.pos.x;
+      let offset = 1;
+      rotate(player.matrix, dir);
+      while (collide(arena, player)) {
+        player.pos.x += offset;
+        offset = -(offset + (offset > 0 ? 1 : -1));
+        if (offset > player.matrix[0].length) {
+          rotate(player.matrix, -dir);
+          player.pos.x = pos;
+          return;
+        }
+      }
+      draw();
+    }
+
+    // 新規ピース生成
+    function playerReset() {
+      const pieces = 'TOLJISZ';
+      const type = pieces[Math.floor(Math.random() * pieces.length)];
+      player.matrix = createPiece(type);
+      player.pos.y = 0;
+      player.pos.x = Math.floor(arena[0].length / 2) - Math.floor(player.matrix[0].length / 2);
+      if (collide(arena, player)) {
+        arena.forEach(row => row.fill(0));
+        player.score = 0;
+        updateScore();
+      }
+    }
+
+    // 落下処理およびゲームループ
+    let dropCounter = 0;
+    let dropInterval = 1000;
+    let lastTime = 0;
+    function update(time = 0) {
+      const deltaTime = time - lastTime;
+      lastTime = time;
+      dropCounter += deltaTime;
+      if (dropCounter > dropInterval) {
+        playerDrop();
+      }
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    // ピース1段落下
+    function playerDrop() {
+      player.pos.y++;
+      if (collide(arena, player)) {
+        player.pos.y--;
+        merge(arena, player);
+        playerReset();
+        arenaSweep();
+        updateScore();
+      }
+      dropCounter = 0;
+      draw();
+    }
+
+    // スコア更新
+    function updateScore() {
+      document.getElementById('score').textContent = "Score: " + player.score;
+    }
+
+    // PC向けキーボード操作
+    document.addEventListener('keydown', event => {
+      switch (event.keyCode) {
+        case 37:
+          playerMove(-1);
+          break;
+        case 39:
+          playerMove(1);
+          break;
+        case 40:
+          playerDrop();
+          break;
+        case 81:
+          playerRotate(-1);
+          break;
+        case 87:
+          playerRotate(1);
+          break;
+      }
+    });
+
+    // スマホ向け操作ボタンのイベント
+    document.getElementById('btnRotateLeft').addEventListener('click', () => {
+      playerRotate(-1);
+    });
+    document.getElementById('btnRotateRight').addEventListener('click', () => {
+      playerRotate(1);
+    });
+    document.getElementById('btnLeft').addEventListener('click', () => {
+      playerMove(-1);
+    });
+    document.getElementById('btnRight').addEventListener('click', () => {
+      playerMove(1);
+    });
+
+    // 「下」ボタン：押している間、ピースを連続で落下させる
+    const btnDown = document.getElementById('btnDown');
+    let downInterval = null;
+    function startDownDrop() {
+      if (!downInterval) {
+        downInterval = setInterval(playerDrop, 50);
+      }
+    }
+    function stopDownDrop() {
+      if (downInterval) {
+        clearInterval(downInterval);
+        downInterval = null;
+      }
+    }
+    btnDown.addEventListener('mousedown', startDownDrop);
+    btnDown.addEventListener('mouseup', stopDownDrop);
+    btnDown.addEventListener('mouseleave', stopDownDrop);
+    btnDown.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startDownDrop();
+    });
+    btnDown.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      stopDownDrop();
+    });
+
+    // スタートボタン：ゲーム開始時にアリーナ初期化、ループ開始、ボタン表示切替
+    document.getElementById('startButton').addEventListener('click', () => {
+      arena.forEach(row => row.fill(0));
+      playerReset();
+      player.score = 0;
+      updateScore();
+      dropCounter = 0;
+      lastTime = 0;
+      update();
+      document.getElementById('startButton').style.display = 'none';
+      document.getElementById('controls').style.display = 'grid';
+    });
+  </script>
+</body>
+</html>
