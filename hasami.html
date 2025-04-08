@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <!-- ズーム無効化 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>はさみ将棋 - 修正版</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
+    }
+    table {
+      margin: auto;
+      border-collapse: collapse;
+    }
+    td {
+      width: 60px;
+      height: 60px;
+      text-align: center;
+      vertical-align: middle;
+      border: 1px solid #333;
+      font-size: 24px;
+      user-select: none;
+    }
+    /* EMPTYセルはシンプルに */
+    .EMPTY { background-color: #fff; }
+    /* HUMAN駒：グラデーション・丸み・シャドウ */
+    .HUMAN { 
+      background: linear-gradient(145deg, #66bb6a, #388e3c);
+      border-radius: 50%;
+      color: #fff;
+      font-weight: bold;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    /* AI駒：グラデーション・丸み・シャドウ */
+    .AI { 
+      background: linear-gradient(145deg, #ffb74d, #f57c00);
+      border-radius: 50%;
+      color: #fff;
+      font-weight: bold;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    /* 移動候補のハイライト */
+    .highlight {
+      background-color: #ffff99 !important;
+    }
+    #messages {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>はさみ将棋 - 修正版</h1>
+  <p>あなたの駒（緑の "H"）をドラッグ＆ドロップまたはタッチ操作で移動させてください。</p>
+  <div id="board"></div>
+  <div id="messages"></div>
+
+  <script>
+    // 定数
+    const EMPTY = 0, HUMAN = 1, AI = 2;
+    const BOARD_SIZE = 9; // 盤の大きさはここで設定
+    // 効果音（各自用意してください）
+    const moveSound = new Audio('move.mp3');
+    const captureSound = new Audio('capture.mp3');
+
+    let board = createBoard();
+    let turn = HUMAN; // ゲーム開始は HUMAN の手番
+    let touchDragData = null; // タッチ操作用に開始位置を保持
+
+    // ------------------------
+    // 盤面生成・描画
+    // ------------------------
+
+    function createBoard() {
+      let newBoard = [];
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        newBoard[r] = [];
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          newBoard[r][c] = EMPTY;
+        }
+      }
+      // 上段に AI、下段に HUMAN の駒を配置
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        newBoard[0][c] = AI;
+        newBoard[BOARD_SIZE - 1][c] = HUMAN;
+      }
+      return newBoard;
+    }
+
+    function displayBoard() {
+      let boardDiv = document.getElementById("board");
+      let html = "<table>";
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        html += "<tr>";
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          let cell = board[r][c];
+          let cellClass = (cell === EMPTY) ? "EMPTY" : (cell === HUMAN ? "HUMAN" : "AI");
+          let symbol = (cell === EMPTY) ? "" : (cell === HUMAN ? "H" : "A");
+          // HUMAN の駒かつ自分の手番なら操作可能に（draggable属性・タッチ用イベントを付与）
+          let draggableAttr = "";
+          if (cell === HUMAN && turn === HUMAN) {
+            draggableAttr = "draggable='true' ontouchstart='touchStart(event)' ontouchend='touchEnd(event)'";
+          }
+          html += `<td class="${cellClass}" data-row="${r}" data-col="${c}" ${draggableAttr}
+                     ondragstart="dragStart(event)" ondragover="allowDrop(event)" ondrop="drop(event)" ondragend="dragEnd(event)">
+                     ${symbol}
+                   </td>`;
+        }
+        html += "</tr>";
+      }
+      html += "</table>";
+      boardDiv.innerHTML = html;
+    }
+
+    // ------------------------
+    // メッセージ＆ユーティリティ
+    // ------------------------
+
+    function showMessage(msg) {
+      document.getElementById("messages").innerText = msg;
+    }
+    
+    function copyBoard(b) {
+      return b.map(row => row.slice());
+    }
+
+    // ------------------------
+    // 移動・捕獲判定
+    // ------------------------
+
+    // 指定セルから各方向に隣接セルが相手の場合、その先に自分の駒があればその間の相手駒を捕獲対象にする
+    function getCaptures(b, player, pos) {
+      let captures = [];
+      let opponent = (player === AI) ? HUMAN : AI;
+      let directions = [[0,1], [0,-1], [1,0], [-1,0]];
+      const [r, c] = pos;
+      directions.forEach(direction => {
+        let dr = direction[0], dc = direction[1];
+        let newR = r + dr, newC = c + dc;
+        if (newR < 0 || newR >= BOARD_SIZE || newC < 0 || newC >= BOARD_SIZE) return;
+        if (b[newR][newC] !== opponent) return;
+        let temp = [];
+        let x = newR, y = newC;
+        while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
+          if (b[x][y] === opponent) {
+            temp.push([x, y]);
+          } else if (b[x][y] === player) {
+            if (temp.length > 0) {
+              captures = captures.concat(temp);
+            }
+            break;
+          } else {
+            break;
+          }
+          x += dr;
+          y += dc;
+        }
+      });
+      return captures;
+    }
+
+    // 移動の有効性チェック：出発セルの駒が自分のもので、目的セルが空、直線移動かつ経路がクリアであるか
+    function isValidMove(b, player, start, end) {
+      let [r1, c1] = start;
+      let [r2, c2] = end;
+      if (b[r1][c1] !== player || b[r2][c2] !== EMPTY) return false;
+      if (r1 !== r2 && c1 !== c2) return false;
+      if (r1 === r2) {
+        let step = (c2 > c1) ? 1 : -1;
+        for (let c = c1 + step; c !== c2; c += step) {
+          if (b[r1][c] !== EMPTY) return false;
+        }
+      } else if (c1 === c2) {
+        let step = (r2 > r1) ? 1 : -1;
+        for (let r = r1 + step; r !== r2; r += step) {
+          if (b[r][c1] !== EMPTY) return false;
+        }
+      }
+      return true;
+    }
+
+    // 移動実行と捕獲処理
+    function makeMove(b, player, start, end) {
+      let newBoard = copyBoard(b);
+      let [r1, c1] = start, [r2, c2] = end;
+      newBoard[r1][c1] = EMPTY;
+      newBoard[r2][c2] = player;
+      let caps = getCaptures(newBoard, player, [r2, c2]);
+      caps.forEach(pos => {
+        let [r,c] = pos;
+        newBoard[r][c] = EMPTY;
+      });
+      return newBoard;
+    }
+
+    // ------------------------
+    // ユーザー操作補助＆ハイライト
+    // ------------------------
+
+    function getValidMovesForPiece(row, col) {
+      let moves = [];
+      let directions = [[0,1], [0,-1], [1,0], [-1,0]];
+      directions.forEach(direction => {
+        let dr = direction[0], dc = direction[1];
+        let x = row + dr, y = col + dc;
+        while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === EMPTY) {
+          if (isValidMove(board, HUMAN, [row, col], [x, y])) {
+            moves.push({ row: x, col: y });
+          }
+          x += dr;
+          y += dc;
+        }
+      });
+      return moves;
+    }
+
+    function highlightValidMoves(row, col) {
+      clearHighlights();
+      let moves = getValidMovesForPiece(row, col);
+      moves.forEach(move => {
+        let td = document.querySelector(`td[data-row="${move.row}"][data-col="${move.col}"]`);
+        if (td) td.classList.add('highlight');
+      });
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll('td.highlight').forEach(td => {
+        td.classList.remove('highlight');
+      });
+    }
+
+    // HUMAN の駒の個数をカウント
+    function countPieces(b, player) {
+      let count = 0;
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          if (b[r][c] === player) count++;
+        }
+      }
+      return count;
+    }
+
+    // シンプルな評価関数（AI – HUMAN の駒数の差）
+    function evaluate(b) {
+      let humanCount = countPieces(b, HUMAN);
+      let aiCount = countPieces(b, AI);
+      return aiCount - humanCount;
+    }
+
+    function getAllMoves(b, player) {
+      let moves = [];
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          if (b[r][c] === player) {
+            let directions = [[0,1], [0,-1], [1,0], [-1,0]];
+            directions.forEach(direction => {
+              let dr = direction[0], dc = direction[1];
+              let x = r + dr, y = c + dc;
+              while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && b[x][y] === EMPTY) {
+                if (isValidMove(b, player, [r, c], [x, y])) {
+                  moves.push({ start: [r, c], end: [x, y] });
+                }
+                x += dr;
+                y += dc;
+              }
+            });
+          }
+        }
+      }
+      return moves;
+    }
+
+    // ------------------------
+    // minimax（α-βプルーニング付き、探索深度 4）
+    // ------------------------
+
+    function minimax(b, depth, maximizingPlayer, alpha, beta) {
+      if (depth === 0) return { score: evaluate(b), move: null };
+      let player = maximizingPlayer ? AI : HUMAN;
+      let moves = getAllMoves(b, player);
+      if (moves.length === 0) return { score: maximizingPlayer ? -Infinity : Infinity, move: null };
+
+      let bestMove = null;
+      if (maximizingPlayer) {
+        let maxEval = -Infinity;
+        for (let moveObj of moves) {
+          let newBoard = makeMove(b, AI, moveObj.start, moveObj.end);
+          let result = minimax(newBoard, depth - 1, false, alpha, beta);
+          if (result.score > maxEval) {
+            maxEval = result.score;
+            bestMove = moveObj;
+          }
+          alpha = Math.max(alpha, result.score);
+          if (beta <= alpha) break;
+        }
+        return { score: maxEval, move: bestMove };
+      } else {
+        let minEval = Infinity;
+        for (let moveObj of moves) {
+          let newBoard = makeMove(b, HUMAN, moveObj.start, moveObj.end);
+          let result = minimax(newBoard, depth - 1, true, alpha, beta);
+          if (result.score < minEval) {
+            minEval = result.score;
+            bestMove = moveObj;
+          }
+          beta = Math.min(beta, result.score);
+          if (beta <= alpha) break;
+        }
+        return { score: minEval, move: bestMove };
+      }
+    }
+
+    // ------------------------
+    // ゲーム終了判定／処理
+    // ------------------------
+
+    function isGameOver(b) {
+      let humanCount = countPieces(b, HUMAN);
+      let aiCount = countPieces(b, AI);
+      return humanCount <= 1 || aiCount <= 1;
+    }
+
+    function endGame() {
+      let humanCount = countPieces(board, HUMAN);
+      let aiCount = countPieces(board, AI);
+      if (humanCount <= 1) {
+        showMessage("AI の勝ちです！");
+      } else if (aiCount <= 1) {
+        showMessage("あなたの勝ちです！");
+      } else {
+        showMessage("引き分けです。");
+      }
+    }
+
+    // ------------------------
+    // ユーザー操作（ドラッグ＆ドロップ／タッチ対応）
+    // ------------------------
+
+    function processPlayerMove(startRow, startCol, endRow, endCol) {
+      if (!isValidMove(board, HUMAN, [startRow, startCol], [endRow, endCol])) {
+        showMessage("無効な手です");
+        return;
+      }
+      const prevAICount = countPieces(board, AI);
+      board = makeMove(board, HUMAN, [startRow, startCol], [endRow, endCol]);
+      // ここで盤面を更新して効果音を再生
+      displayBoard();
+      const newAICount = countPieces(board, AI);
+      if (prevAICount > newAICount) {
+        captureSound.play();
+      } else {
+        moveSound.play();
+      }
+      turn = AI;
+      // AI の手番実行前に盤面を再描画
+      displayBoard();
+      if (isGameOver(board)) {
+        endGame();
+        return;
+      }
+      showMessage("AI の手番です...");
+      setTimeout(aiMove, 500);
+    }
+
+    // ドラッグイベント（PC向け）
+    function dragStart(event) {
+      if (turn !== HUMAN) return;
+      const row = event.target.getAttribute("data-row");
+      const col = event.target.getAttribute("data-col");
+      event.dataTransfer.setData("text/plain", row + "," + col);
+      highlightValidMoves(parseInt(row), parseInt(col));
+      event.stopPropagation();
+    }
+
+    function dragEnd(event) {
+      clearHighlights();
+    }
+
+    function allowDrop(event) {
+      event.preventDefault();
+    }
+
+    function drop(event) {
+      event.preventDefault();
+      if (turn !== HUMAN) return;
+      let td = event.target;
+      while (td && td.tagName !== "TD") {
+        td = td.parentElement;
+      }
+      if (!td) return;
+      const endRow = parseInt(td.getAttribute("data-row"));
+      const endCol = parseInt(td.getAttribute("data-col"));
+      const data = event.dataTransfer.getData("text/plain");
+      if (!data) return;
+      const [startRow, startCol] = data.split(",").map(Number);
+      clearHighlights();
+      processPlayerMove(startRow, startCol, endRow, endCol);
+    }
+
+    // タッチ操作対応（スマホ／タブレット向け）
+    function touchStart(event) {
+      if (turn !== HUMAN) return;
+      let target = event.target;
+      while (target && target.tagName !== "TD") {
+        target = target.parentElement;
+      }
+      if (!target) return;
+      const row = target.getAttribute("data-row");
+      const col = target.getAttribute("data-col");
+      touchDragData = { row: row, col: col };
+      highlightValidMoves(parseInt(row), parseInt(col));
+      event.preventDefault();
+    }
+
+    function touchEnd(event) {
+      event.preventDefault();
+      if (turn !== HUMAN || !touchDragData) return;
+      let touch = event.changedTouches[0];
+      let targetElem = document.elementFromPoint(touch.clientX, touch.clientY);
+      let td = targetElem;
+      while (td && td.tagName !== "TD") {
+        td = td.parentElement;
+      }
+      clearHighlights();
+      if (!td) {
+        showMessage("無効な手です");
+        return;
+      }
+      const endRow = parseInt(td.getAttribute("data-row"));
+      const endCol = parseInt(td.getAttribute("data-col"));
+      processPlayerMove(parseInt(touchDragData.row), parseInt(touchDragData.col), endRow, endCol);
+      touchDragData = null;
+    }
+
+    // ------------------------
+    // AI の手番処理
+    // ------------------------
+
+    function aiMove() {
+      const result = minimax(board, 4, true, -Infinity, Infinity);
+      const moveObj = result.move;
+      if (moveObj === null) {
+        showMessage("AI は動かせる手がありません。");
+        return;
+      }
+      const prevHumanCount = countPieces(board, HUMAN);
+      board = makeMove(board, AI, moveObj.start, moveObj.end);
+      // 更新後に盤面を描画（効果音判定前）
+      displayBoard();
+      const newHumanCount = countPieces(board, HUMAN);
+      if (prevHumanCount > newHumanCount) {
+        captureSound.play();
+      } else {
+        moveSound.play();
+      }
+      // AI の手番終了後、手番を HUMAN に変更し再描画して操作可能に
+      turn = HUMAN;
+      displayBoard();
+      if (isGameOver(board)) {
+        endGame();
+      } else {
+        showMessage("あなたの手番です。");
+      }
+    }
+
+    // ------------------------
+    // 初期表示
+    // ------------------------
+
+    displayBoard();
+    showMessage("あなたの手番です。");
+  </script>
+</body>
+</html>
