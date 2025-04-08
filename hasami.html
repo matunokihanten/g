@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- ズーム無効化 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>はさみ将棋 - 修正版</title>
+  <title>はさみ将棋 - 千日手対策＋攻め強化</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -43,7 +43,12 @@
       font-weight: bold;
       box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
     }
-    /* 移動候補のハイライト */
+    /* AIの駒「と」を180°回転 */
+    .rotated {
+      display: inline-block;
+      transform: rotate(180deg);
+    }
+    /* 移動候補ハイライト */
     .highlight {
       background-color: #ffff99 !important;
     }
@@ -54,27 +59,29 @@
   </style>
 </head>
 <body>
-  <h1>はさみ将棋 - 修正版</h1>
-  <p>あなたの駒（緑の "H"）をドラッグ＆ドロップまたはタッチ操作で移動させてください。</p>
+  <h1>はさみ将棋 - 千日手対策＋攻め強化</h1>
+  <p>
+    あなたの駒（「歩」）をドラッグ＆ドロップまたはタッチ操作で移動してください。<br>
+    相手側の駒は <span class="rotated">と</span>（180°回転）で表示されます。
+  </p>
   <div id="board"></div>
   <div id="messages"></div>
 
   <script>
-    // 定数
+    // 定数定義
     const EMPTY = 0, HUMAN = 1, AI = 2;
-    const BOARD_SIZE = 9; // 盤の大きさはここで設定
-    // 効果音（各自用意してください）
+    const BOARD_SIZE = 9;
+    // 効果音（各自ご用意ください）
     const moveSound = new Audio('move.mp3');
     const captureSound = new Audio('capture.mp3');
 
     let board = createBoard();
     let turn = HUMAN; // ゲーム開始は HUMAN の手番
-    let touchDragData = null; // タッチ操作用に開始位置を保持
+    let touchDragData = null; // タッチ操作用
 
     // ------------------------
     // 盤面生成・描画
     // ------------------------
-
     function createBoard() {
       let newBoard = [];
       for (let r = 0; r < BOARD_SIZE; r++) {
@@ -98,9 +105,14 @@
         html += "<tr>";
         for (let c = 0; c < BOARD_SIZE; c++) {
           let cell = board[r][c];
+          let symbol = "";
+          if (cell === HUMAN) {
+            symbol = "歩";
+          } else if (cell === AI) {
+            symbol = '<span class="rotated">と</span>';
+          }
           let cellClass = (cell === EMPTY) ? "EMPTY" : (cell === HUMAN ? "HUMAN" : "AI");
-          let symbol = (cell === EMPTY) ? "" : (cell === HUMAN ? "H" : "A");
-          // HUMAN の駒かつ自分の手番なら操作可能に（draggable属性・タッチ用イベントを付与）
+          // HUMAN の駒かつ自分の手番なら操作可能（draggable属性・タッチイベントを追加）
           let draggableAttr = "";
           if (cell === HUMAN && turn === HUMAN) {
             draggableAttr = "draggable='true' ontouchstart='touchStart(event)' ontouchend='touchEnd(event)'";
@@ -119,20 +131,20 @@
     // ------------------------
     // メッセージ＆ユーティリティ
     // ------------------------
-
     function showMessage(msg) {
       document.getElementById("messages").innerText = msg;
     }
-    
     function copyBoard(b) {
       return b.map(row => row.slice());
+    }
+    // 盤面状態を文字列化して局面ハッシュを作成
+    function boardHash(b) {
+      return b.map(row => row.join("")).join("|");
     }
 
     // ------------------------
     // 移動・捕獲判定
     // ------------------------
-
-    // 指定セルから各方向に隣接セルが相手の場合、その先に自分の駒があればその間の相手駒を捕獲対象にする
     function getCaptures(b, player, pos) {
       let captures = [];
       let opponent = (player === AI) ? HUMAN : AI;
@@ -163,7 +175,6 @@
       return captures;
     }
 
-    // 移動の有効性チェック：出発セルの駒が自分のもので、目的セルが空、直線移動かつ経路がクリアであるか
     function isValidMove(b, player, start, end) {
       let [r1, c1] = start;
       let [r2, c2] = end;
@@ -183,7 +194,6 @@
       return true;
     }
 
-    // 移動実行と捕獲処理
     function makeMove(b, player, start, end) {
       let newBoard = copyBoard(b);
       let [r1, c1] = start, [r2, c2] = end;
@@ -191,7 +201,7 @@
       newBoard[r2][c2] = player;
       let caps = getCaptures(newBoard, player, [r2, c2]);
       caps.forEach(pos => {
-        let [r,c] = pos;
+        let [r, c] = pos;
         newBoard[r][c] = EMPTY;
       });
       return newBoard;
@@ -200,7 +210,6 @@
     // ------------------------
     // ユーザー操作補助＆ハイライト
     // ------------------------
-
     function getValidMovesForPiece(row, col) {
       let moves = [];
       let directions = [[0,1], [0,-1], [1,0], [-1,0]];
@@ -228,12 +237,9 @@
     }
 
     function clearHighlights() {
-      document.querySelectorAll('td.highlight').forEach(td => {
-        td.classList.remove('highlight');
-      });
+      document.querySelectorAll('td.highlight').forEach(td => td.classList.remove('highlight'));
     }
 
-    // HUMAN の駒の個数をカウント
     function countPieces(b, player) {
       let count = 0;
       for (let r = 0; r < BOARD_SIZE; r++) {
@@ -244,11 +250,43 @@
       return count;
     }
 
-    // シンプルな評価関数（AI – HUMAN の駒数の差）
-    function evaluate(b) {
+    // ------------------------
+    // 評価関数：基本は駒数の差に加え、攻撃力ボーナスと隣接ボーナスを計算
+    // また、history に同じ局面がある場合はペナルティを与える
+    // ------------------------
+    function evaluate(b, history = []) {
       let humanCount = countPieces(b, HUMAN);
       let aiCount = countPieces(b, AI);
-      return aiCount - humanCount;
+      let diff = (aiCount - humanCount) * 100;
+      // 攻撃ボーナス：AI の全有効手の中で、捕獲ができる動きの数にボーナス
+      let aiMoves = getAllMoves(b, AI);
+      let captureBonus = 0;
+      aiMoves.forEach(moveObj => {
+        let caps = getCaptures(b, AI, moveObj.end);
+        if (caps.length > 0) {
+          captureBonus += caps.length * 50;
+        }
+      });
+      // 隣接ボーナス：AI の駒が HUMAN の駒に隣接していればボーナス
+      let adjacentBonus = 0;
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          if (b[r][c] === AI) {
+            let neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
+            neighbors.forEach(n => {
+              let nr = r + n[0], nc = c + n[1];
+              if (nr>=0 && nr<BOARD_SIZE && nc>=0 && nc<BOARD_SIZE && b[nr][nc] === HUMAN) {
+                adjacentBonus += 20;
+              }
+            });
+          }
+        }
+      }
+      // 千日手ペナルティ：同一局面が既に現れていればペナルティ
+      let currentHash = boardHash(b);
+      let repCount = history.filter(h => h === currentHash).length;
+      let repetitionPenalty = repCount * 200;
+      return diff + captureBonus + adjacentBonus - repetitionPenalty;
     }
 
     function getAllMoves(b, player) {
@@ -275,21 +313,27 @@
     }
 
     // ------------------------
-    // minimax（α-βプルーニング付き、探索深度 4）
+    // minimax (α-βプルーニング付き, 探索深度 4, history管理付き)
     // ------------------------
-
-    function minimax(b, depth, maximizingPlayer, alpha, beta) {
-      if (depth === 0) return { score: evaluate(b), move: null };
+    function minimax(b, depth, maximizingPlayer, alpha, beta, history = []) {
+      let hash = boardHash(b);
+      // 同一局面が2回以上現れていれば重いペナルティを与える
+      if (history.filter(h => h === hash).length >= 2) {
+        return { score: maximizingPlayer ? -10000 : 10000, move: null };
+      }
+      if (depth === 0) return { score: evaluate(b, history), move: null };
+      
+      let newHistory = history.concat(hash);
       let player = maximizingPlayer ? AI : HUMAN;
       let moves = getAllMoves(b, player);
       if (moves.length === 0) return { score: maximizingPlayer ? -Infinity : Infinity, move: null };
-
+      
       let bestMove = null;
       if (maximizingPlayer) {
         let maxEval = -Infinity;
         for (let moveObj of moves) {
           let newBoard = makeMove(b, AI, moveObj.start, moveObj.end);
-          let result = minimax(newBoard, depth - 1, false, alpha, beta);
+          let result = minimax(newBoard, depth - 1, false, alpha, beta, newHistory);
           if (result.score > maxEval) {
             maxEval = result.score;
             bestMove = moveObj;
@@ -302,7 +346,7 @@
         let minEval = Infinity;
         for (let moveObj of moves) {
           let newBoard = makeMove(b, HUMAN, moveObj.start, moveObj.end);
-          let result = minimax(newBoard, depth - 1, true, alpha, beta);
+          let result = minimax(newBoard, depth - 1, true, alpha, beta, newHistory);
           if (result.score < minEval) {
             minEval = result.score;
             bestMove = moveObj;
@@ -317,7 +361,6 @@
     // ------------------------
     // ゲーム終了判定／処理
     // ------------------------
-
     function isGameOver(b) {
       let humanCount = countPieces(b, HUMAN);
       let aiCount = countPieces(b, AI);
@@ -339,7 +382,6 @@
     // ------------------------
     // ユーザー操作（ドラッグ＆ドロップ／タッチ対応）
     // ------------------------
-
     function processPlayerMove(startRow, startCol, endRow, endCol) {
       if (!isValidMove(board, HUMAN, [startRow, startCol], [endRow, endCol])) {
         showMessage("無効な手です");
@@ -347,7 +389,6 @@
       }
       const prevAICount = countPieces(board, AI);
       board = makeMove(board, HUMAN, [startRow, startCol], [endRow, endCol]);
-      // ここで盤面を更新して効果音を再生
       displayBoard();
       const newAICount = countPieces(board, AI);
       if (prevAICount > newAICount) {
@@ -356,7 +397,6 @@
         moveSound.play();
       }
       turn = AI;
-      // AI の手番実行前に盤面を再描画
       displayBoard();
       if (isGameOver(board)) {
         endGame();
@@ -366,7 +406,6 @@
       setTimeout(aiMove, 500);
     }
 
-    // ドラッグイベント（PC向け）
     function dragStart(event) {
       if (turn !== HUMAN) return;
       const row = event.target.getAttribute("data-row");
@@ -401,7 +440,6 @@
       processPlayerMove(startRow, startCol, endRow, endCol);
     }
 
-    // タッチ操作対応（スマホ／タブレット向け）
     function touchStart(event) {
       if (turn !== HUMAN) return;
       let target = event.target;
@@ -439,9 +477,8 @@
     // ------------------------
     // AI の手番処理
     // ------------------------
-
     function aiMove() {
-      const result = minimax(board, 4, true, -Infinity, Infinity);
+      const result = minimax(board, 4, true, -Infinity, Infinity, []);
       const moveObj = result.move;
       if (moveObj === null) {
         showMessage("AI は動かせる手がありません。");
@@ -449,7 +486,6 @@
       }
       const prevHumanCount = countPieces(board, HUMAN);
       board = makeMove(board, AI, moveObj.start, moveObj.end);
-      // 更新後に盤面を描画（効果音判定前）
       displayBoard();
       const newHumanCount = countPieces(board, HUMAN);
       if (prevHumanCount > newHumanCount) {
@@ -457,7 +493,6 @@
       } else {
         moveSound.play();
       }
-      // AI の手番終了後、手番を HUMAN に変更し再描画して操作可能に
       turn = HUMAN;
       displayBoard();
       if (isGameOver(board)) {
@@ -470,7 +505,6 @@
     // ------------------------
     // 初期表示
     // ------------------------
-
     displayBoard();
     showMessage("あなたの手番です。");
   </script>
