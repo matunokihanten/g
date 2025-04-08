@@ -39,12 +39,18 @@
       background: var(--container-bg);
       border-radius: 12px;
       padding: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.7);
       text-align: center;
       z-index: 2;
-      margin-bottom: 180px; /* 下部の操作ボタンと重ならないように */
+      margin-bottom: 180px; /* 下部の操作ボタンと重ならないよう */
     }
-    /* プレビュー領域は絶対配置し、常に上部に表示 */
+    /* スコア＆レベル表示 */
+    #score, #level {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: var(--text-color);
+    }
+    /* プレビュー領域：Hold と Next を横に並べ、常に容器の上部に表示 */
     #preview-container {
       position: absolute;
       top: 10px;
@@ -66,7 +72,7 @@
       border: 2px solid var(--border-color);
       border-radius: 8px;
       background: var(--canvas-bg);
-      width: 112px;  /* 4ブロック分 (28px x 4) */
+      width: 112px;  /* 4ブロック分 (28px×4) */
       height: 112px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.8);
     }
@@ -79,14 +85,14 @@
       height: 112px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.8);
     }
-    /* メインキャンバス：280×560px、margin-top -6cm */
+    /* メインキャンバス：280×560px、上移動なし（margin-top: 0） */
     canvas#tetris {
       border: 2px solid var(--border-color);
       border-radius: 8px;
       background: var(--canvas-bg);
       width: 280px;
       height: 560px;
-      margin-top: 0cm; /* メインキャンバスを6cm上に移動 */
+      margin-top: 0; /* キャンバスは上移動せず元の位置に */
       margin-bottom: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.8);
     }
@@ -105,25 +111,26 @@
     #startButton:active {
       background: var(--button-active-bg);
     }
-    /* 操作ボタン領域：画面下部に固定 */
+    /* コントロールボタン領域（画面下部に固定） */
     #controls {
       position: fixed;
       bottom: 10px;
       left: 50%;
       transform: translateX(-50%);
-      display: none; /* ゲーム開始後に表示 */
+      display: none;  /* ゲーム開始時に表示 */
       grid-template-columns: 1fr 1fr 1fr;
       grid-template-rows: auto auto;
       grid-gap: 10px;
+      /* ここで回転左ボタンと保留ボタンの位置を入れ替え */
       grid-template-areas: 
-        "btnHold btnRotateLeft btnRotateRight"
+        "btnRotateLeft btnHold btnRotateRight"
         "btnLeft btnDown btnRight";
       justify-items: center;
       width: 100%;
       max-width: 360px;
       z-index: 10;
     }
-    /* 各操作ボタン（サイズ60px×60px、フォント16px） */
+    /* 各操作ボタンのスタイル（60px×60px、フォント16px） */
     #controls button {
       width: 60px;
       height: 60px;
@@ -167,7 +174,7 @@
     <canvas id="tetris" width="280" height="560"></canvas>
     <button id="startButton">スタート</button>
   </div>
-  <!-- 操作ボタン領域（固定表示） -->
+  <!-- 操作ボタン領域（下部に固定） -->
   <div id="controls">
     <button id="btnHold">保留</button>
     <button id="btnRotateLeft">回転左</button>
@@ -181,7 +188,7 @@
     // --- 補助関数：カラー明暗補正 ---
     function lightenColor(hex, lum) {
       hex = hex.replace(/[^0-9a-f]/gi, '');
-      if (hex.length < 6) { hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2]; }
+      if(hex.length < 6) { hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2]; }
       lum = lum || 0;
       let rgb = "#", c, i;
       for(i = 0; i < 3; i++){
@@ -193,7 +200,7 @@
     }
     function darkenColor(hex, lum) {
       hex = hex.replace(/[^0-9a-f]/gi, '');
-      if (hex.length < 6) { hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2]; }
+      if(hex.length < 6) { hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2]; }
       lum = lum || 0;
       let rgb = "#", c, i;
       for(i = 0; i < 3; i++){
@@ -272,7 +279,7 @@
       }
     }
 
-    // --- プレイヤー状態 & 次ピース、保留ピース、ホールド可否, レベル ---
+    // --- プレイヤー状態 & 次ピース、保留ピース、ホールド可否、レベル ---
     const player = { pos: { x: 0, y: 0 }, matrix: null, score: 0 };
     let nextPiece = null;
     let holdPiece = null;
@@ -336,14 +343,14 @@
       while (!collide(arena, { matrix: player.matrix, pos: ghostPos })) {
         ghostPos.y++;
       }
-      ghostPos.y--;
+      ghostPos.y--; // 衝突しない最後の位置
       context.save();
       context.globalAlpha = 0.3;
       drawMatrix(player.matrix, ghostPos, context);
       context.restore();
     }
 
-    // --- ブロック描画（グラデーション付き・立体的効果） ---
+    // --- ブロック描画（グラデーション付き） ---
     function drawMatrix(matrix, offset, ctx) {
       matrix.forEach((row, y) => {
         row.forEach((value, x) => {
@@ -366,29 +373,24 @@
 
     // --- 全体描画 ---
     function draw() {
+      // メインキャンバス
       context.fillStyle = '#000';
       context.fillRect(0, 0, canvas.width, canvas.height);
       drawMatrix(arena, { x: 0, y: 0 }, context);
       drawGhost();
       drawMatrix(player.matrix, player.pos, context);
-
+      // Next Piece プレビュー
       nextCtx.fillStyle = '#000';
       nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
       if (nextPiece) {
-        const offset = { 
-          x: Math.floor((4 - nextPiece[0].length) / 2), 
-          y: Math.floor((4 - nextPiece.length) / 2) 
-        };
+        const offset = { x: Math.floor((4 - nextPiece[0].length) / 2), y: Math.floor((4 - nextPiece.length) / 2) };
         drawMatrix(nextPiece, offset, nextCtx);
       }
-
+      // Hold Piece プレビュー
       holdCtx.fillStyle = '#000';
       holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
       if (holdPiece) {
-        const offset = { 
-          x: Math.floor((4 - holdPiece[0].length) / 2), 
-          y: Math.floor((4 - holdPiece.length) / 2) 
-        };
+        const offset = { x: Math.floor((4 - holdPiece[0].length) / 2), y: Math.floor((4 - holdPiece.length) / 2) };
         drawMatrix(holdPiece, offset, holdCtx);
       }
     }
@@ -441,8 +443,7 @@
         nextPiece = createPiece(type);
       }
       player.pos.y = 0;
-      player.pos.x = Math.floor(arena[0].length / 2) -
-                     Math.floor(player.matrix[0].length / 2);
+      player.pos.x = Math.floor(arena[0].length / 2) - Math.floor(player.matrix[0].length / 2);
       canHold = true;
       if (collide(arena, player)) {
         arena.forEach(row => row.fill(0));
@@ -461,8 +462,7 @@
         let temp = holdPiece;
         holdPiece = player.matrix;
         player.matrix = temp;
-        player.pos.x = Math.floor(arena[0].length / 2) -
-                       Math.floor(player.matrix[0].length / 2);
+        player.pos.x = Math.floor(arena[0].length / 2) - Math.floor(player.matrix[0].length / 2);
       } else {
         holdPiece = player.matrix;
         playerReset();
@@ -550,7 +550,7 @@
     document.getElementById('btnRight').addEventListener('click', () => {
       playerMove(1);
     });
-    // 「下」ボタン：押している間は連続落下
+    // 「下」ボタン：押している間は連続落下させる
     const btnDown = document.getElementById('btnDown');
     let downInterval = null;
     function startDownDrop() {
