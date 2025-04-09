@@ -2,252 +2,162 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>コードエディタ</title>
+  <title>シンプルHTMLエディター</title>
+  <!-- CodeMirror の CSS をCDNから読み込み -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
   <style>
-    /* 全体のスタイル */
+    /* ページ全体を縦に並べた1画面とする */
     body {
+      margin: 0;
       font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #fafafa;
-    }
-    header {
-      background-color: #f5f5f5;
-      padding: 1rem;
-      text-align: center;
-      border-bottom: 1px solid #ccc;
-    }
-    header h1 {
-      font-weight: bold;
-      margin: 0;
-    }
-    
-    /* 操作コントロール領域 */
-    .controls {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      background-color: #eaeaea;
-      padding: 10px;
-      border-bottom: 1px solid #ccc;
+      flex-direction: column;
+      height: 100vh;
     }
-    .controls input,
+    /* 操作パネルのスタイル */
+    .controls {
+      padding: 10px;
+      background-color: #f0f0f0;
+    }
     .controls button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      border: 1px solid #888;
-      border-radius: 3px;
-      background-color: #fff;
+      margin-right: 5px;
+      padding: 5px 10px;
       cursor: pointer;
     }
-    .controls input:focus,
-    .code-editor:focus {
-      outline: none;
-      border-color: #007acc;
-    }
-    
-    /* エディタ領域 */
-    .editor-container {
-      display: flex;
-      height: calc(100vh - 150px);
-    }
-    .line-numbers {
-      background-color: #f0f0f0;
-      padding: 10px;
-      text-align: right;
-      user-select: none;
-      width: 50px;
-      overflow-y: auto;
-      border-right: 1px solid #ccc;
-    }
-    .code-editor {
+    /* エディター領域（CodeMirror用の全画面エリア） */
+    .editor {
       flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-wrap: break-word;
+      overflow: hidden;
     }
-    
-    /* スマートフォン対応 */
-    @media (max-width: 480px) {
-      .controls input,
-      .controls button {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.9rem;
-      }
-      .line-numbers {
-        width: 30px;
-        font-size: 0.8rem;
-      }
-    }
-    
-    /* 検索結果強調用 */
-    mark {
-      background-color: purple;
-      color: #fff;
+    /* CodeMirrorエディターの高さを100%に */
+    .CodeMirror {
+      height: 100%;
     }
   </style>
 </head>
 <body>
-  <!-- ヘッダー -->
-  <header>
-    <h1>コードエディタ</h1>
-  </header>
-  
-  <!-- 操作コントロール領域 -->
+  <!-- 操作パネル -->
   <div class="controls">
-    <input type="text" id="searchInput" placeholder="検索キーワード">
     <button id="selectAllBtn">全選択</button>
     <button id="copyBtn">コピー</button>
+    <button id="pasteBtn">貼付け</button>
+    <button id="clearAllBtn">全削除</button>
+    <button id="openFileBtn">開く</button>
+    <!-- ファイル読み込み用の非表示 input -->
+    <input type="file" id="fileInput" accept=".html" style="display:none">
     <button id="saveBtn">保存</button>
-    <button id="clearBtn">クリア</button>
+    <button id="runBtn">実行</button>
   </div>
-  
-  <!-- エディタ領域（行番号＋コード入力フィールド） -->
-  <div class="editor-container">
-    <div class="line-numbers" id="lineNumbers">1</div>
-    <div class="code-editor" id="editor" contenteditable="true"></div>
+
+  <!-- CodeMirror エディター領域 -->
+  <div class="editor">
+    <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
   </div>
-  
+
+  <!-- CodeMirror と必要なモードをCDNから読み込み -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+
   <script>
-    // エディタ内容の内部状態
-    let baseContent = "";
-    
-    // DOM 要素の取得
-    const editor = document.getElementById("editor");
-    const lineNumbers = document.getElementById("lineNumbers");
-    const searchInput = document.getElementById("searchInput");
-    const selectAllBtn = document.getElementById("selectAllBtn");
-    const copyBtn = document.getElementById("copyBtn");
-    const saveBtn = document.getElementById("saveBtn");
-    const clearBtn = document.getElementById("clearBtn");
-    
-    // HTML特殊文字を安全にエスケープする関数
-    function escapeHtml(text) {
-      return text.replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;");
+    // CodeMirror でエディターを初期化（元の <textarea> を置換）
+    var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
+      mode: "htmlmixed",
+      lineNumbers: true,
+      theme: "default"
+    });
+
+    // localStorage に保存されたコードがあれば復元
+    if (localStorage.getItem("htmlCode")) {
+      cm.setValue(localStorage.getItem("htmlCode"));
     }
-    
-    // エディタ内容を更新し、行番号表示と検索ハイライトも再描画
-    function updateEditorContent(newContent) {
-      baseContent = newContent;
-      updateLineNumbers();
-      applySearchHighlighting();
-    }
-    
-    // 行番号の更新（改行ごとに番号を付与）
-    function updateLineNumbers() {
-      const lines = baseContent.split(/\r\n|\r|\n/);
-      lineNumbers.innerHTML = "";
-      lines.forEach((line, index) => {
-        lineNumbers.innerHTML += (index + 1) + "<br>";
-      });
-    }
-    
-    // 検索キーワードに基づき、ハイライトを適用する
-    function applySearchHighlighting() {
-      const keyword = searchInput.value;
-      let safeContent = escapeHtml(baseContent);
-      if (keyword.trim() !== "") {
-        const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const regex = new RegExp('(' + escapedKeyword + ')', 'gi');
-        safeContent = safeContent.replace(regex, '<mark>$1</mark>');
+
+    // 編集内容が変更されるたびに localStorage へ保存
+    cm.on("change", function() {
+      localStorage.setItem("htmlCode", cm.getValue());
+    });
+
+    // 各ボタン要素の取得
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const openFileBtn = document.getElementById('openFileBtn');
+    const fileInput = document.getElementById('fileInput');
+    const saveBtn = document.getElementById('saveBtn');
+    const runBtn = document.getElementById('runBtn');
+
+    // 全選択ボタン：CodeMirror にフォーカスを与えて全選択する
+    selectAllBtn.addEventListener('click', function() {
+      cm.focus();
+      cm.execCommand("selectAll");
+    });
+
+    // コピーボタン：選択範囲がない場合は全選択後にコピーを実行
+    copyBtn.addEventListener('click', function() {
+      if (!cm.somethingSelected()) {
+        cm.focus();
+        cm.execCommand("selectAll");
       }
-      editor.innerHTML = safeContent;
-    }
-    
-    // 入力イベント時にエディタ内容を更新
-    function handleEditorInput() {
-      updateEditorContent(editor.innerText);
-    }
-    
-    editor.addEventListener("input", handleEditorInput);
-    
-    // スクロール連動
-    editor.addEventListener("scroll", () => {
-      lineNumbers.scrollTop = editor.scrollTop;
+      var text = cm.getSelection();
+      navigator.clipboard.writeText(text)
+        .then(() => alert("コピーに成功しました"))
+        .catch(err => alert("コピーに失敗しました: " + err));
     });
-    
-    // 検索キーワード入力でハイライト再適用
-    searchInput.addEventListener("input", applySearchHighlighting);
-    
-    // 全選択ボタン：エディタ内の全テキストを選択
-    selectAllBtn.addEventListener("click", () => {
-      const range = document.createRange();
-      range.selectNodeContents(editor);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
+
+    // 貼付けボタン：クリップボードの内容を現在のカーソル位置に挿入
+    pasteBtn.addEventListener('click', function() {
+      navigator.clipboard.readText()
+        .then(text => cm.replaceSelection(text))
+        .catch(err => alert("貼付けに失敗しました: " + err));
     });
-    
-    // コピー機能：Clipboard API を利用して baseContent をコピー
-    copyBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(baseContent);
-        alert("コピーが成功しました！");
-      } catch (err) {
-        alert("コピーに失敗しました。");
+
+    // 全削除ボタン：エディター内の全テキストを確認後に削除
+    clearAllBtn.addEventListener('click', function() {
+      if (confirm("本当に全削除しますか？")) {
+        cm.setValue("");
       }
     });
-    
-    // 保存機能：エディタの内容を HTML ファイルとして出力
-    saveBtn.addEventListener("click", () => {
-      let fileContent = baseContent;
-      if (!/<\/?[a-z][\s\S]*>/i.test(baseContent)) {
-        fileContent = `
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <title>保存されたコード</title>
-</head>
-<body>
-  <pre>${escapeHtml(baseContent)}</pre>
-</body>
-</html>
-        `.trim();
+
+    // ファイルを開くボタン：非表示の file input をクリック
+    openFileBtn.addEventListener('click', function() {
+      fileInput.click();
+    });
+
+    // ファイルが選択されたら FileReader で内容を読み込みエディターに設定
+    fileInput.addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          cm.setValue(evt.target.result);
+        }
+        reader.readAsText(file);
       }
-      const blob = new Blob([fileContent], { type: "text/html" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "code.html";
-      link.click();
-      URL.revokeObjectURL(link.href);
+    });
+
+    // 保存ボタン：現在の内容をHTMLファイルとしてダウンロード
+    saveBtn.addEventListener('click', function() {
+      var blob = new Blob([cm.getValue()], { type: "text/html" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "index.html";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     });
     
-    // クリア機能：確認なしで全削除
-    clearBtn.addEventListener("click", () => {
-      updateEditorContent("");
-      editor.innerHTML = "";
+    // 実行ボタン：エディターの内容を Blob URL として新規タブで開き実行する
+    runBtn.addEventListener('click', function() {
+      var blob = new Blob([cm.getValue()], { type: "text/html" });
+      var url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
     });
-    
-    // クリップボードからの貼り付け対応：paste イベントで挿入処理を実施
-    editor.addEventListener("paste", function(e) {
-      e.preventDefault();
-      // クリップボードからテキストを取得
-      const pasteText = (e.clipboardData || window.clipboardData).getData("text");
-      // カーソル位置にテキストを挿入する
-      const selection = window.getSelection();
-      if (!selection.rangeCount) return;
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
-      const textNode = document.createTextNode(pasteText);
-      range.insertNode(textNode);
-      // カーソル位置を更新
-      range.setStartAfter(textNode);
-      range.setEndAfter(textNode);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      // 入力イベントを手動で発火して内容を更新
-      handleEditorInput();
-    });
-    
-    // 初期状態の行番号表示
-    window.addEventListener("load", updateLineNumbers);
   </script>
 </body>
 </html>
