@@ -1,72 +1,89 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-<script type="text/javascript" src="//rot0.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
-
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>コードエディタ</title>
   <style>
+    /* 全体のスタイル */
     body {
       font-family: sans-serif;
       margin: 0;
       padding: 0;
+      background-color: #fafafa;
     }
     header {
-      background-color: #333;
-      color: #fff;
-      padding: 10px;
+      background-color: #f5f5f5;
+      padding: 1rem;
       text-align: center;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 10px;
-      background-color: #f9f9f9;
       border-bottom: 1px solid #ccc;
     }
-    .controls input[type="text"] {
-      padding: 5px;
-      width: 200px;
-      border: 1px solid #ccc;
-      border-radius: 3px;
+    header h1 {
+      font-weight: bold;
+      margin: 0;
     }
+    
+    /* 操作コントロール領域 */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      background-color: #eaeaea;
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+    }
+    .controls input,
     .controls button {
-      padding: 5px 10px;
-      border: none;
-      background-color: #007acc;
-      color: #fff;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #888;
       border-radius: 3px;
+      background-color: #fff;
       cursor: pointer;
     }
-    .controls button:hover {
-      background-color: #005fa3;
+    .controls input:focus,
+    .code-editor:focus {
+      outline: none;
+      border-color: #007acc;
     }
+    
+    /* エディタ領域 */
     .editor-container {
       display: flex;
-      height: calc(100vh - 120px);
-      border-top: 1px solid #ccc;
+      height: calc(100vh - 150px);
     }
     .line-numbers {
       background-color: #f0f0f0;
       padding: 10px;
       text-align: right;
       user-select: none;
-      min-width: 40px;
-      border-right: 1px solid #ddd;
-      font-family: monospace;
+      width: 50px;
+      overflow-y: auto;
+      border-right: 1px solid #ccc;
     }
     .code-editor {
       flex: 1;
       padding: 10px;
-      outline: none;
+      overflow-y: auto;
       white-space: pre-wrap;
-      overflow-wrap: break-word;
-      font-family: monospace;
+      word-wrap: break-word;
     }
+    
+    /* スマートフォン対応 */
+    @media (max-width: 480px) {
+      .controls input,
+      .controls button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+      }
+      .line-numbers {
+        width: 30px;
+        font-size: 0.8rem;
+      }
+    }
+    
+    /* 検索結果強調用 */
     mark {
       background-color: purple;
       color: #fff;
@@ -74,133 +91,163 @@
   </style>
 </head>
 <body>
+  <!-- ヘッダー -->
   <header>
     <h1>コードエディタ</h1>
   </header>
   
+  <!-- 操作コントロール領域 -->
   <div class="controls">
     <input type="text" id="searchInput" placeholder="検索キーワード">
+    <button id="selectAllBtn">全選択</button>
+    <button id="copyBtn">コピー</button>
     <button id="saveBtn">保存</button>
     <button id="clearBtn">クリア</button>
   </div>
   
+  <!-- エディタ領域（行番号＋コード入力フィールド） -->
   <div class="editor-container">
     <div class="line-numbers" id="lineNumbers">1</div>
-    <div class="code-editor" id="codeEditor" contenteditable="true"></div>
+    <div class="code-editor" id="editor" contenteditable="true"></div>
   </div>
   
   <script>
-    // エディタ内のプレーンテキストを保存するグローバル変数
+    // エディタ内容の内部状態
     let baseContent = "";
-
+    
     // DOM 要素の取得
-    const codeEditor = document.getElementById("codeEditor");
+    const editor = document.getElementById("editor");
     const lineNumbers = document.getElementById("lineNumbers");
     const searchInput = document.getElementById("searchInput");
+    const selectAllBtn = document.getElementById("selectAllBtn");
+    const copyBtn = document.getElementById("copyBtn");
     const saveBtn = document.getElementById("saveBtn");
     const clearBtn = document.getElementById("clearBtn");
-
-    // HTMLエスケープ関数：特殊文字を変換する
-    function escapeHTML(str) {
-      return str.replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+    
+    // HTML特殊文字を安全にエスケープする関数
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;");
     }
-
-    // 行番号の更新関数
-    function updateLineNumbers() {
-      const text = codeEditor.innerText || "";
-      const numberOfLines = text.split(/\r\n|\r|\n/).length;
-      let numbersHTML = "";
-      for (let i = 1; i <= numberOfLines; i++) {
-        numbersHTML += i + "<br>";
-      }
-      lineNumbers.innerHTML = numbersHTML;
-    }
-
-    // 検索・ハイライト適用関数（エスケープ済みテキストから変換）
-    function applySearchHighlighting() {
-      const keyword = searchInput.value;
-      // baseContent を HTML エスケープして安全な文字列とする
-      const safeText = escapeHTML(baseContent);
-      
-      if (!keyword) {
-        // キーワードが空の場合、プレーンテキストとして表示
-        codeEditor.textContent = baseContent;
-      } else {
-        // 正規表現の特殊文字をエスケープしてから検索
-        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedKeyword, "gi");
-        // エスケープ済みテキストに対して <mark> タグを適用
-        const highlightedText = safeText.replace(regex, (match) => `<mark>${match}</mark>`);
-        codeEditor.innerHTML = highlightedText;
-      }
+    
+    // エディタ内容を更新し、行番号表示と検索ハイライトも再描画
+    function updateEditorContent(newContent) {
+      baseContent = newContent;
       updateLineNumbers();
-    }
-
-    // エディタ内での入力や貼付け時の処理
-    function handleEditorInput() {
-      // baseContent にプレーンテキストとして保存
-      baseContent = codeEditor.innerText;
       applySearchHighlighting();
     }
-
-    // イベントリスナーの設定
-    codeEditor.addEventListener("input", handleEditorInput);
-    codeEditor.addEventListener("paste", function() {
-      setTimeout(handleEditorInput, 0);
+    
+    // 行番号の更新（改行ごとに番号を付与）
+    function updateLineNumbers() {
+      const lines = baseContent.split(/\r\n|\r|\n/);
+      lineNumbers.innerHTML = "";
+      lines.forEach((line, index) => {
+        lineNumbers.innerHTML += (index + 1) + "<br>";
+      });
+    }
+    
+    // 検索キーワードに基づき、ハイライトを適用する
+    function applySearchHighlighting() {
+      const keyword = searchInput.value;
+      let safeContent = escapeHtml(baseContent);
+      if (keyword.trim() !== "") {
+        const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp('(' + escapedKeyword + ')', 'gi');
+        safeContent = safeContent.replace(regex, '<mark>$1</mark>');
+      }
+      editor.innerHTML = safeContent;
+    }
+    
+    // 入力イベント時にエディタ内容を更新
+    function handleEditorInput() {
+      updateEditorContent(editor.innerText);
+    }
+    
+    editor.addEventListener("input", handleEditorInput);
+    
+    // スクロール連動
+    editor.addEventListener("scroll", () => {
+      lineNumbers.scrollTop = editor.scrollTop;
     });
+    
+    // 検索キーワード入力でハイライト再適用
     searchInput.addEventListener("input", applySearchHighlighting);
-
-    // 保存処理
-    saveBtn.addEventListener("click", function() {
-      const htmlTagRegex = /<[^>]+>/;
-      let fileContent = "";
-      const filename = "output.html";
-
-      if (htmlTagRegex.test(baseContent)) {
-        fileContent = baseContent;
-      } else {
-        fileContent = `<!DOCTYPE html>
+    
+    // 全選択ボタン：エディタ内の全テキストを選択
+    selectAllBtn.addEventListener("click", () => {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+    
+    // コピー機能：Clipboard API を利用して baseContent をコピー
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(baseContent);
+        alert("コピーが成功しました！");
+      } catch (err) {
+        alert("コピーに失敗しました。");
+      }
+    });
+    
+    // 保存機能：エディタの内容を HTML ファイルとして出力
+    saveBtn.addEventListener("click", () => {
+      let fileContent = baseContent;
+      if (!/<\/?[a-z][\s\S]*>/i.test(baseContent)) {
+        fileContent = `
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-  <style>
-    body { font-family: monospace; white-space: pre-wrap; }
-  </style>
+  <title>保存されたコード</title>
 </head>
 <body>
-  <pre>${baseContent}</pre>
+  <pre>${escapeHtml(baseContent)}</pre>
 </body>
-</html>`;
+</html>
+        `.trim();
       }
-      
       const blob = new Blob([fileContent], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
+      link.href = URL.createObjectURL(blob);
+      link.download = "code.html";
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(link.href);
     });
-
-    // クリア処理
-    clearBtn.addEventListener("click", function() {
-      if (confirm("本当に全ての内容を削除してもよろしいですか？")) {
-        baseContent = "";
-        codeEditor.textContent = "";
-        updateLineNumbers();
-      }
+    
+    // クリア機能：確認なしで全削除
+    clearBtn.addEventListener("click", () => {
+      updateEditorContent("");
+      editor.innerHTML = "";
     });
-
-    // 初期状態の行番号更新
-    updateLineNumbers();
+    
+    // クリップボードからの貼り付け対応：paste イベントで挿入処理を実施
+    editor.addEventListener("paste", function(e) {
+      e.preventDefault();
+      // クリップボードからテキストを取得
+      const pasteText = (e.clipboardData || window.clipboardData).getData("text");
+      // カーソル位置にテキストを挿入する
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(pasteText);
+      range.insertNode(textNode);
+      // カーソル位置を更新
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // 入力イベントを手動で発火して内容を更新
+      handleEditorInput();
+    });
+    
+    // 初期状態の行番号表示
+    window.addEventListener("load", updateLineNumbers);
   </script>
 </body>
 </html>
