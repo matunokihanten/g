@@ -3,125 +3,334 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ヒットアンドブローゲーム</title>
+  <title>究極のヒットアンドブローゲーム</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
+    /* CSSカスタムプロパティ */
+    :root {
+      --primary-color: #4CAF50; /* 緑 */
+      --primary-dark-color: #388E3C; /* 濃い緑 */
+      --secondary-color: #2196F3; /* 青 */
+      --secondary-dark-color: #1976D2; /* 濃い青 */
+      --accent-color: #FFC107; /* 黄 */
+      --text-color: #333;
+      --light-bg: #f9f9f9;
+      --dark-bg: #e0e0e0;
+      --border-color: #ddd;
+      --error-color: #EF5350; /* 赤 */
+      --success-color: #66BB6A; /* 緑 */
+      --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-medium: 0 6px 16px rgba(0, 0, 0, 0.15);
+      --shadow-deep: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f0f5;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #A8CABA 0%, #5D4157 100%); /* 豪華なグラデーション */
       margin: 0;
-      padding: 0;
+      padding: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
+      color: var(--text-color);
+      overflow-y: auto; /* コンテンツがはみ出た場合にスクロール */
     }
+
     .container {
-      background: #fff;
+      background: var(--light-bg);
       padding: 30px 40px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      border-radius: 8px;
+      box-shadow: var(--shadow-medium);
+      border-radius: 12px;
       text-align: center;
-      width: 320px;
+      width: 100%;
+      max-width: 400px; /* 最大幅を調整 */
+      position: relative;
+      overflow: hidden; /* オーバーレイのための設定 */
     }
+
     h2 {
-      margin-bottom: 20px;
-      color: #333;
+      margin-bottom: 25px;
+      color: var(--primary-dark-color);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2em;
+      letter-spacing: 1px;
     }
+
     .digit-select {
-      margin-bottom: 15px;
+      margin-bottom: 20px;
+      background: var(--dark-bg);
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
     }
     .digit-select p {
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       font-weight: bold;
+      color: var(--text-color);
     }
     .digit-select label {
-      margin-right: 10px;
-      font-size: 16px;
+      margin: 0 8px;
+      font-size: 17px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
     }
-    p {
-      color: #555;
-      margin-bottom: 15px;
+    .digit-select input[type="radio"] {
+      margin-right: 5px;
+      transform: scale(1.2); /* ラジオボタンを大きく */
+      accent-color: var(--primary-color); /* チェック色を変更 */
     }
+
+    .info-text {
+      color: var(--text-color);
+      margin-bottom: 10px; /* 調整 */
+      font-size: 1.1em;
+    }
+
+    #result { /* ここをinputフィールドのすぐ上に移動したので、margin-bottomを調整 */
+      font-size: 24px;
+      color: var(--primary-dark-color);
+      min-height: 30px;
+      margin-bottom: 10px; /* inputフィールドとの間隔を調整 */
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
     input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 5px; /* エラーメッセージとの隙間調整 */
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 16px;
-      box-sizing: border-box; /* paddingを含めてwidthを計算 */
+      width: calc(100% - 20px); /* Padding考慮 */
+      padding: 12px;
+      margin-bottom: 0px; /* 調整: エラーメッセージとの間隔 */
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 20px;
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 2px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      background-color: #fff;
     }
-    /* 入力エラー時のスタイル */
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+    }
+    /* 入力エラー時のスタイルとアニメーション */
     input[type="text"].input-error {
-      border-color: #dc3545; /* 赤色 */
-      box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+      border-color: var(--error-color);
+      box-shadow: 0 0 0 3px rgba(239, 83, 80, 0.2);
+      animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+      transform: translate3d(0, 0, 0);
+      backface-visibility: hidden;
+      perspective: 1000px;
     }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
     .error-message {
-      color: #dc3545;
-      font-size: 14px;
-      min-height: 20px; /* メッセージがないときも高さを確保 */
-      margin-bottom: 10px;
+      color: var(--error-color);
+      font-size: 15px;
+      min-height: 20px;
+      margin-bottom: 10px; /* 調整: キーパッドとの間隔 */
+      font-weight: bold;
     }
-    input[type="text"]::-webkit-outer-spin-button,
-    input[type="text"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    input[type="text"] {
-      -moz-appearance: textfield;
-    }
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
+
+    /* 数字キーパッド */
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      justify-content: center;
-      margin-bottom: 15px;
+      margin-top: 10px; /* 調整: 入力フィールド/エラーメッセージとの間隔 */
+      margin-bottom: 20px; /* 調整: 他のボタンとの間隔 */
+    }
+    .keypad button {
+      background-color: var(--secondary-color);
+      color: white;
+      font-size: 24px;
+      padding: 15px 0;
+      border-radius: 8px;
+      box-shadow: var(--shadow-light);
+      /* キーパッドボタンに固有のスタイルを適用するため、
+         汎用のbuttonスタイルを一部上書き */
+      min-width: unset; /* 汎用buttonのmin-widthを解除 */
+    }
+    .keypad button:hover:not(:disabled) {
+      background-color: var(--secondary-dark-color);
+    }
+    .keypad button.key-clear {
+      background-color: #FF5722; /* オレンジ */
+    }
+    .keypad button.key-clear:hover:not(:disabled) {
+      background-color: #E64A19;
+    }
+    .keypad button.key-back {
+      background-color: #607D8B; /* グレイ */
+    }
+    .keypad button.key-back:hover:not(:disabled) {
+      background-color: #455A64;
+    }
+    .keypad button:disabled {
+      background-color: var(--dark-bg);
+      color: #999;
+    }
+
+    .buttons {
+      display: grid; /* グリッドレイアウトに変更 */
+      grid-template-columns: repeat(2, 1fr); /* 2列 */
+      gap: 12px; /* ボタン間のスペース */
+      margin-bottom: 20px;
     }
     button {
-      padding: 10px 15px;
-      font-size: 16px;
+      padding: 12px 18px;
+      font-size: 17px;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
-      background-color: #28a745;
+      background-color: var(--primary-color);
       color: #fff;
-      transition: background-color 0.2s, opacity 0.2s;
-      min-width: 90px;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      font-weight: bold;
+      display: flex; /* アイコンとテキストを中央揃え */
+      align-items: center;
+      justify-content: center;
+      gap: 8px; /* アイコンとテキストの間隔 */
+      box-shadow: var(--shadow-light);
+    }
+    button i {
+        font-size: 1.1em;
     }
     button:hover:not(:disabled) {
-      background-color: #218838;
+      background-color: var(--primary-dark-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-medium);
+    }
+    button:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: var(--shadow-light);
     }
     button:disabled {
-      background-color: #6c757d;
+      background-color: var(--dark-bg);
+      color: #999;
       cursor: not-allowed;
-      opacity: 0.6;
+      opacity: 0.7;
+      box-shadow: none;
     }
-    #result {
-      font-size: 18px;
-      color: #222;
-      min-height: 24px;
-      margin-bottom: 20px;
-      font-weight: bold;
+
+    /* 特定のボタンの色分け */
+    #numericHintButton, #digitHighlightButton,
+    #revealDigitHintButton, #parityHintButton, #rangeHintButton {
+      background-color: var(--secondary-color);
+    }
+    #numericHintButton:hover:not(:disabled), #digitHighlightButton:hover:not(:disabled),
+    #revealDigitHintButton:hover:not(:disabled), #parityHintButton:hover:not(:disabled), #rangeHintButton:hover:not(:disabled) {
+      background-color: var(--secondary-dark-color);
+    }
+    #showAnswerButton {
+      background-color: var(--error-color);
+    }
+    #showAnswerButton:hover:not(:disabled) {
+      background-color: #C62828; /* 濃い赤 */
+    }
+
+    /* 勝利時の結果メッセージアニメーション */
+    .win-message {
+      animation: pulse 1.5s infinite;
+      color: var(--success-color) !important;
+      font-size: 28px !important;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    h3 {
+      color: var(--text-color);
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.6em;
     }
     table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 20px;
+      margin-top: 15px;
+      box-shadow: var(--shadow-light);
+      border-radius: 8px;
+      overflow: hidden; /* 角丸を適用 */
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
+      border: 1px solid var(--border-color);
+      padding: 10px;
       text-align: center;
+      font-size: 15px;
     }
     th {
-      background-color: #f2f2f2;
+      background-color: var(--dark-bg);
+      color: var(--text-color);
+      font-weight: bold;
+    }
+    td {
+      background-color: #fff;
+    }
+    td span.highlight-green {
+      color: var(--success-color);
+      font-weight: bold;
+    }
+    td span.highlight-red {
+      color: var(--error-color);
+      font-weight: bold;
+    }
+
+    /* ゲームオーバーオーバーレイ */
+    .game-over-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2em;
+      font-weight: bold;
+      border-radius: 12px;
+      z-index: 10;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+    .game-over-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .game-over-overlay p {
+      margin-bottom: 20px;
+      font-size: 1.2em;
+      color: white;
+    }
+    .game-over-overlay button {
+      background-color: var(--success-color);
+      color: white;
+      font-size: 1.2em;
+      padding: 10px 20px;
+    }
+    .game-over-overlay button:hover {
+      background-color: var(--primary-dark-color);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>ヒットアンドブローゲーム</h2>
+    <h2><i class="fas fa-bullseye"></i> ヒット&ブロー <i class="fas fa-bullseye"></i></h2>
     <div class="digit-select">
       <p>桁数選択:</p>
       <label><input type="radio" name="digitCount" value="3"> 3桁</label>
@@ -129,18 +338,40 @@
       <label><input type="radio" name="digitCount" value="5"> 5桁</label>
       <label><input type="radio" name="digitCount" value="6"> 6桁</label>
     </div>
-    <p>数字を入力してください。（各桁は重複しない）</p>
-    <input type="text" id="guess" maxlength="4" placeholder="例：1234" inputmode="numeric" pattern="\d*">
-    <div id="input-error-message" class="error-message"></div>
-    <div class="buttons">
-      <button id="checkButton">チェック</button>
-      <button id="numericHintButton">数値ヒント</button>
-      <button id="digitHighlightButton">数字ハイライト</button>
-      <button id="showAnswerButton">答え</button>
-    </div>
+    <p class="info-text">数字を入力してください。（各桁は重複しない）</p>
+
     <p id="result" aria-live="polite"></p>
+
+    <input type="text" id="guess" maxlength="4" placeholder="例：1234" inputmode="none">
+    <div id="input-error-message" class="error-message"></div>
+
+    <div class="keypad">
+      <button class="keypad-btn">1</button>
+      <button class="keypad-btn">2</button>
+      <button class="keypad-btn">3</button>
+      <button class="keypad-btn">4</button>
+      <button class="keypad-btn">5</button>
+      <button class="keypad-btn">6</button>
+      <button class="keypad-btn">7</button>
+      <button class="keypad-btn">8</button>
+      <button class="keypad-btn">9</button>
+      <button class="keypad-btn key-clear"><i class="fas fa-eraser"></i> クリア</button>
+      <button class="keypad-btn">0</button>
+      <button class="keypad-btn key-back"><i class="fas fa-backspace"></i> 戻る</button>
+    </div>
+
+    <div class="buttons">
+      <button id="checkButton"><i class="fas fa-check"></i> チェック</button>
+      <button id="numericHintButton"><i class="fas fa-sort-numeric-up-alt"></i> 数値ヒント</button>
+      <button id="digitHighlightButton"><i class="fas fa-highlighter"></i> 数字ハイライト</button>
+      <button id="revealDigitHintButton" title="答えに含まれる数字を一つ表示します (1回限り)"><i class="fas fa-lightbulb"></i> 数字1つヒント</button>
+      <button id="parityHintButton" title="答え全体が偶数か奇数かを教えます (1回限り)"><i class="fas fa-question"></i> 偶奇ヒント</button>
+      <button id="rangeHintButton" title="答えが指定範囲内にあるか教えます (1回限り)"><i class="fas fa-chart-bar"></i> 範囲ヒント</button>
+      <button id="showAnswerButton"><i class="fas fa-eye"></i> 答え</button>
+    </div>
+    
     <div>
-      <h3>予想履歴</h3>
+      <h3><i class="fas fa-history"></i> 予想履歴</h3>
       <table id="historyTable">
         <thead>
           <tr>
@@ -153,9 +384,16 @@
         <tbody id="history"></tbody>
       </table>
     </div>
+
+    <div class="game-over-overlay" id="gameOverOverlay">
+      <p id="gameOverMessage"></p>
+      <button id="playAgainButton"><i class="fas fa-redo"></i> もう一度プレイ</button>
+    </div>
   </div>
 
   <script>
+    "use strict"; // 厳格モードの有効化
+
     // DOM要素のキャッシュ
     const guessField = document.getElementById("guess");
     const resultDisplay = document.getElementById("result");
@@ -164,27 +402,48 @@
     const checkButton = document.getElementById("checkButton");
     const numericHintButton = document.getElementById("numericHintButton");
     const digitHighlightButton = document.getElementById("digitHighlightButton");
+    const revealDigitHintButton = document.getElementById("revealDigitHintButton");
+    const parityHintButton = document.getElementById("parityHintButton");
+    const rangeHintButton = document.getElementById("rangeHintButton");
     const showAnswerButton = document.getElementById("showAnswerButton");
     const digitCountRadios = document.querySelectorAll('input[name="digitCount"]');
+    const keypadButtons = document.querySelectorAll('.keypad-btn');
+    const gameOverOverlay = document.getElementById("gameOverOverlay");
+    const gameOverMessage = document.getElementById("gameOverMessage");
+    const playAgainButton = document.getElementById("playAgainButton");
 
     // ゲームの状態を管理する変数
     let currentDigitCount = 4;
     let answer = [];
     let guessHistory = [];
-    let isGameActive = true; // ゲームが進行中かどうかのフラグ
-    let isDigitHighlightActive = false; // 数字ハイライト機能が有効かどうかのフラグ
+    let isGameActive = true;
+    let isDigitHighlightActive = false;
+    let hintUsed = {
+      revealDigit: false,
+      parity: false,
+      range: false,
+    };
+    let revealedDigitsInHint = new Set();
 
     // メッセージ定数
     const MESSAGES = {
-      INPUT_LENGTH_ERROR: (count) => `${count}桁の半角数字を正しく入力してください。`,
+      INPUT_LENGTH_ERROR: (count) => `${count}桁の半角数字を入力してください。`,
       INPUT_DUPLICATE_ERROR: "各桁は重複しない数字で入力してください。",
-      CORRECT_ANSWER: (ans) => `正解です！答えは ${ans} でした。おめでとうございます！`,
+      CORRECT_ANSWER: (ans) => `正解！答えは ${ans} でした！🎉`,
       HINT_HIGH: "あなたの予想は答えより大きいです。",
       HINT_LOW: "あなたの予想は答えより小さいです。",
       HINT_EQUAL: "あなたの予想はちょうど答えと同じ数値です！（桁と位置は考慮せず）",
       ANSWER_IS: (ans) => `答えは ${ans} です。`,
       HIT_BLOW: (hit, blow) => `ヒット：${hit}、ブロー：${blow}`,
-      DEFAULT_PLACEHOLDER: (count) => "例：" + "123456".substring(0, count)
+      DEFAULT_PLACEHOLDER: (count) => "例：" + "123456".substring(0, count),
+      REVEAL_DIGIT_HINT: (digit) => `答えに含まれる数字の一つは「${digit}」です。`,
+      NO_NEW_DIGIT_TO_REVEAL: "これ以上、新しい数字のヒントはありません。",
+      PARITY_HINT: (isEven) => `答えは${isEven ? '偶数' : '奇数'}です。`,
+      RANGE_HINT_ABOVE: (boundary) => `答えは ${boundary} 以上です。`,
+      RANGE_HINT_BELOW: (boundary) => `答えは ${boundary} 未満です。`,
+      HINT_ALREADY_USED: "このヒントはすでに使用済みです！",
+      GAME_OVER_WIN: "おめでとうございます！",
+      GAME_OVER_LOSE: "ゲーム終了...",
     };
 
     /**
@@ -211,16 +470,25 @@
       currentDigitCount = parseInt(selectedRadio.value, 10);
 
       answer = generateAnswer(currentDigitCount);
-      console.log("答え(デバッグ用):", answer.join('')); // デバッグ用
+      // デバッグ用: console.log("答え(デバッグ用):", answer.join(''));
 
       guessHistory = [];
       isGameActive = true;
-      isDigitHighlightActive = false; // ヒントフラグのリセット
+      isDigitHighlightActive = false;
+      hintUsed = {
+        revealDigit: false,
+        parity: false,
+        range: false,
+      };
+      revealedDigitsInHint.clear();
 
       updateHistory();
       clearMessages();
       resetInputField();
-      setButtonState(true); // ボタンを有効化
+      setButtonState(true);
+      digitHighlightButton.textContent = "数字ハイライト";
+      gameOverOverlay.classList.remove("show"); // オーバーレイを隠す
+      resultDisplay.classList.remove("win-message"); // 勝利メッセージスタイルを解除
     }
 
     /**
@@ -249,8 +517,10 @@
       checkButton.disabled = !enable;
       numericHintButton.disabled = !enable;
       digitHighlightButton.disabled = !enable;
-      // 答えボタンはゲーム終了後も押せるようにしたい場合、この行をコメントアウト
-      // showAnswerButton.disabled = !enable;
+      revealDigitHintButton.disabled = !enable || hintUsed.revealDigit;
+      parityHintButton.disabled = !enable || hintUsed.parity;
+      rangeHintButton.disabled = !enable || hintUsed.range;
+      showAnswerButton.disabled = !enable;
     }
 
     /**
@@ -269,9 +539,9 @@
           let highlighted = "";
           for (let d of entry.guess) {
             if (answer.includes(parseInt(d, 10))) {
-              highlighted += `<span style="color: green; font-weight: bold;">${d}</span>`;
+              highlighted += `<span class="highlight-green">${d}</span>`;
             } else {
-              highlighted += `<span style="color: red; font-weight: bold;">${d}</span>`;
+              highlighted += `<span class="highlight-red">${d}</span>`;
             }
           }
           cellGuess.innerHTML = highlighted;
@@ -299,17 +569,15 @@
      * @returns {boolean} 入力が有効な場合はtrue、そうでない場合はfalse
      */
     function validateGuess(guessStr, digitCount) {
-      clearMessages(); // まずエラーメッセージをクリア
+      clearMessages();
       guessField.classList.remove("input-error");
 
-      // 桁数と数字のみのチェック
       if (guessStr.length !== digitCount || !/^\d+$/.test(guessStr)) {
         inputErrorMessage.textContent = MESSAGES.INPUT_LENGTH_ERROR(digitCount);
         guessField.classList.add("input-error");
         return false;
       }
 
-      // 重複チェック
       if (new Set(guessStr.split('')).size !== digitCount) {
         inputErrorMessage.textContent = MESSAGES.INPUT_DUPLICATE_ERROR;
         guessField.classList.add("input-error");
@@ -319,15 +587,26 @@
     }
 
     /**
+     * ゲーム終了時の処理
+     * @param {boolean} isWin - 勝利した場合はtrue、そうでない場合はfalse
+     */
+    function endGame(isWin) {
+      isGameActive = false;
+      setButtonState(false);
+      gameOverMessage.textContent = isWin ? MESSAGES.GAME_OVER_WIN : MESSAGES.GAME_OVER_LOSE;
+      gameOverOverlay.classList.add("show");
+    }
+
+    /**
      * 「チェック」ボタン押下時の処理
      */
     function handleCheckGuess() {
-      if (!isGameActive) return; // ゲームが非アクティブなら何もしない
+      if (!isGameActive) return;
 
       const guessStr = guessField.value.trim();
 
       if (!validateGuess(guessStr, currentDigitCount)) {
-        return; // バリデーション失敗
+        return;
       }
 
       const guessDigits = guessStr.split('').map(Number);
@@ -344,15 +623,15 @@
 
       if (hit === currentDigitCount) {
         resultDisplay.textContent = MESSAGES.CORRECT_ANSWER(answer.join(''));
-        isGameActive = false; // ゲーム終了
-        setButtonState(false); // ボタンを無効化
+        resultDisplay.classList.add("win-message");
+        endGame(true);
       } else {
         resultDisplay.textContent = MESSAGES.HIT_BLOW(hit, blow);
       }
 
       guessHistory.push({ guess: guessStr, hit: hit, blow: blow });
       updateHistory();
-      guessField.value = ""; // 入力欄をクリア
+      guessField.value = "";
     }
 
     /**
@@ -363,13 +642,18 @@
 
       const guessStr = guessField.value.trim();
 
-      // 数字ハイライト機能の影響を受けないよう、個別にバリデーション
+      if (guessStr.length === 0) {
+          inputErrorMessage.textContent = "ヒントを得るには数字を入力してください。";
+          guessField.classList.add("input-error");
+          return;
+      }
+
       if (guessStr.length !== currentDigitCount || !/^\d+$/.test(guessStr)) {
         inputErrorMessage.textContent = MESSAGES.INPUT_LENGTH_ERROR(currentDigitCount);
         guessField.classList.add("input-error");
         return;
       }
-      clearMessages(); // エラー表示を消す
+      clearMessages();
 
       const guessInt = parseInt(guessStr, 10);
       const answerInt = parseInt(answer.join(""), 10);
@@ -389,11 +673,90 @@
     function handleDigitHighlight() {
       if (!isGameActive) return;
 
-      // 数字ハイライトの有効/無効を切り替える
       isDigitHighlightActive = !isDigitHighlightActive;
       digitHighlightButton.textContent = isDigitHighlightActive ? "ハイライトOFF" : "数字ハイライト";
-      updateHistory(); // 履歴を再描画してハイライトを適用/解除
+      updateHistory();
       resultDisplay.textContent = `数字ハイライト ${isDigitHighlightActive ? 'ON' : 'OFF'} にしました。`;
+    }
+
+    /**
+     * 「数字1つヒント」ボタン押下時の処理
+     */
+    function handleRevealDigitHint() {
+      if (!isGameActive) return;
+      if (hintUsed.revealDigit) {
+        resultDisplay.textContent = MESSAGES.HINT_ALREADY_USED;
+        return;
+      }
+
+      clearMessages();
+
+      const unrevealedDigits = answer.filter(digit => !revealedDigitsInHint.has(digit));
+
+      if (unrevealedDigits.length > 0) {
+        const randomIndex = Math.floor(Math.random() * unrevealedDigits.length);
+        const revealedDigit = unrevealedDigits[randomIndex];
+        revealedDigitsInHint.add(revealedDigit);
+
+        resultDisplay.textContent = MESSAGES.REVEAL_DIGIT_HINT(revealedDigit);
+        hintUsed.revealDigit = true;
+        setButtonState(isGameActive);
+      } else {
+        resultDisplay.textContent = MESSAGES.NO_NEW_DIGIT_TO_REVEAL;
+      }
+    }
+
+    /**
+     * 「偶奇ヒント」ボタン押下時の処理
+     */
+    function handleParityHint() {
+      if (!isGameActive) return;
+      if (hintUsed.parity) {
+        resultDisplay.textContent = MESSAGES.HINT_ALREADY_USED;
+        return;
+      }
+
+      clearMessages();
+
+      const answerInt = parseInt(answer.join(""), 10);
+      const isEven = answerInt % 2 === 0;
+      resultDisplay.textContent = MESSAGES.PARITY_HINT(isEven);
+
+      hintUsed.parity = true;
+      setButtonState(isGameActive);
+    }
+
+    /**
+     * 「範囲ヒント」ボタン押下時の処理
+     */
+    function handleRangeHint() {
+      if (!isGameActive) return;
+      if (hintUsed.range) {
+        resultDisplay.textContent = MESSAGES.HINT_ALREADY_USED;
+        return;
+      }
+
+      clearMessages();
+
+      const answerInt = parseInt(answer.join(""), 10);
+      let boundary;
+
+      switch (currentDigitCount) {
+        case 3: boundary = 500; break;
+        case 4: boundary = 5000; break;
+        case 5: boundary = 50000; break;
+        case 6: boundary = 500000; break;
+        default: boundary = 500;
+      }
+
+      if (answerInt >= boundary) {
+        resultDisplay.textContent = MESSAGES.RANGE_HINT_ABOVE(boundary);
+      } else {
+        resultDisplay.textContent = MESSAGES.RANGE_HINT_BELOW(boundary);
+      }
+
+      hintUsed.range = true;
+      setButtonState(isGameActive);
     }
 
     /**
@@ -401,39 +764,110 @@
      */
     function handleShowAnswer() {
       resultDisplay.textContent = MESSAGES.ANSWER_IS(answer.join(''));
-      isGameActive = false; // ゲーム終了
-      setButtonState(false); // ボタンを無効化
+      endGame(false);
     }
 
     // イベントリスナーの設定
     document.addEventListener("DOMContentLoaded", () => {
-      // ラジオボタンの変更時にゲームリセット
       digitCountRadios.forEach((elem) => {
         elem.addEventListener("change", resetGame);
       });
 
-      // 各ボタンにイベントリスナーを設定
       checkButton.addEventListener("click", handleCheckGuess);
       numericHintButton.addEventListener("click", handleNumericHint);
       digitHighlightButton.addEventListener("click", handleDigitHighlight);
+      revealDigitHintButton.addEventListener("click", handleRevealDigitHint);
+      parityHintButton.addEventListener("click", handleParityHint);
+      rangeHintButton.addEventListener("click", handleRangeHint);
       showAnswerButton.addEventListener("click", handleShowAnswer);
+      playAgainButton.addEventListener("click", resetGame);
 
       // 入力フィールドでEnterキーが押されたらチェックを実行
       guessField.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          e.preventDefault(); // Enterキーによるフォーム送信を防止
+          e.preventDefault();
           handleCheckGuess();
         }
       });
 
-      // 入力中に半角数字以外の文字を削除する
+      // キーパッドのボタンクリックイベント
+      keypadButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          if (!isGameActive) return;
+
+          const currentInput = guessField.value;
+          const buttonText = button.textContent.trim(); // アイコンがあるのでtrim()
+
+          if (button.classList.contains('key-clear')) {
+            guessField.value = '';
+            clearMessages(); // クリア時にメッセージも消す
+            guessField.classList.remove("input-error"); // エラークラスも消す
+          } else if (button.classList.contains('key-back')) {
+            guessField.value = currentInput.slice(0, -1);
+            clearMessages(); // 戻る時もメッセージを消す
+            guessField.classList.remove("input-error"); // エラークラスも消す
+          } else {
+            const newDigit = buttonText;
+            if (currentInput.length < currentDigitCount) {
+              if (!currentInput.includes(newDigit)) {
+                guessField.value += newDigit;
+                clearMessages(); // 有効な入力時はエラーをクリア
+                guessField.classList.remove("input-error");
+              } else {
+                inputErrorMessage.textContent = "この数字は既に入力されています。";
+                guessField.classList.add("input-error");
+                // setTimeoutを削除し、エラーメッセージを継続表示
+              }
+            } else {
+                inputErrorMessage.textContent = `${currentDigitCount}桁を超えています。`;
+                guessField.classList.add("input-error");
+                // setTimeoutを削除し、エラーメッセージを継続表示
+            }
+          }
+        });
+      });
+
+      // 直接入力時のバリデーションとエラー表示
       guessField.addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^0-9]/g, '');
-        // 入力がある程度正しくなったらエラー表示を消す
-        if (e.target.value.length === currentDigitCount && new Set(e.target.value.split('')).size === currentDigitCount) {
-            clearMessages();
-            guessField.classList.remove("input-error");
-        }
+          let inputValue = e.target.value;
+          let cleanedValue = inputValue.replace(/[^0-9]/g, ''); // 数字以外の文字を削除
+
+          // 重複する数字のチェックと自動修正
+          const uniqueDigits = new Set();
+          let finalValue = '';
+          for (const char of cleanedValue) {
+              if (!uniqueDigits.has(char)) {
+                  uniqueDigits.add(char);
+                  finalValue += char;
+              } else {
+                  inputErrorMessage.textContent = "各桁は重複しない数字で入力してください。";
+                  guessField.classList.add("input-error");
+                  e.target.value = finalValue; // 重複文字を除いた部分をセット
+                  return; // この入力イベントの処理を終了
+              }
+          }
+
+          // 桁数制限
+          if (finalValue.length > currentDigitCount) {
+              finalValue = finalValue.slice(0, currentDigitCount);
+              inputErrorMessage.textContent = `${currentDigitCount}桁を超えています。`;
+              guessField.classList.add("input-error");
+          } else if (inputErrorMessage.textContent === `${currentDigitCount}桁を超えています。` && finalValue.length <= currentDigitCount) {
+              // 桁数超過エラーが以前出ていて、桁数が適正に戻った場合、エラーをクリア
+              clearMessages();
+              guessField.classList.remove("input-error");
+          }
+
+          // 入力フィールドの値を更新
+          if (e.target.value !== finalValue) {
+              e.target.value = finalValue;
+          }
+
+          // 全てのバリデーションを通過した場合、エラーメッセージをクリア
+          if (finalValue.length === currentDigitCount && uniqueDigits.size === currentDigitCount) {
+              clearMessages();
+              guessField.classList.remove("input-error");
+          }
       });
 
       // 初期化
