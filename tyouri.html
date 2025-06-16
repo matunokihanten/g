@@ -3,149 +3,340 @@
 <head>
   <meta charset="UTF-8">
   <title>注文記憶ゲーム - クリック回答型（５列表示・手動解除）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
+      font-size: 18px;
+      line-height: 1.6;
     }
     h1 {
       text-align: center;
       color: #333;
+      font-size: 2.2em;
+      margin-bottom: 25px;
     }
     /* 共通の hidden クラス */
     .hidden {
       display: none;
     }
-    /* 設定モーダル */
-    #settingsModal {
+    /* モーダル共通スタイル */
+    #settingsModal, #gameOverModal {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       background-color: #fff;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
       z-index: 100;
+      width: 90%;
+      max-width: 500px;
+      box-sizing: border-box;
+      text-align: center;
     }
+    #settingsModal h2, #gameOverModal h2 {
+        font-size: 1.8em;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    #settingsModal label {
+      margin-bottom: 12px;
+      display: block;
+      text-align: left;
+      font-size: 1.1em;
+    }
+    #settingsModal input[type="file"] {
+      width: calc(100% - 20px);
+      margin-top: 8px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    #settingsModal button, #gameOverModal button {
+      width: auto;
+      padding: 12px 25px;
+      font-size: 1.1em;
+      margin: 15px 10px 0;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    #settingsModal button:hover, #gameOverModal button:hover {
+      background-color: #0056b3;
+      transform: translateY(-1px);
+    }
+    #settingsModal button:active, #gameOverModal button:active {
+      transform: translateY(1px);
+    }
+
     #modalOverlay {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0,0,0,0.5);
+      background-color: rgba(0,0,0,0.6);
       z-index: 50;
     }
     /* レベルコントロール */
     #levelControls {
       text-align: center;
-      margin: 10px;
+      margin: 25px 0 35px;
     }
     #levelIndicator {
-      font-size: 18px;
+      font-size: 1.3em;
       font-weight: bold;
+      color: #444;
+      display: block;
+      margin-bottom: 10px;
     }
-    /* ボタン */
+    /* ボタン全般 */
     button {
-      font-size: 16px;
-      padding: 5px 10px;
-      margin: 5px;
+      font-size: 1.2em;
+      padding: 12px 20px;
+      margin: 10px;
       cursor: pointer;
+      border: 1px solid #b0b0b0;
+      border-radius: 8px;
+      background-color: #e9ecef;
+      color: #333;
+      transition: background-color 0.2s, transform 0.1s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    button:hover:not(:disabled) {
+      background-color: #dee2e6;
+      transform: translateY(-2px);
+    }
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
     /* 押されたボタンを光らせる */
     button.selected {
-      background-color: #ffff99;
+      background-color: #ffda6a;
+      border-color: #ffc107;
+      box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
     }
+    /* 正解・不正解時のボタン色 */
+    button.correct-answer {
+        background-color: #28a745;
+        color: white;
+        border-color: #218838;
+    }
+    button.wrong-answer {
+        background-color: #dc3545;
+        color: white;
+        border-color: #c82333;
+    }
+
     /* 出題（覚える注文）表示エリア */
     #orderDisplay {
-      font-size: 24px;
-      margin: 20px auto;
-      padding: 10px;
-      background-color: #f0f0f0;
-      border-radius: 8px;
-      width: 60%;
-      min-height: 40px;
-      /* ５列グリッド */
+      font-size: 2.2em;
+      margin: 30px auto;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 900px;
+      min-height: 100px;
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 20px;
       text-align: center;
+      align-items: center;
+      justify-content: center;
+      word-break: break-word;
+      font-weight: bold;
+      color: #222;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    #orderDisplay div {
+        padding: 8px;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        background-color: #ffffff;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     /* 回答指示 */
     #instruction {
       text-align: center;
-      font-size: 18px;
-      margin: 10px;
+      font-size: 1.5em;
+      margin: 25px;
+      font-weight: bold;
+      color: #007bff;
+    }
+    /* 回答状況の表示 */
+    #answerProgress {
+        text-align: center;
+        font-size: 1.2em;
+        margin-top: -15px; /* instructionと被らないように調整 */
+        margin-bottom: 10px;
+        color: #666;
     }
     /* 回答用ボタン群 */
     #menuButtons {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      margin: 10px;
+      margin: 20px auto;
+      max-width: 1000px;
     }
     #menuButtons button {
-      margin: 5px;
+      min-width: 130px;
+      height: 60px;
+      font-size: 1.05em;
     }
     /* 結果表示 */
     #result {
       text-align: center;
-      font-size: 20px;
-      margin: 20px;
+      font-size: 1.8em;
+      margin: 40px;
+      font-weight: bold;
+      color: #dc3545;
+    }
+    #result.correct {
+        color: #28a745;
+    }
+
+    /* ゲームオーバー表示 */
+    #gameOverText {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+        color: #dc3545;
+        font-weight: bold;
+    }
+    #gameOverScore {
+        font-size: 1.2em;
+        margin-bottom: 30px;
+        color: #555;
+    }
+
+    /* スマートフォン向け調整 */
+    @media (max-width: 768px) {
+      body {
+        font-size: 15px;
+        margin: 15px;
+      }
+      h1 {
+        font-size: 1.8em;
+        margin-bottom: 20px;
+      }
+      button {
+        font-size: 1em;
+        padding: 10px 15px;
+        margin: 8px;
+      }
+      #levelIndicator {
+        font-size: 1.1em;
+      }
+      #orderDisplay {
+        font-size: 1.6em;
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        gap: 12px;
+        min-height: 80px;
+        padding: 15px;
+      }
+      #orderDisplay div {
+          min-height: 35px;
+          padding: 6px;
+      }
+      #instruction {
+        font-size: 1.2em;
+        margin: 20px;
+      }
+      #answerProgress {
+        font-size: 1.0em;
+      }
+      #menuButtons button {
+        min-width: 90px;
+        height: 50px;
+        font-size: 0.9em;
+        margin: 6px;
+      }
+      #result {
+        font-size: 1.4em;
+        margin: 25px;
+      }
+      #settingsModal, #gameOverModal {
+        padding: 20px;
+      }
+      #settingsModal button, #gameOverModal button {
+        padding: 10px 20px;
+        font-size: 1em;
+        margin: 10px 8px 0;
+      }
+      #settingsModal input[type="file"] {
+        padding: 6px;
+      }
     }
   </style>
 </head>
 <body>
   <h1>注文記憶ゲーム</h1>
   
-  <!-- 上部設定ボタン -->
   <div style="text-align:center;">
     <button id="settingsBtn">設定</button>
   </div>
   
-  <!-- モーダルオーバーレイと設定モーダル -->
   <div id="modalOverlay" class="hidden"></div>
   <div id="settingsModal" class="hidden">
     <h2>設定</h2>
     <label>
       <input type="checkbox" id="roundModeCheckbox" checked>
-      ラウンドモード
-    </label><br><br>
+      ラウンドモード (出題数 = レベル)
+    </label><br>
     <label>
       メニューファイル読み込み (JSON):
       <input type="file" id="jsonFileInput" accept=".json">
-    </label><br><br>
+    </label><br>
     <button id="applySettingsBtn">設定を適用</button>
     <button id="closeSettingsBtn">閉じる</button>
     <button id="saveMenuBtn">メニューをJSONとして保存</button>
   </div>
+
+  <div id="gameOverModal" class="hidden">
+    <h2>ゲームオーバー</h2>
+    <p id="gameOverText"></p>
+    <p id="gameOverScore"></p>
+    <button id="restartGameBtn">もう一度プレイ</button>
+    <button id="closeGameOverBtn">閉じる</button>
+  </div>
   
-  <!-- レベルコントロール -->
   <div id="levelControls">
-    <span id="levelIndicator">レベル: 1</span><br>
+    <span id="levelIndicator">レベル: 1 (あと3回ミスでゲームオーバー)</span><br>
     <button id="levelUpBtn">レベルアップ</button>
     <button id="levelDownBtn">レベルダウン</button>
   </div>
   
-  <!-- ゲームコントロール -->
   <div id="gameControls" style="text-align: center;">
     <button id="startBtn">スタート</button>
   </div>
   
-  <!-- 覚える注文の表示エリア（５列グリッドで出題） -->
   <div id="orderDisplay"></div>
   
-  <!-- 回答指示 -->
   <div id="instruction" class="hidden">
     覚えた料理をクリックして回答してください。
   </div>
   
-  <!-- 回答用ボタン群 -->
+  <div id="answerProgress"></div>
+  
   <div id="menuButtons" class="hidden"></div>
   
-  <!-- 結果表示 -->
   <div id="result"></div>
   
   <script>
@@ -168,10 +359,13 @@
     ];
     
     // ◆ ゲーム設定・状態変数
-    let roundMode = true;       // ラウンドモードONなら出題数＝現在のレベル、OFFなら常に１品
-    let currentLevel = 1;       // 現在のレベル（表示する料理数）
-    let sequence = [];          // 出題（覚える注文）の配列
-    let userSelections = [];    // ユーザーがクリックした回答の配列
+    let roundMode = true;
+    let currentLevel = 1;
+    let sequence = [];
+    let userSelections = []; // ユーザーがクリックした回答の配列
+    let consecutiveCorrects = 0; // 連続正解数
+    const MAX_MISTAKES = 3;     // 許容される間違いの最大回数
+    let mistakesCount = 0;      // 間違い回数
 
     // ◆ DOM 要素の取得
     const settingsBtn = document.getElementById("settingsBtn");
@@ -183,19 +377,31 @@
     const closeSettingsBtn = document.getElementById("closeSettingsBtn");
     const saveMenuBtn = document.getElementById("saveMenuBtn");
 
+    const gameOverModal = document.getElementById("gameOverModal");
+    const gameOverText = document.getElementById("gameOverText");
+    const gameOverScore = document.getElementById("gameOverScore");
+    const restartGameBtn = document.getElementById("restartGameBtn");
+    const closeGameOverBtn = document.getElementById("closeGameOverBtn");
+
     const levelIndicator = document.getElementById("levelIndicator");
     const levelUpBtn = document.getElementById("levelUpBtn");
     const levelDownBtn = document.getElementById("levelDownBtn");
     const startBtn = document.getElementById("startBtn");
     const orderDisplay = document.getElementById("orderDisplay");
     const instructionDiv = document.getElementById("instruction");
+    const answerProgressDiv = document.getElementById("answerProgress"); // 新しい要素
     const menuButtonsDiv = document.getElementById("menuButtons");
     const resultDiv = document.getElementById("result");
+
+    // 音声フィードバック用 (パスは実際のファイルに合わせてください)
+    const correctSound = new Audio('sounds/correct.mp3'); 
+    const incorrectSound = new Audio('sounds/incorrect.mp3');
 
     // ◆ 設定モーダルの操作
     settingsBtn.addEventListener("click", () => {
       modalOverlay.classList.remove("hidden");
       settingsModal.classList.remove("hidden");
+      roundModeCheckbox.checked = roundMode;
     });
     closeSettingsBtn.addEventListener("click", () => {
       modalOverlay.classList.add("hidden");
@@ -203,7 +409,6 @@
     });
     applySettingsBtn.addEventListener("click", () => {
       roundMode = roundModeCheckbox.checked;
-      // JSONファイルが選択されていた場合、メニューを更新
       if (jsonFileInput.files.length > 0) {
         const file = jsonFileInput.files[0];
         const reader = new FileReader();
@@ -214,11 +419,16 @@
               menuItems = jsonMenu;
               initMenuButtons();
               alert("メニューが更新されました！");
+              if (currentLevel > menuItems.length) {
+                currentLevel = menuItems.length > 0 ? menuItems.length : 1;
+                updateLevelIndicator();
+              }
             } else {
-              alert("JSON形式が正しくありません。");
+              alert("JSON形式が正しくありません。配列で、かつ1つ以上の要素が必要です。");
             }
           } catch (err) {
-            alert("JSONの読み込みに失敗しました。");
+            alert("JSONの読み込みに失敗しました。ファイルが破損しているか、形式が間違っています。");
+            console.error("JSON parse error:", err);
           }
         };
         reader.readAsText(file);
@@ -241,10 +451,26 @@
       URL.revokeObjectURL(url);
     });
 
+    // ◆ ゲームオーバーモーダルの操作
+    restartGameBtn.addEventListener("click", () => {
+      gameOverModal.classList.add("hidden");
+      modalOverlay.classList.add("hidden");
+      resetGame();
+    });
+    closeGameOverBtn.addEventListener("click", () => {
+      gameOverModal.classList.add("hidden");
+      modalOverlay.classList.add("hidden");
+      resetGame(false);
+    });
+
     // ◆ レベルコントロール
     levelUpBtn.addEventListener("click", () => {
-      currentLevel++;
-      updateLevelIndicator();
+      if (currentLevel < menuItems.length) {
+        currentLevel++;
+        updateLevelIndicator();
+      } else {
+        alert("これ以上レベルを上げられません。登録されているメニューの数が足りません。");
+      }
     });
     levelDownBtn.addEventListener("click", () => {
       if (currentLevel > 1) {
@@ -253,7 +479,7 @@
       }
     });
     function updateLevelIndicator() {
-      levelIndicator.textContent = "レベル: " + currentLevel;
+      levelIndicator.textContent = `レベル: ${currentLevel} (あと${MAX_MISTAKES - mistakesCount}回ミスでゲームオーバー)`;
     }
 
     // ◆ 回答用ボタン群の初期生成（各ボタンがクリックされたら onAnswerClick() を呼ぶ）
@@ -273,60 +499,123 @@
     // ◆ 回答用ボタンの選択状態をリセット
     function resetAnswerButtons() {
       Array.from(menuButtonsDiv.children).forEach(btn => {
-        btn.classList.remove("selected");
+        btn.classList.remove("selected", "correct-answer", "wrong-answer");
+        btn.disabled = false;
       });
+    }
+
+    // ◆ ゲーム全体の初期化（ゲームオーバー後など）
+    function resetGame(shouldStartGame = true) {
+        currentLevel = 1;
+        consecutiveCorrects = 0;
+        mistakesCount = 0;
+        updateLevelIndicator();
+        resultDiv.textContent = "";
+        resultDiv.classList.remove("correct");
+        menuButtonsDiv.classList.add("hidden");
+        instructionDiv.classList.add("hidden");
+        answerProgressDiv.classList.add("hidden"); // 回答進捗表示も隠す
+        orderDisplay.innerHTML = "";
+        startBtn.disabled = false;
+        if (shouldStartGame) {
+            startGame();
+        }
     }
 
     // ◆ 出題開始（スタートボタン押下時）
     function startGame() {
       resultDiv.textContent = "";
-      // 回答用エリアと指示は最初非表示
+      resultDiv.classList.remove("correct");
       menuButtonsDiv.classList.add("hidden");
       instructionDiv.classList.add("hidden");
+      answerProgressDiv.classList.add("hidden"); // 初期は非表示
       resetAnswerButtons();
       userSelections = [];
       orderDisplay.innerHTML = "";
       startBtn.disabled = true;
       
-      // 出題数はラウンドモードなら currentLevel、OFFなら常に 1 品
-      const count = roundMode ? currentLevel : 1;
-      sequence = [];
-      for (let i = 0; i < count; i++) {
-        const randomIndex = Math.floor(Math.random() * menuItems.length);
-        sequence.push(menuItems[randomIndex]);
+      let count = roundMode ? currentLevel : 1;
+
+      if (count > menuItems.length) {
+        alert(`現在のレベル (${currentLevel} 品) は登録されているメニュー数 (${menuItems.length} 品) を超えています。レベルを下げてください。`);
+        startBtn.disabled = false;
+        return;
       }
       
-      // 出題（覚える注文）を５列のグリッドとして表示
-      orderDisplay.innerHTML = "";
+      let availableMenuItems = [...menuItems];
+      sequence = [];
+      for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * availableMenuItems.length);
+        sequence.push(availableMenuItems[randomIndex]);
+        availableMenuItems.splice(randomIndex, 1);
+      }
+      
       sequence.forEach(item => {
         const cell = document.createElement("div");
         cell.textContent = item;
         orderDisplay.appendChild(cell);
       });
       
-      // 出題された内容はユーザーが画面またはボタンをクリックするまでそのまま表示
-      // ※スタート押下直後のクリックを除外するため、わずかな遅延を入れる
       setTimeout(() => {
-        document.addEventListener("click", onScreenClick, { once: true });
+        const clickHandler = () => {
+          document.removeEventListener("click", clickHandler);
+          onScreenClick();
+        };
+        document.addEventListener("click", clickHandler, { once: true });
       }, 50);
     }
 
     // ◆ 画面またはボタンがクリックされたときの処理（出題フェーズから回答フェーズへ移行）
-    function onScreenClick(e) {
-      // 出題を消去し、回答フェーズへ
+    function onScreenClick() {
       orderDisplay.innerHTML = "";
       instructionDiv.classList.remove("hidden");
+      answerProgressDiv.classList.remove("hidden"); // 回答進捗表示を表示
       menuButtonsDiv.classList.remove("hidden");
+      startBtn.disabled = false;
+      updateAnswerProgress(); // 回答進捗を初期表示
     }
 
     // ◆ ユーザーが回答用ボタンをクリックしたときの処理
     function onAnswerClick(clickedItem, btn) {
-      if (btn.classList.contains("selected")) return;
-      btn.classList.add("selected");
-      userSelections.push(clickedItem);
-      if (userSelections.length === sequence.length) {
-        checkAnswer();
-      }
+        // ボタンがすでに正解/不正解表示状態の場合は操作させない
+        if (btn.classList.contains("correct-answer") || btn.classList.contains("wrong-answer")) {
+            return;
+        }
+
+        if (btn.classList.contains("selected")) {
+            // すでに選択されている場合は選択を解除
+            btn.classList.remove("selected");
+            const index = userSelections.indexOf(clickedItem);
+            if (index > -1) {
+                userSelections.splice(index, 1); // 配列から削除
+            }
+        } else {
+            // 未選択の場合は選択
+            if (userSelections.length < sequence.length) { // 出題数を超えて選択できないようにする
+                btn.classList.add("selected");
+                userSelections.push(clickedItem);
+            } else {
+                // 出題数と選択数が一致している場合は、それ以上選択できないことを視覚的にフィードバック（例：揺らすなど）
+                btn.animate([{ transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0px)' }], {
+                    duration: 100,
+                    iterations: 3
+                });
+                return; // ここで処理を終了し、回答チェックに進まない
+            }
+        }
+        
+        updateAnswerProgress(); // 回答進捗を更新
+
+        // 全ての答えが選択されたらチェック
+        if (userSelections.length === sequence.length) {
+            // 少し遅延を入れて、ユーザーが最後に選択したボタンがハイライトされるのを確認できるようにする
+            setTimeout(checkAnswer, 300); 
+        }
+    }
+
+    // ◆ 回答進捗表示の更新
+    function updateAnswerProgress() {
+        answerProgressDiv.textContent = `選択数: ${userSelections.length} / ${sequence.length}`;
     }
 
     // ◆ 順序を無視して回答の集合をチェック
@@ -343,25 +632,75 @@
     // ◆ 回答チェック：回答集合と出題集合を比較
     function checkAnswer() {
       let correct = arraysEqualIgnoreOrder(userSelections, sequence);
+      
+      // 回答ボタンのクリックを一時的に無効化
+      Array.from(menuButtonsDiv.children).forEach(btn => btn.disabled = true);
+
       if (correct) {
         resultDiv.innerHTML = "正解！記憶力抜群です！";
+        resultDiv.classList.add("correct");
+        consecutiveCorrects++;
+        correctSound.play();
+        userSelections.forEach(item => {
+            const btn = Array.from(menuButtonsDiv.children).find(b => b.textContent === item);
+            if (btn) {
+                btn.classList.add("correct-answer");
+                btn.classList.remove("selected"); // 選択状態を解除
+            }
+        });
       } else {
-        resultDiv.innerHTML = "不正解…<br>正しい注文は:<br>" + sequence.join("<br>");
+        resultDiv.innerHTML = `不正解…<br>正しい注文は:<br>${sequence.join("・")}`;
+        resultDiv.classList.remove("correct");
+        consecutiveCorrects = 0;
+        mistakesCount++;
+        incorrectSound.play();
+
+        const correctItemsSet = new Set(sequence);
+        Array.from(menuButtonsDiv.children).forEach(btn => {
+            const btnText = btn.textContent;
+            if (userSelections.includes(btnText) && !correctItemsSet.has(btnText)) {
+                btn.classList.add("wrong-answer");
+                btn.classList.remove("selected"); // 選択状態を解除
+            } else if (!userSelections.includes(btnText) && correctItemsSet.has(btnText)) {
+                btn.classList.add("correct-answer");
+            }
+        });
       }
-      setTimeout(nextQuestion, 2000);
+      updateLevelIndicator(); // ミス回数表示を更新
+
+      if (mistakesCount >= MAX_MISTAKES) {
+        setTimeout(showGameOver, 2000);
+      } else {
+        setTimeout(nextQuestion, 2000);
+      }
+    }
+
+    // ◆ ゲームオーバー画面表示
+    function showGameOver() {
+        gameOverText.textContent = `残念！${MAX_MISTAKES}回間違えてしまいました。`;
+        gameOverScore.textContent = `あなたの連続正解数は ${consecutiveCorrects} 回でした。`;
+        modalOverlay.classList.remove("hidden");
+        gameOverModal.classList.remove("hidden");
+        startBtn.disabled = true;
+        answerProgressDiv.classList.add("hidden"); // ゲームオーバー時は非表示
     }
 
     // ◆ 次の問題へ（出題・回答エリアのリセット後、自動出題）
     function nextQuestion() {
       menuButtonsDiv.classList.add("hidden");
       instructionDiv.classList.add("hidden");
+      answerProgressDiv.classList.add("hidden"); // 次の出題まで非表示
       resetAnswerButtons();
       userSelections = [];
       resultDiv.textContent = "";
-      startGame();
+      resultDiv.classList.remove("correct");
+      startGame(); 
     }
 
     startBtn.addEventListener("click", startGame);
+
+    // ページロード時にレベルインジケーターを更新
+    updateLevelIndicator();
   </script>
 </body>
 </html>
