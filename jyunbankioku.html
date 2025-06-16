@@ -30,11 +30,12 @@
     }
     .panel {
       position: absolute;
-      width: 160px;
-      height: 160px;
+      width: 200px; /* 例えば200pxに */
+      height: 200px; /* 例えば200pxに */
       background: #4caf50;
       color: #fff;
-      font-size: 64px;
+      font-size: 80px; /* 例えば80pxに */
+      font-weight: bold; /* 数字を太くする */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -48,21 +49,24 @@
 <body>
   <div id="game"></div>
   <div id="message"></div>
-  
+
   <script>
     const gameContainer = document.getElementById('game');
     const messageEl = document.getElementById('message');
-    
+
     let panelCount = 2; // 初回は2枚のパネル
-    const panelSize = 160; // パネルの大きさ
-    let displayTime = 2000; // 初回の表示時間 (2秒)
-    
+    const panelSize = 200; // パネルの大きさ (CSSと合わせる)
+    // let displayTime = 2000; // displayTimeは不要になります
+
     let expectedOrder = []; // 正しい順番（昇順）
     let userClicks = [];   // ユーザーのクリック順
     let allowClick = false; // 数字が隠れてからクリック可能にする
     let panels = [];       // 現在のパネル要素を格納
     let existingPositions = []; // 配置済みパネルの位置を保存
-    
+
+    // 画面タッチで数字を消すためのフラグ
+    let waitingForUserToHideNumbers = false;
+
     /**
      * パネルが重ならず、かつゲーム領域の上の2/3内に収まるランダムな位置を返す関数
      * @param {number} panelWidth - パネルの幅
@@ -75,7 +79,7 @@
       const allowedHeight = gameContainer.clientHeight * 2 / 3; // 上の2/3
       let maxAttempts = 1000;
       let pos, overlap;
-      
+
       do {
         const x = Math.random() * (gameWidth - panelWidth);
         const y = Math.random() * (allowedHeight - panelHeight);
@@ -88,24 +92,53 @@
         });
         maxAttempts--;
       } while (overlap && maxAttempts > 0);
-      
+
       return pos;
     }
-    
+
+    // 画面クリックで数字を非表示にするハンドラー
+    function hideNumbersOnClick() {
+        if (!waitingForUserToHideNumbers) return; // このフラグがない場合は何もしない
+
+        panels.forEach(panel => {
+            panel.textContent = ''; // 数字を非表示にする
+        });
+        allowClick = true; // クリックを許可する
+        waitingForUserToHideNumbers = false; // フラグをリセット
+
+        // 一度数字を非表示にしたら、このイベントリスナーは不要なので削除する
+        // gameContainer.removeEventListener('click', hideNumbersOnClick);
+        // パネルをクリックしない限り、ゲーム領域をクリックし続けることでhideNumbersOnClickが複数回呼ばれてしまうので、
+        // 以下の方法でゲーム領域へのクリックは無視し、パネルへのクリックのみ有効にする
+        gameContainer.style.pointerEvents = 'none'; // gameContainerへのクリックイベントを無効にする
+        panels.forEach(panel => {
+            panel.style.pointerEvents = 'auto'; // パネルへのクリックイベントを有効にする
+        });
+    }
+
     // 新たなレベル（問題）に進むための初期化処理
     function startGame() {
       if (panelCount > 10) {
         messageEl.textContent = "ゲームクリア！おめでとうございます。";
         return;
       }
-      
+
       // 状態のリセット
       gameContainer.innerHTML = '';
-      messageEl.textContent = '';
+      messageEl.textContent = '数字を覚えたら、画面をタップ（クリック）してください。'; // メッセージを変更
       userClicks = [];
       allowClick = false;
       panels = [];
       existingPositions = [];
+      waitingForUserToHideNumbers = true; // 数字が隠れるのを待機するフラグをセット
+
+      // gameContainerにクリックイベントリスナーをセット（毎回セットし直す）
+      // これにより、startGameが呼ばれるたびにイベントリスナーが適切に設定される
+      gameContainer.removeEventListener('click', hideNumbersOnClick); // 重複登録防止
+      gameContainer.addEventListener('click', hideNumbersOnClick);
+
+      // パネルへのクリックイベントを初期状態では無効にする (数字を隠すまではパネルをクリックさせない)
+      gameContainer.style.pointerEvents = 'auto'; // gameContainer全体はクリック可能
       
       // 1〜10の数字から重複なく panelCount 枚を選択
       let numbers = [];
@@ -115,10 +148,10 @@
           numbers.push(num);
         }
       }
-      
+
       // 正しい順番（昇順）の配列を作成
       expectedOrder = [...numbers].sort((a, b) => a - b);
-      
+
       // 各数字パネルを、重ならずに配置
       numbers.forEach(num => {
         const panel = document.createElement('div');
@@ -132,39 +165,42 @@
         panel.addEventListener('click', onPanelClick);
         gameContainer.appendChild(panel);
         panels.push(panel);
+
+        // 数字を隠すまではパネル自体へのクリックは無効
+        panel.style.pointerEvents = 'none'; 
       });
-      
-      // 指定された表示時間後に数字を非表示にし、クリックを許可する
-      setTimeout(() => {
-        panels.forEach(panel => {
-          panel.textContent = '';
-        });
-        allowClick = true;
-      }, displayTime);
+
+      // 数字が隠れるのを待つ状態に入ったことを明確にする
+      // (旧displayTimeのsetTimeoutの代わり)
     }
-    
+
     // パネルクリック時の処理
     function onPanelClick(event) {
       if (!allowClick) return;  // 数字が隠れる前はクリック無効
       const panel = event.currentTarget;
       if (panel.classList.contains('clicked')) return; // 既にクリック済みのパネルなら無視
-      
+
       const num = parseInt(panel.dataset.number, 10);
       const expectedNum = expectedOrder[userClicks.length];
-      
+
       if (num === expectedNum) {
         panel.classList.add('clicked');
         panel.style.background = '#2196f3';
         panel.textContent = num; // 正しい場合再表示
         userClicks.push(num);
-        
+
         // 全パネルが正しい順番でクリックされた場合
         if (userClicks.length === expectedOrder.length) {
           messageEl.textContent = '正解！次の問題へ。';
           allowClick = false;
+          // gameContainerへのクリックイベントを再び有効にする
+          gameContainer.style.pointerEvents = 'auto'; 
+          panels.forEach(p => p.style.pointerEvents = 'none'); // パネルへのクリックは無効にする
+
           if (panelCount < 10) {
             panelCount++;
-            displayTime += 500; // パネル数増加に応じて表示時間を0.5秒増加
+            // displayTimeの代わりに、次のレベルで数字を覚える時間が増えるといった調整は今回は行わない
+            // もし必要であれば、ここで panelCount に応じた何らかの表示時間に関する調整を入れる
             setTimeout(startGame, 1000);
           } else {
             setTimeout(() => {
@@ -174,16 +210,20 @@
         }
       } else {
         // 誤ったクリックの場合
-        messageEl.textContent = '不正解…再挑戦してください。';
+        const nextExpectedNum = expectedOrder[userClicks.length]; // 不正解時の正しい数字
+        messageEl.textContent = `不正解…再挑戦してください。正解は ${nextExpectedNum} でした。`; // メッセージに正しい数字を追加
         panels.forEach(p => {
           p.textContent = p.dataset.number;  // 全パネルに数字を表示
           p.style.background = '#f44336';
         });
         allowClick = false;
+        // gameContainerへのクリックイベントを再び有効にする
+        gameContainer.style.pointerEvents = 'auto'; 
+        panels.forEach(p => p.style.pointerEvents = 'none'); // パネルへのクリックは無効にする
         setTimeout(startGame, 1500);
       }
     }
-    
+
     // 初回スタート
     startGame();
   </script>
