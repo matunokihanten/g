@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
 <script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
 
   <meta charset="UTF-8">
-  <title>棒人間の数を数えるゲーム ＆ 電卓入力</title>
-  <!-- Google Fonts: Roboto -->
+  <title>棒人間の数を数えるゲーム</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
   <style>
     * {
-      box-sizing: border-box;
+      box-sizing: border;
     }
     body {
       margin: 0;
@@ -18,17 +16,23 @@
       background: linear-gradient(135deg, #74ABE2, #5563DE);
       font-family: 'Roboto', sans-serif;
       color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
     h1 {
       text-align: center;
       margin-top: 20px;
       color: #fff;
     }
-    #levelDisplay {
-      font-size: 1.4em;
+    #gameInfo {
+      display: flex;
+      justify-content: space-around;
+      width: 800px;
       margin: 10px auto;
-      text-align: center;
       color: #fff;
+      font-size: 1.4em;
     }
     /* キャンバス固定サイズ＆中央配置 */
     canvas {
@@ -55,20 +59,23 @@
       border-radius: 4px;
       cursor: pointer;
       transition: background 0.3s ease;
+      margin: 5px; /* ボタン間のスペース */
     }
     button:hover {
       background: #334bb0;
     }
-    /* 答え入力フィールドを左寄せに */
+    /* 答え入力フィールドを中央寄せに */
     #answerSection {
       display: flex;
-      justify-content: flex-start;
+      justify-content: center; /* 中央寄せに変更 */
       align-items: center;
       gap: 10px;
-      padding: 10px 10px 10px 50px; /* 左側に余計な余白を設定 */
+      padding: 10px;
+      flex-wrap: wrap; /* 小さな画面で折り返す */
     }
     #answerSection p {
       margin: 0;
+      color: #fff;
     }
     #answerInput {
       width: 100px;
@@ -81,7 +88,31 @@
       font-size: 1.3em;
       margin-top: 10px;
       color: #fff;
+      min-height: 1.5em; /* 結果表示のちらつき防止 */
     }
+
+    /* ゲーム終了画面 */
+    #gameEndScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      display: none; /* 初期状態は非表示 */
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      text-align: center;
+      z-index: 100;
+    }
+    #gameEndScreen button {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+
     /* --- 電卓のスタイル --- */
     #calculator {
       background-color: #fff;
@@ -94,7 +125,8 @@
     }
     #calcButtons {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      /* 演算子削除に伴い、グリッドカラムを3列に変更 */
+      grid-template-columns: repeat(3, 1fr); 
       gap: 5px;
     }
     /* 数字ボタンを大きく */
@@ -111,51 +143,63 @@
     .calc-btn:hover {
       background: #334bb0;
     }
-    /* 「＝」ボタンは横に広げる */
+    /* 「＝」ボタンは横に広げる (3列に合わせて調整) */
     #calcEquals {
-      grid-column: span 4;
+      grid-column: span 3;
+    }
+    /* クリアボタンのサイズ調整 */
+    #calcClear {
+        grid-column: span 1; /* Cボタンは1列分 */
     }
   </style>
 </head>
 <body>
   <h1>棒人間の数を数えるゲーム</h1>
-  <div id="levelDisplay">難易度レベル：1</div>
+  <div id="gameInfo">
+    <span id="scoreDisplay">スコア: 0</span>
+    <span id="timeDisplay">残り時間: 30s</span>
+    <span id="highScoreDisplay">ハイスコア: 0</span>
+  </div>
   <canvas id="canvas"></canvas>
   <div id="gameControls">
     <button id="startButton">ゲーム開始</button>
+    <button id="endGameButton">終了</button>
   </div>
   <div id="answerSection">
     <p>画面に表示されている棒人間は何体ですか？</p>
     <input type="number" id="answerInput" placeholder="数字を入力">
     <button id="submitAnswer">回答する</button>
+    <button id="nextQuestionButton" style="display:none;">次の問題へ</button>
   </div>
   <div id="result"></div>
   
-  <!-- 電卓部分 -->
   <div id="calculator">
     <div id="calcButtons">
       <button class="calc-btn" data-value="7">7</button>
       <button class="calc-btn" data-value="8">8</button>
       <button class="calc-btn" data-value="9">9</button>
-      <button class="calc-btn" data-value="/">÷</button>
       
       <button class="calc-btn" data-value="4">4</button>
       <button class="calc-btn" data-value="5">5</button>
       <button class="calc-btn" data-value="6">6</button>
-      <button class="calc-btn" data-value="*">×</button>
       
       <button class="calc-btn" data-value="1">1</button>
       <button class="calc-btn" data-value="2">2</button>
       <button class="calc-btn" data-value="3">3</button>
-      <button class="calc-btn" data-value="-">−</button>
       
       <button class="calc-btn" data-value="0">0</button>
       <button class="calc-btn" data-value=".">.</button>
       <button class="calc-btn" id="calcClear">C</button>
-      <button class="calc-btn" data-value="+">+</button>
       
       <button class="calc-btn" id="calcEquals">=</button>
     </div>
+  </div>
+
+  <div id="gameEndScreen">
+    <p>ゲーム終了！</p>
+    <p>あなたの最終スコア: <span id="finalScore">0</span></p>
+    <p>ハイスコア: <span id="finalHighScore">0</span></p>
+    <button id="restartButton">もう一度プレイ</button>
   </div>
   
   <script>
@@ -163,35 +207,57 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const startButton = document.getElementById('startButton');
+    const endGameButton = document.getElementById('endGameButton'); // 終了ボタン
     const answerInput = document.getElementById('answerInput');
     const submitAnswer = document.getElementById('submitAnswer');
+    const nextQuestionButton = document.getElementById('nextQuestionButton'); // 次の問題へボタン
     const resultDiv = document.getElementById('result');
-    const levelDisplay = document.getElementById('levelDisplay');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const highScoreDisplay = document.getElementById('highScoreDisplay');
+    const gameEndScreen = document.getElementById('gameEndScreen'); // ゲーム終了画面
+    const finalScoreDisplay = document.getElementById('finalScore');
+    const finalHighScoreDisplay = document.getElementById('finalHighScore');
+    const restartButton = document.getElementById('restartButton');
   
-    let currentLevel = 1;
     let actualCount = 0;
     let stickFigures = [];
     let lastTime = performance.now();
-  
-    // レベルに応じた棒人間の個体数（レベル1：5体、レベル100：200体）
-    function getStickCountForLevel(level) {
-      const minCount = 5;
-      const maxCount = 200;
-      return Math.round(minCount + (maxCount - minCount) * (level - 1) / 99);
-    }
-  
-    // 棒人間クラス（肘・膝が曲がるアニメーション付き）
+    let animationFrameId;
+    let gameRunning = false;
+    let score = 0;
+    let highScore = localStorage.getItem('stickCountHighScore') ? parseInt(localStorage.getItem('stickCountHighScore')) : 0;
+    let timeLeft = 30; // 各ラウンドの時間
+    let timerInterval;
+    let consecutiveCorrects = 0; // 連続正解数
+    let isAnswered = false; // 回答済みかどうかのフラグ
+
+    // 効果音の準備
+    const audioCorrect = new Audio('https://www.soundeffect-labo.info/sound/button/mp3/button-touch1.mp3'); 
+    const audioIncorrect = new Audio('https://www.soundeffect-labo.info/sound/kanetuki/mp3/kanetuki-usudokoro.mp3'); 
+    const audioGameOver = new Audio('https://www.soundeffect-labo.info/sound/se/mp3/se_maoudamashii_system23.mp3'); 
+    const audioBonus = new Audio('https://www.soundeffect-labo.info/sound/se/mp3/se_maoudamashii_system49.mp3'); 
+    const audioStart = new Audio('https://www.soundeffect-labo.info/sound/se/mp3/se_maoudamashii_system33.mp3'); 
+
+    // ハイスコアの初期表示
+    highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
+
+    // 棒人間クラス
     class StickFigure {
-      constructor(x, y, vx, vy, phase) {
+      constructor(x, y, vx, vy, phase, isBonus = false) {
         this.x = x;
         this.y = y;
         this.vx = vx;
         this.vy = vy;
-        this.phase = phase;
-        this.headColor = "black"; // デフォルトは黒
+        this.phase = phase; // 動きの位相
+        this.initialHeadColor = isBonus ? "gold" : "black"; // 初期色
+        this.headColor = this.initialHeadColor; // デフォルトは黒、ボーナスは金色
+        this.isBonus = isBonus;
+        this.bodyHeightPhase = Math.random() * Math.PI * 2; // 体の上下動の位相
       }
       
       update(dt) {
+        // 壁との衝突判定と反射
         this.x += this.vx * dt;
         this.y += this.vy * dt;
   
@@ -199,10 +265,14 @@
           this.vx = -this.vx;
           this.x = Math.max(0, Math.min(this.x, canvas.width));
         }
-        if (this.y < 40 || this.y > canvas.height) {
+        if (this.y < 40 || this.y > canvas.height) { // 上限を高く設定し、棒人間が画面上部に行き過ぎないように
           this.vy = -this.vy;
           this.y = Math.max(40, Math.min(this.y, canvas.height));
         }
+
+        // 体の上下動（歩行らしさ）
+        this.bodyHeightPhase += dt * 5; // 上下動の速度調整
+        this.y += Math.sin(this.bodyHeightPhase) * 0.5; // 小さな上下動
       }
       
       draw(ctx, time) {
@@ -211,19 +281,20 @@
         const armLength = 15;
         const legLength = 20;
   
-        const swingAmplitude = Math.PI / 8;
-        const t = time + this.phase;
+        const swingAmplitude = Math.PI / 6; // 腕と足の振りの幅
+        const t = time * 8 + this.phase; // 動きの速さ調整
         const armSwing = Math.sin(t) * swingAmplitude;
-        const legSwing = Math.sin(t) * swingAmplitude;
-  
-        // ヘッド：タップで変更された headColor を使用
+        const legSwing = Math.sin(t + Math.PI / 2) * swingAmplitude; // 足は腕と逆位相で振る
+
+        // ヘッド
         const headX = this.x;
         const headY = this.y - bodyLength - headRadius;
         ctx.beginPath();
         ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
         ctx.fillStyle = this.headColor;
         ctx.fill();
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = this.isBonus && this.headColor !== "gray" ? "gold" : "black"; // ボーナスは金色の線、タップ後は黒
+        ctx.lineWidth = this.isBonus && this.headColor !== "gray" ? 2 : 1; // ボーナスは線を太く
         ctx.stroke();
         ctx.closePath();
   
@@ -237,16 +308,16 @@
         // 腕（肘で曲がる構造）
         const shoulderX = this.x;
         const shoulderY = headY + headRadius + 5;
-        const upperArmLength = armLength * 0.5;
-        const lowerArmLength = armLength * 0.5;
+        const upperArmLength = armLength * 0.6;
+        const lowerArmLength = armLength * 0.4;
   
+        // 左腕
         const baseLeftArmAngle = Math.PI + armSwing;
         const leftElbowX = shoulderX + upperArmLength * Math.cos(baseLeftArmAngle);
         const leftElbowY = shoulderY + upperArmLength * Math.sin(baseLeftArmAngle);
-        const lowerLeftArmAngle = baseLeftArmAngle - (Math.PI / 6);
+        const lowerLeftArmAngle = baseLeftArmAngle + (Math.PI / 4); // 肘の曲がり具合
         const leftHandX = leftElbowX + lowerArmLength * Math.cos(lowerLeftArmAngle);
         const leftHandY = leftElbowY + lowerArmLength * Math.sin(lowerLeftArmAngle);
-  
         ctx.beginPath();
         ctx.moveTo(shoulderX, shoulderY);
         ctx.lineTo(leftElbowX, leftElbowY);
@@ -254,13 +325,13 @@
         ctx.stroke();
         ctx.closePath();
   
-        const baseRightArmAngle = armSwing;
+        // 右腕
+        const baseRightArmAngle = -armSwing; // 逆方向に振る
         const rightElbowX = shoulderX + upperArmLength * Math.cos(baseRightArmAngle);
         const rightElbowY = shoulderY + upperArmLength * Math.sin(baseRightArmAngle);
-        const lowerRightArmAngle = baseRightArmAngle + (Math.PI / 6);
+        const lowerRightArmAngle = baseRightArmAngle - (Math.PI / 4); // 肘の曲がり具合
         const rightHandX = rightElbowX + lowerArmLength * Math.cos(lowerRightArmAngle);
         const rightHandY = rightElbowY + lowerArmLength * Math.sin(lowerRightArmAngle);
-  
         ctx.beginPath();
         ctx.moveTo(shoulderX, shoulderY);
         ctx.lineTo(rightElbowX, rightElbowY);
@@ -271,16 +342,16 @@
         // 脚（膝で曲がる構造）
         const hipX = this.x;
         const hipY = this.y;
-        const upperLegLength = legLength * 0.5;
-        const lowerLegLength = legLength * 0.5;
+        const upperLegLength = legLength * 0.6;
+        const lowerLegLength = legLength * 0.4;
   
+        // 左脚
         const baseLeftLegAngle = Math.PI / 2 + legSwing;
         const leftKneeX = hipX + upperLegLength * Math.cos(baseLeftLegAngle);
         const leftKneeY = hipY + upperLegLength * Math.sin(baseLeftLegAngle);
-        const lowerLeftLegAngle = baseLeftLegAngle - (Math.PI / 8);
+        const lowerLeftLegAngle = baseLeftLegAngle + (Math.PI / 6); // 膝の曲がり具合
         const leftFootX = leftKneeX + lowerLegLength * Math.cos(lowerLeftLegAngle);
         const leftFootY = leftKneeY + lowerLegLength * Math.sin(lowerLeftLegAngle);
-  
         ctx.beginPath();
         ctx.moveTo(hipX, hipY);
         ctx.lineTo(leftKneeX, leftKneeY);
@@ -288,13 +359,13 @@
         ctx.stroke();
         ctx.closePath();
   
-        const baseRightLegAngle = Math.PI / 2 - legSwing;
+        // 右脚
+        const baseRightLegAngle = Math.PI / 2 - legSwing; // 逆方向に振る
         const rightKneeX = hipX + upperLegLength * Math.cos(baseRightLegAngle);
         const rightKneeY = hipY + upperLegLength * Math.sin(baseRightLegAngle);
-        const lowerRightLegAngle = baseRightLegAngle + (Math.PI / 8);
+        const lowerRightLegAngle = baseRightLegAngle - (Math.PI / 6); // 膝の曲がり具合
         const rightFootX = rightKneeX + lowerLegLength * Math.cos(lowerRightLegAngle);
         const rightFootY = rightKneeY + lowerLegLength * Math.sin(lowerRightLegAngle);
-  
         ctx.beginPath();
         ctx.moveTo(hipX, hipY);
         ctx.lineTo(rightKneeX, rightKneeY);
@@ -305,6 +376,7 @@
     }
     
     function animate(now) {
+      if (!gameRunning) return; // ゲームが実行中でなければアニメーションを停止
       const dt = (now - lastTime) / 1000;
       lastTime = now;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -312,60 +384,214 @@
         figure.update(dt);
         figure.draw(ctx, now / 1000);
       }
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
     }
-    
+
     function startGame() {
+      if (gameRunning) return; // ゲームが既に実行中なら何もしない
+      audioStart.play();
+      
+      gameEndScreen.style.display = 'none'; // ゲーム終了画面を非表示
+      startButton.style.display = 'none'; // 開始ボタンを非表示
+      endGameButton.style.display = 'inline-block'; // 終了ボタンを表示
+      submitAnswer.style.display = 'inline-block'; // 回答ボタンを表示
+      nextQuestionButton.style.display = 'none'; // 次の問題へボタンを非表示
+
+      answerInput.value = "";
+      resultDiv.textContent = "";
+      score = 0;
+      scoreDisplay.textContent = `スコア: ${score}`;
+      consecutiveCorrects = 0;
+      isAnswered = false; // 新しいラウンドの開始時に回答済みフラグをリセット
+
+      startNewQuestion(); // 新しい問題を開始
+      gameRunning = true;
+      lastTime = performance.now();
+      animationFrameId = requestAnimationFrame(animate);
+
+      // タイマーを開始
+      timeLeft = 30; // 常に30秒からスタート
+      timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+        // 時間が0になってもゲームは終了しないが、タイマーは停止
+        if (timeLeft <= 0) {
+          timeLeft = 0; 
+          timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`;
+          clearInterval(timerInterval); 
+        }
+      }, 1000);
+    }
+
+    function startNewQuestion() {
+      cancelAnimationFrame(animationFrameId); // 現在のアニメーションを停止
+      
       // キャンバスサイズと状態のリセット
       canvas.width = 800;
       canvas.height = 600;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       
-      actualCount = getStickCountForLevel(currentLevel);
+      // 1から100の間でランダムな棒人間の数を生成
+      actualCount = Math.floor(Math.random() * 100) + 1;
       stickFigures = [];
       for (let i = 0; i < actualCount; i++) {
         const x = Math.random() * canvas.width;
         const y = 60 + Math.random() * (canvas.height - 80);
-        const vx = Math.random() * 200 - 100;
-        const vy = Math.random() * 200 - 100;
+        const speed = 50 + Math.random() * 100; // 棒人間の移動速度
+        const angle = Math.random() * Math.PI * 2;
+        const vx = speed * Math.cos(angle);
+        const vy = speed * Math.sin(angle);
         const phase = Math.random() * Math.PI * 2;
         stickFigures.push(new StickFigure(x, y, vx, vy, phase));
       }
+
+      // 稀にボーナス棒人間を追加
+      if (Math.random() < 0.1) { // 10%の確率でボーナス出現
+        const x = Math.random() * canvas.width;
+        const y = 60 + Math.random() * (canvas.height - 80);
+        const speed = 70 + Math.random() * 80;
+        const angle = Math.random() * Math.PI * 2;
+        const vx = speed * Math.cos(angle);
+        const vy = speed * Math.sin(angle);
+        const phase = Math.random() * Math.PI * 2;
+        stickFigures.push(new StickFigure(x, y, vx, vy, phase, true)); // trueでボーナス棒人間
+      }
+
       lastTime = performance.now();
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
+      
+      // 問題開始時に回答関連UIの状態をリセット
+      answerInput.value = "";
+      resultDiv.textContent = "";
+      submitAnswer.style.display = 'inline-block'; // 回答ボタンを表示
+      nextQuestionButton.style.display = 'none'; // 次の問題へボタンを非表示
+      isAnswered = false; // 回答済みフラグをリセット
+      
+      // タイマーをリセットして再開
+      timeLeft = 30;
+      timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          timeLeft = 0; 
+          timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`;
+          clearInterval(timerInterval); 
+        }
+      }, 1000);
     }
     
     startButton.addEventListener('click', startGame);
-    
-    // 回答送信時の処理（難易度調整と新問題開始）
-    submitAnswer.addEventListener('click', () => {
-      const userAnswer = parseInt(answerInput.value);
-      if (userAnswer === actualCount) {
-        resultDiv.textContent = `正解！棒人間は ${actualCount} 人でした。`;
-        currentLevel = Math.min(100, currentLevel + 1);
-      } else {
-        resultDiv.textContent = `不正解… 正解は ${actualCount} 人でした。`;
-        currentLevel = Math.max(1, currentLevel - 1);
-      }
-      answerInput.value = "";
-      levelDisplay.textContent = `難易度レベル：${currentLevel}`;
-      startGame();
+
+    endGameButton.addEventListener('click', () => {
+        endGame(); // 終了ボタンでゲームを終了
     });
     
-    // ===== 棒人間タップで頭を赤くする =====
+    // 回答送信時の処理
+    submitAnswer.addEventListener('click', () => {
+      if (!gameRunning || isAnswered) return; // ゲームが実行中ではないか、既に回答済みなら何もしない
+
+      const userAnswer = parseInt(answerInput.value);
+      if (isNaN(userAnswer)) {
+          resultDiv.textContent = "数字を入力してください！";
+          return;
+      }
+
+      isAnswered = true; // 回答済みフラグをセット
+      submitAnswer.style.display = 'none'; // 回答ボタンを非表示
+      nextQuestionButton.style.display = 'inline-block'; // 次の問題へボタンを表示
+
+      if (userAnswer === actualCount) {
+        audioCorrect.play();
+        resultDiv.textContent = `正解！棒人間は ${actualCount} 人でした。`;
+        score += actualCount * 10; // 数が多いほど高得点
+        consecutiveCorrects++;
+        if (consecutiveCorrects >= 3) { // 3連続正解でボーナス
+            score += 50;
+            resultDiv.textContent += " 連続正解ボーナス！";
+        }
+        timeLeft = Math.min(30, timeLeft + 5); // 正解で時間を5秒回復（上限30秒）
+      } else {
+        audioIncorrect.play();
+        resultDiv.textContent = `不正解… 正解は ${actualCount} 人でした。`;
+        consecutiveCorrects = 0; // 連続正解数リセット
+      }
+      scoreDisplay.textContent = `スコア: ${score}`;
+      timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+
+      // ハイスコア更新
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('stickCountHighScore', highScore);
+        highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
+      }
+    });
+
+    nextQuestionButton.addEventListener('click', () => {
+        if (!gameRunning) return;
+        startNewQuestion(); // 次の問題を開始
+    });
+
+    // ゲーム終了処理
+    function endGame() {
+      audioGameOver.play();
+      gameRunning = false;
+      cancelAnimationFrame(animationFrameId);
+      clearInterval(timerInterval);
+
+      finalScoreDisplay.textContent = score;
+      finalHighScoreDisplay.textContent = highScore;
+      gameEndScreen.style.display = 'flex';
+
+      startButton.style.display = 'inline-block'; // 開始ボタンを再表示
+      endGameButton.style.display = 'none'; // 終了ボタンを非表示
+      submitAnswer.style.display = 'none'; // 回答ボタンを非表示
+      nextQuestionButton.style.display = 'none'; // 次の問題へボタンを非表示
+    }
+
+    restartButton.addEventListener('click', startGame);
+    
+    // ===== 棒人間タップで頭を赤くする & ボーナス処理 =====
     canvas.addEventListener('click', (event) => {
+      if (!gameRunning) return; // ゲームが実行中でなければ反応しない
       const rect = canvas.getBoundingClientRect();
       const clickX = event.clientX - rect.left;
       const clickY = event.clientY - rect.top;
-      // 各棒人間のヘッド（円）の中心をチェック
+      
       stickFigures.forEach(figure => {
         const headRadius = 10;
         const bodyLength = 30;
         const headX = figure.x;
         const headY = figure.y - bodyLength - headRadius;
         const dist = Math.sqrt(Math.pow(clickX - headX, 2) + Math.pow(clickY - headY, 2));
+        
         if (dist <= headRadius) {
-          figure.headColor = "red";
+          if (figure.isBonus) {
+            audioBonus.play();
+            score += 100; // ボーナススコア
+            timeLeft = Math.min(30, timeLeft + 10); // 時間を10秒回復
+            timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+            resultDiv.textContent = "ボーナス棒人間をタップ！時間回復＆スコアアップ！";
+            figure.headColor = "gray"; // タップ済みを示す色
+            figure.isBonus = false; // もうボーナスではない
+          } else {
+            // 通常の棒人間の頭を赤くする。既に赤くなっていたら黒に戻す（数え直しを支援）
+            if (figure.headColor === "black") {
+              figure.headColor = "red"; 
+            } else if (figure.headColor === "red") {
+              figure.headColor = "black";
+            }
+          }
+          scoreDisplay.textContent = `スコア: ${score}`;
+          // ハイスコア更新
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('stickCountHighScore', highScore);
+            highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
+          }
         }
       });
     });
@@ -375,20 +601,41 @@
     calcButtons.forEach(btn => {
       if (btn.id === 'calcClear') {
         btn.addEventListener('click', () => {
-          answerInput.value = "";
+          if (gameRunning && !isAnswered) { // ゲーム中で未回答の場合のみクリア可能
+            answerInput.value = "";
+          }
         });
         return;
       }
       if (btn.id === 'calcEquals') {
         btn.addEventListener('click', () => {
-          submitAnswer.click(); // "="で回答送信
+          if (gameRunning && !isAnswered) { // ゲーム中で未回答の場合のみ回答送信可能
+            submitAnswer.click(); // "="で回答送信
+          }
         });
         return;
       }
       btn.addEventListener('click', () => {
-        answerInput.value += btn.getAttribute('data-value');
+        if (gameRunning && !isAnswered) { // ゲーム中で未回答の場合のみ電卓入力可能にする
+            const dataValue = btn.getAttribute('data-value');
+            // 演算子ボタンはHTMLから削除されているため、このチェックは主に小数点用
+            if (dataValue === '.') {
+                // 小数点が既に含まれていない場合のみ追加
+                if (answerInput.value.includes('.')) {
+                    return; 
+                }
+            }
+            answerInput.value += dataValue;
+        }
       });
     });
+
+    // 初期状態では開始ボタンとハイスコアのみ表示
+    gameEndScreen.style.display = 'none';
+    startButton.style.display = 'block';
+    endGameButton.style.display = 'none';
+    submitAnswer.style.display = 'none';
+    nextQuestionButton.style.display = 'none';
   </script>
 </body>
 </html>
