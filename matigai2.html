@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>図形差分ゲーム</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #333;
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    /* アニメーション背景 */
+    .background-shapes {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    .bg-shape {
+      position: absolute;
+      opacity: 0.1;
+      animation: float 8s infinite ease-in-out;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(180deg); }
+    }
+    
+    .game-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      margin: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      max-width: 900px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 30px;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stats-container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-box {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 15px 25px;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      min-width: 120px;
+      transform: perspective(1000px) rotateX(0deg);
+      transition: transform 0.3s ease;
+    }
+    
+    .stat-box:hover {
+      transform: perspective(1000px) rotateX(10deg) translateY(-5px);
+    }
+    
+    .stat-label {
+      font-size: 0.9em;
+      margin-bottom: 5px;
+    }
+    
+    .stat-value {
+      font-size: 2em;
+      font-weight: bold;
+    }
+    
+    .controls {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .grid-select {
+      margin-bottom: 20px;
+    }
+    
+    .grid-select label {
+      display: inline-block;
+      margin: 0 10px;
+      padding: 10px 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .grid-select label::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+      transition: left 0.5s ease;
+    }
+    
+    .grid-select label:hover::before {
+      left: 100%;
+    }
+    
+    .grid-select label:hover {
+      background: #e9ecef;
+      transform: translateY(-2px);
+    }
+    
+    .grid-select input[type="radio"] {
+      display: none;
+    }
+    
+    .grid-select input[type="radio"]:checked + span {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+    
+    .grid-select input[type="radio"]:checked + span::after {
+      content: '✓';
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 12px;
+    }
+    
+    .button {
+      padding: 12px 24px;
+      font-size: 1.1em;
+      margin: 0 8px;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      transform: translateY(0);
+    }
+    
+    .button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    .button:active {
+      transform: translateY(1px);
+    }
+    
+    .button-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+    
+    .button-secondary {
+      background: linear-gradient(135deg, #ffeaa7, #fab1a0);
+      color: #333;
+    }
+    
+    .button-danger {
+      background: linear-gradient(135deg, #fd79a8, #e84393);
+      color: white;
+    }
+    
+    .button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .button:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .game-grid {
+      display: grid;
+      grid-gap: 20px;
+      justify-content: center;
+      margin: 30px auto;
+      perspective: 1000px;
+    }
+    
+    .cell {
+      width: 140px;
+      height: 140px;
+      background: linear-gradient(135deg, #ffffff, #f8f9fa);
+      border: 3px solid #e9ecef;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s ease;
+      transform: rotateY(0deg);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .cell:hover {
+      transform: rotateY(5deg) translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      border-color: #667eea;
+    }
+    
+    .cell.correct {
+      animation: correctPulse 0.6s ease;
+      border-color: #2ecc71;
+      background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    }
+    
+    .cell.incorrect {
+      animation: incorrectShake 0.6s ease;
+      border-color: #e74c3c;
+      background: linear-gradient(135deg, #f8d7da, #f1b0b7);
+    }
+    
+    @keyframes correctPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    @keyframes incorrectShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    
+    .cell svg {
+      transition: all 0.3s ease;
+      filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
+    }
+    
+    .cell:hover svg {
+      transform: scale(1.05);
+    }
+    
+    .hint-highlight {
+      animation: hintPulse 1s ease-in-out;
+      border-color: #f39c12 !important;
+      box-shadow: 0 0 20px rgba(243, 156, 18, 0.5) !important;
+    }
+    
+    @keyframes hintPulse {
+      0%, 100% { border-color: #f39c12; box-shadow: 0 0 20px rgba(243, 156, 18, 0.5); }
+      50% { border-color: #e67e22; box-shadow: 0 0 30px rgba(230, 126, 34, 0.8); }
+    }
+    
+    .diff-overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 20px;
+      height: 20px;
+      background: rgba(231, 76, 60, 0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: overlayPulse 1s infinite;
+    }
+    
+    @keyframes overlayPulse {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    
+    .message {
+      margin-top: 20px;
+      font-size: 1.3em;
+      padding: 15px;
+      border-radius: 10px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    
+    .message.success {
+      background: linear-gradient(135deg, #d4edda, #c3e6cb);
+      color: #155724;
+      border: 2px solid #2ecc71;
+    }
+    
+    .message.error {
+      background: linear-gradient(135deg, #f8d7da, #f1b0b7);
+      color: #721c24;
+      border: 2px solid #e74c3c;
+    }
+    
+    .message.info {
+      background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+      color: #0c5460;
+      border: 2px solid #17a2b8;
+    }
+    
+    .difficulty-indicator {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 4px 8px;
+      border-radius: 15px;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+    
+    .difficulty-easy {
+      background: #2ecc71;
+      color: white;
+    }
+    
+    .difficulty-medium {
+      background: #f39c12;
+      color: white;
+    }
+    
+    .difficulty-hard {
+      background: #e74c3c;
+      color: white;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    @media (max-width: 768px) {
+      .game-container {
+        margin: 10px;
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 2em;
+      }
+      
+      .stats-container {
+        flex-direction: column;
+        gap: 20px;
+      }
+      
+      .cell {
+        width: 80px;
+        height: 80px;
+      }
+      
+      .game-grid {
+        grid-gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-shapes"></div>
+  
+  <div class="game-container">
+    <h1>🎯 図形差分ゲーム</h1>
+    
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    
+    <div class="stats-container">
+      <div class="stat-box">
+        <div class="stat-label">ラウンド</div>
+        <div class="stat-value" id="roundDisplay">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">得点</div>
+        <div class="stat-value" id="scoreDisplay">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">連続正解</div>
+        <div class="stat-value" id="streakDisplay">0</div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <div class="grid-select">
+        <strong>難易度を選択：</strong>
+        <label>
+          <input type="radio" name="gridCount" value="4">
+          <span>簡単 (4個)<span class="difficulty-indicator difficulty-easy">EASY</span></span>
+        </label>
+        <label>
+          <input type="radio" name="gridCount" value="9">
+          <span>普通 (9個)<span class="difficulty-indicator difficulty-medium">MEDIUM</span></span>
+        </label>
+        <label>
+          <input type="radio" name="gridCount" value="16" checked>
+          <span>難しい (16個)<span class="difficulty-indicator difficulty-hard">HARD</span></span>
+        </label>
+        <label>
+          <input type="radio" name="gridCount" value="25">
+          <span>超難しい (25個)<span class="difficulty-indicator difficulty-hard">EXTREME</span></span>
+        </label>
+      </div>
+      
+      <div class="button-group">
+        <button id="startButton" class="button button-primary">🎮 ゲーム開始</button>
+        <button id="hintButton" class="button button-secondary" disabled>💡 ヒント</button>
+        <button id="answerButton" class="button button-secondary" disabled>👁️ 答えを見る</button>
+        <button id="nextButton" class="button button-primary hidden" disabled>➡️ 次の問題</button> 
+        <button id="endButton" class="button button-danger" disabled>🏁 終了</button>
+      </div>
+    </div>
+    
+    <div id="gameGrid" class="game-grid"></div>
+    <div id="message" class="message"></div>
+  </div>
+  
+  <script>
+    // カラーパレット（より鮮やかで美しい色）
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+      '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#82E0AA'
+    ];
+    
+    const shapeTypes = ["star", "square", "triangle", "ellipse", "hexagon", "diamond"];
+    
+    // ゲーム状態
+    let round = 0;
+    let score = 0;
+    let streak = 0;
+    let gameActive = false;
+    let currentCorrectCell = null;
+    let hintUsed = false;
+    let currentShapeType = null;
+    let gridCount = 16;
+    let messageTimeoutId = null; // メッセージ表示用のタイマーID
+    let nextRoundTimeoutId = null; // 次のラウンドへの自動遷移用タイマーID
+    
+    // DOM要素
+    const roundDisplay = document.getElementById("roundDisplay");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const streakDisplay = document.getElementById("streakDisplay");
+    const progressFill = document.getElementById("progressFill");
+    const gameGrid = document.getElementById("gameGrid");
+    const messageDiv = document.getElementById("message");
+    const startButton = document.getElementById("startButton");
+    const hintButton = document.getElementById("hintButton");
+    const answerButton = document.getElementById("answerButton");
+    const nextButton = document.getElementById("nextButton"); // このボタンは使われないが、IDは残しておく
+    const endButton = document.getElementById("endButton");
+    const gridRadios = document.querySelectorAll("input[name='gridCount']");
+    
+    // 背景アニメーション
+    function createBackgroundShapes() {
+      const container = document.querySelector('.background-shapes');
+      const shapes = ['⭐', '🔶', '🔷', '🔸', '🔹', '⬢', '⬟'];
+      
+      for (let i = 0; i < 15; i++) {
+        const shape = document.createElement('div');
+        shape.className = 'bg-shape';
+        shape.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+        shape.style.left = Math.random() * 100 + '%';
+        shape.style.top = Math.random() * 100 + '%';
+        shape.style.fontSize = (Math.random() * 30 + 20) + 'px';
+        shape.style.animationDelay = Math.random() * 8 + 's';
+        shape.style.animationDuration = (Math.random() * 4 + 6) + 's';
+        container.appendChild(shape);
+      }
+    }
+    
+    // 統計更新
+    function updateStats() {
+      roundDisplay.textContent = round;
+      scoreDisplay.textContent = score;
+      streakDisplay.textContent = streak;
+      
+      // 進捗バー更新（最大ラウンド20として）
+      const progress = Math.min((round / 20) * 100, 100);
+      progressFill.style.width = progress + '%';
+    }
+    
+    // ランダムオフセット
+    function getRandomOffset() {
+      return Math.floor(Math.random() * 21) - 10;
+    }
+    
+    // 図形生成関数群
+    function createStarPoints(sides, outer, innerFactor, rotation = 0) {
+      let pts = "";
+      for (let i = 0; i < 2 * sides; i++) {
+        const isOuter = i % 2 === 0;
+        const r = isOuter ? outer : outer * innerFactor;
+        const angle = (Math.PI * i) / sides - Math.PI/2 + rotation;
+        const x = outer + r * Math.cos(angle);
+        const y = outer + r * Math.sin(angle);
+        pts += `${x},${y} `;
+      }
+      return pts.trim();
+    }
+    
+    function createStarSVG(isDiff, delta, fillColor) {
+      const outer = 50;
+      const sides = 5;
+      const baseInnerFactor = 0.5;
+      const innerFactor = isDiff ? baseInnerFactor + delta : baseInnerFactor;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", outer * 2);
+      svg.setAttribute("height", outer * 2);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      polygon.setAttribute("points", createStarPoints(sides, outer, innerFactor, 0));
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "rgba(0,0,0,0.3)");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    function createSquareSVG(isDiff, fillColor) {
+      const size = 100;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", size);
+      svg.setAttribute("height", size);
+      const rect = document.createElementNS(svgNS, "rect");
+      rect.setAttribute("x", "5");
+      rect.setAttribute("y", "5");
+      rect.setAttribute("width", isDiff ? size - 15 : size - 10);
+      rect.setAttribute("height", isDiff ? size - 15 : size - 10);
+      rect.setAttribute("fill", fillColor);
+      rect.setAttribute("stroke", "rgba(0,0,0,0.3)");
+      rect.setAttribute("stroke-width", "2");
+      rect.setAttribute("rx", "5");
+      svg.appendChild(rect);
+      return svg;
+    }
+    
+    function createTriangleSVG(isDiff, fillColor) {
+      const size = 100;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", size);
+      svg.setAttribute("height", size);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      const offset = isDiff ? 8 : 0;
+      polygon.setAttribute("points", `${size/2},10 ${size-10},${size-10} ${10+offset},${size-10}`);
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "rgba(0,0,0,0.3)");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    function createEllipseSVG(isDiff, fillColor) {
+      const width = 100, height = 70;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", width);
+      svg.setAttribute("height", height);
+      const ellipse = document.createElementNS(svgNS, "ellipse");
+      ellipse.setAttribute("cx", width/2);
+      ellipse.setAttribute("cy", height/2);
+      ellipse.setAttribute("rx", (width/2 - 10) * (isDiff ? 0.85 : 1));
+      ellipse.setAttribute("ry", height/2 - 10);
+      ellipse.setAttribute("fill", fillColor);
+      ellipse.setAttribute("stroke", "rgba(0,0,0,0.3)");
+      ellipse.setAttribute("stroke-width", "2");
+      svg.appendChild(ellipse);
+      return svg;
+    }
+    
+    function createHexagonSVG(isDiff, fillColor) {
+      const outer = 45;
+      const sides = 6;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", outer * 2 + 10);
+      svg.setAttribute("height", outer * 2 + 10);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      let pts = "";
+      for (let i = 0; i < sides; i++) {
+        let r = outer;
+        if (isDiff && i === 2) r = outer * 0.8;
+        const angle = (2 * Math.PI * i) / sides - Math.PI/2;
+        const x = outer + 5 + r * Math.cos(angle);
+        const y = outer + 5 + r * Math.sin(angle);
+        pts += `${x},${y} `;
+      }
+      polygon.setAttribute("points", pts.trim());
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "rgba(0,0,0,0.3)");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    function createDiamondSVG(isDiff, fillColor) {
+      const size = 100;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", size);
+      svg.setAttribute("height", size);
+      const polygon = document.createElementNS(svgNS, "polygon");
+      const offset = isDiff ? 8 : 0;
+      polygon.setAttribute("points", `${size/2},10 ${size-10},${size/2} ${size/2-offset},${size-10} 10,${size/2}`);
+      polygon.setAttribute("fill", fillColor);
+      polygon.setAttribute("stroke", "rgba(0,0,0,0.3)");
+      polygon.setAttribute("stroke-width", "2");
+      svg.appendChild(polygon);
+      return svg;
+    }
+    
+    function createShapeSVG(type, isDiff, fillColor, delta) {
+      switch (type) {
+        case "star": return createStarSVG(isDiff, delta, fillColor);
+        case "square": return createSquareSVG(isDiff, fillColor);
+        case "triangle": return createTriangleSVG(isDiff, fillColor);
+        case "ellipse": return createEllipseSVG(isDiff, fillColor);
+        case "hexagon": return createHexagonSVG(isDiff, fillColor);
+        case "diamond": return createDiamondSVG(isDiff, fillColor);
+        default: return createStarSVG(isDiff, delta, fillColor);
+      }
+    }
+    
+    function showMessage(text, type = 'info') {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.style.opacity = '0';
+      messageDiv.style.transform = 'translateY(20px)';
+      if (messageTimeoutId) clearTimeout(messageTimeoutId); // Clear previous timeout for messages
+      messageTimeoutId = setTimeout(() => {
+        messageDiv.style.opacity = '1';
+        messageDiv.style.transform = 'translateY(0)';
+      }, 100);
+    }
+    
+    // ゲーム内のセルへのインタラクションを有効/無効にする
+    function enableGameIntera
