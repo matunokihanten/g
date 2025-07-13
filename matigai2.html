@@ -674,4 +674,241 @@
     }
     
     // ゲーム内のセルへのインタラクションを有効/無効にする
-    function enableGameIntera
+    function enableGameInteraction(enable) {
+        document.querySelectorAll('.cell').forEach(c => {
+            c.style.pointerEvents = enable ? 'auto' : 'none';
+            c.classList.remove('correct', 'incorrect', 'hint-highlight'); // スタイルをクリーンアップ
+            const overlay = c.querySelector('.diff-overlay'); // オーバーレイを削除
+            if (overlay) overlay.remove();
+        });
+        hintButton.disabled = !enable;
+        answerButton.disabled = !enable;
+    }
+    
+    function setupGame() {
+      if (messageTimeoutId) clearTimeout(messageTimeoutId);
+      if (nextRoundTimeoutId) clearTimeout(nextRoundTimeoutId); // 前回の自動遷移タイマーをクリア
+      
+      const selectedGridRadio = document.querySelector("input[name='gridCount']:checked");
+      gridCount = parseInt(selectedGridRadio.value, 10);
+      
+      gameGrid.innerHTML = "";
+      messageDiv.textContent = "";
+      hintUsed = false;
+      currentCorrectCell = null;
+      // nextButtonは正解時に使わないので、常に隠しておく
+      nextButton.classList.add('hidden'); 
+      nextButton.disabled = true; 
+      
+      const nCols = Math.sqrt(gridCount);
+      gameGrid.style.gridTemplateColumns = `repeat(${nCols}, 140px)`;
+      
+      currentShapeType = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+      
+      let delta = 0;
+      if (currentShapeType === "star") {
+        delta = Math.max(0.25 - 0.01 * round, 0.05); // ラウンドに応じて難易度を調整
+      }
+      
+      const diffIndex = Math.floor(Math.random() * gridCount);
+      
+      for (let i = 0; i < gridCount; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        
+        const offsetX = getRandomOffset() + "px";
+        const offsetY = getRandomOffset() + "px";
+        
+        const fillColor = colors[Math.floor(Math.random() * colors.length)];
+        const shapeSVG = createShapeSVG(currentShapeType, i === diffIndex, fillColor, delta);
+        
+        shapeSVG.style.transform = `translate(${offsetX}, ${offsetY})`;
+        cell.appendChild(shapeSVG);
+        
+        if (i === diffIndex) {
+          currentCorrectCell = cell;
+        }
+        
+        cell.addEventListener("click", () => {
+          if (!gameActive) return; // ゲームがアクティブでない場合はクリックを無視
+          
+          enableGameInteraction(false); // 更なるクリックをすぐに無効化
+          
+          if (i === diffIndex) {
+            cell.classList.add('correct');
+            showMessage("🎉 正解！素晴らしい！", 'success');
+            score += 10 + streak * 2;
+            streak++;
+            round++;
+            
+            updateStats();
+            hintButton.disabled = true;
+            answerButton.disabled = true;
+            
+            // 正解後、短い遅延の後に次の問題へ自動遷移
+            nextRoundTimeoutId = setTimeout(() => {
+                if (gameActive) { // ゲームが終了していない場合のみ次へ進む
+                    enableGameInteraction(true); // 次のラウンドのためにクリックを有効化
+                    setupGame();
+                }
+            }, 1000); // 1秒後に次の問題へ
+            
+          } else {
+            cell.classList.add('incorrect');
+            showMessage("❌ 不正解！正解は赤い印で示されています", 'error');
+            
+            if (currentCorrectCell) {
+              const overlay = document.createElement("div");
+              overlay.className = "diff-overlay";
+              currentCorrectCell.appendChild(overlay);
+            }
+            
+            streak = 0;
+            round = Math.max(round - 1, 1); // ラウンドが1未満にならないようにする
+            
+            updateStats();
+            hintButton.disabled = true;
+            answerButton.disabled = true;
+            
+            // 不正解後、短い遅延の後に次の問題へ自動遷移（またはユーザーが「次の問題」を押すまで待機）
+            // 自動遷移させる場合:
+            nextRoundTimeoutId = setTimeout(() => {
+                if (gameActive) { // ゲームが終了していない場合のみ次へ進む
+                    enableGameInteraction(true); // 次のラウンドのためにクリックを有効化
+                    setupGame();
+                }
+            }, 2000); // 不正解の場合は少し長めに待つ
+            
+            // 自動遷移させずにユーザーに「次の問題」ボタンを押させる場合（前のバージョンに戻す場合）は、
+            // 上記のsetTimeoutを削除し、以下の2行を有効にする:
+            // nextButton.classList.remove('hidden');
+            // nextButton.disabled = false;
+          }
+        });
+        
+        gameGrid.appendChild(cell);
+      }
+      
+      enableGameInteraction(true); // 新しいラウンドのためにインタラクションを有効化
+      hintButton.disabled = false;
+      answerButton.disabled = false;
+      showMessage(`ラウンド ${round}: 違いを見つけてください！`, 'info');
+    }
+    
+    function resetGame() {
+        if (messageTimeoutId) clearTimeout(messageTimeoutId);
+        if (nextRoundTimeoutId) clearTimeout(nextRoundTimeoutId);
+        
+        round = 0;
+        score = 0;
+        streak = 0;
+        gameActive = false;
+        updateStats();
+        messageDiv.textContent = "";
+        gameGrid.innerHTML = "";
+        hintButton.disabled = true;
+        answerButton.disabled = true;
+        nextButton.classList.add('hidden');
+        nextButton.disabled = true;
+        endButton.disabled = true;
+        startButton.textContent = "🎮 ゲーム開始";
+        showMessage("ゲームを始めるには「ゲーム開始」ボタンを押してください。", 'info');
+        enableGridSelection(true); // 難易度選択を許可
+    }
+    
+    // 難易度選択のラジオボタンを有効/無効にする
+    function enableGridSelection(enable) {
+        gridRadios.forEach(radio => {
+            radio.disabled = !enable;
+            // 親要素のlabelに対してポインターイベントと透明度を制御
+            radio.parentElement.style.pointerEvents = enable ? 'auto' : 'none'; 
+            radio.parentElement.style.opacity = enable ? '1' : '0.6'; 
+        });
+    }
+    
+    // イベントリスナー
+    startButton.addEventListener("click", () => {
+      gameActive = true;
+      round = 1; // ゲーム開始時にラウンドを1に設定
+      score = 0;
+      streak = 0;
+      updateStats();
+      hintButton.disabled = false;
+      answerButton.disabled = false;
+      endButton.disabled = false;
+      startButton.textContent = "🔄 リスタート";
+      enableGridSelection(false); // ゲーム中は難易度選択を無効化
+      setupGame();
+    });
+    
+    hintButton.addEventListener("click", () => {
+      if (!hintUsed && currentCorrectCell) {
+        currentCorrectCell.classList.add('hint-highlight');
+        hintUsed = true;
+        hintButton.disabled = true;
+        showMessage("💡 ヒント: 光っているセルに注目！", 'info');
+        score = Math.max(0, score - 5); // ヒント使用で減点
+        updateStats();
+      }
+    });
+    
+    answerButton.addEventListener("click", () => {
+        if (currentCorrectCell) {
+            enableGameInteraction(false); // クリックを無効化
+            currentCorrectCell.classList.add('correct'); // 正解セルをハイライト
+            const overlay = document.createElement("div");
+            overlay.className = "diff-overlay";
+            currentCorrectCell.appendChild(overlay);
+            showMessage("👀 答えです！次頑張ってね！", 'info');
+            streak = 0;
+            score = Math.max(0, score - 10); // 答えを見ることでさらに減点
+            updateStats();
+            
+            // 答えを見た後も、自動的に次の問題へ遷移
+            nextRoundTimeoutId = setTimeout(() => {
+                if (gameActive) {
+                    enableGameInteraction(true);
+                    setupGame();
+                }
+            }, 2000); // 2秒後に次の問題へ
+            
+            hintButton.disabled = true;
+            answerButton.disabled = true;
+        }
+    });
+    
+    // nextButtonは自動遷移のため、クリックイベントは基本的に使用しない
+    // nextButton.addEventListener("click", () => {
+    //     if (!gameActive) return;
+    //     enableGameInteraction(true);
+    //     setupGame();
+    //     nextButton.classList.add('hidden');
+    //     nextButton.disabled = true;
+    // });
+    
+    endButton.addEventListener("click", () => {
+        gameActive = false;
+        showMessage(`ゲーム終了！最終スコア: ${score}点。また遊んでね！`, 'info');
+        resetGame();
+    });
+    
+    // ロード時にゲームを初期化
+    document.addEventListener("DOMContentLoaded", () => {
+        createBackgroundShapes();
+        resetGame(); // 初期状態を設定
+    });
+    
+    // 難易度変更ラジオボタンの処理
+    gridRadios.forEach(radio => {
+        radio.addEventListener('change', (event) => {
+            gridCount = parseInt(event.target.value, 10);
+            if (!gameActive) {
+                // ゲーム中でない場合、グリッドサイズを視覚的に更新（必要であれば）
+                const nCols = Math.sqrt(gridCount);
+                gameGrid.style.gridTemplateColumns = `repeat(${nCols}, 140px)`;
+            }
+        });
+    });
+  </script>
+</body>
+</html>
