@@ -125,7 +125,6 @@
     <p>画面に表示されている棒人間は何体ですか？</p>
     <input type="number" id="answerInput" placeholder="数字を入力">
     <button id="submitAnswer">回答する</button>
-    <button id="nextQuestionButton" style="display:none;">次の問題へ</button>
   </div>
   <div id="result"></div>
 
@@ -160,10 +159,9 @@
     const startNormalModeButton = document.getElementById('startNormalMode');
     const startRelaxModeButton = document.getElementById('startRelaxMode');
     const endGameButton = document.getElementById('endGameButton');
-    const endRelaxModeButton = document.getElementById('endRelaxModeButton'); // 新しい終了ボタン
+    const endRelaxModeButton = document.getElementById('endRelaxModeButton');
     const answerInput = document.getElementById('answerInput');
     const submitAnswer = document.getElementById('submitAnswer');
-    const nextQuestionButton = document.getElementById('nextQuestionButton');
     const resultDiv = document.getElementById('result');
     const scoreDisplay = document.getElementById('scoreDisplay');
     const timeDisplay = document.getElementById('timeDisplay');
@@ -185,7 +183,7 @@
     let timerInterval;
     let consecutiveCorrects = 0;
     let isAnswered = false;
-    let isRelaxMode = false; // リラックスモードかどうかを示すフラグ
+    let isRelaxMode = false;
 
     // Audio assets
     const audioCorrect = new Audio('https://www.soundeffect-labo.info/sound/button/mp3/button-touch1.mp3');
@@ -205,18 +203,17 @@
         this.vx = vx;
         this.vy = vy;
         this.phase = phase;
-        this.initialHeadColor = "black"; // 頭の色は黒に固定
+        this.initialHeadColor = "black";
         this.headColor = this.initialHeadColor;
         this.isBonus = isBonus;
         this.bodyHeightPhase = Math.random() * Math.PI * 2;
-        this.parts = {}; // To store Path2D objects for click detection
+        this.parts = {};
       }
 
       update(dt) {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
-        // Boundary checks for X-axis
         if (this.x < 0) {
           this.x = 0;
           this.vx = -this.vx;
@@ -225,9 +222,8 @@
           this.vx = -this.vx;
         }
 
-        // Boundary checks for Y-axis (considering a small buffer from top/bottom)
-        const minY = 20; // Top buffer
-        const maxY = canvas.height - 20; // Bottom buffer
+        const minY = 20;
+        const maxY = canvas.height - 20;
         if (this.y < minY) {
           this.y = minY;
           this.vy = -this.vy;
@@ -237,34 +233,30 @@
         }
 
         this.bodyHeightPhase += dt * 5;
-        this.y += Math.sin(this.bodyHeightPhase) * 0.5; // Slight vertical bobbing
+        this.y += Math.sin(this.bodyHeightPhase) * 0.5;
       }
 
       draw(ctx, time) {
-        // Reduced size for all parts
         const headRadius = 5;
         const bodyLength = 15;
         const armLength = 10;
         const legLength = 12.5;
 
         const swingAmplitude = Math.PI / 6;
-        const t = (time / 1000) * 8 + this.phase; // Convert to seconds for time
+        const t = (time / 1000) * 8 + this.phase;
         const armSwing = Math.sin(t) * swingAmplitude;
         const legSwing = Math.sin(t + Math.PI / 2) * swingAmplitude;
 
-        // Coordinates based on the stick figure's center (hip)
         const headX = this.x;
         const headY = this.y - bodyLength - headRadius;
-        const shoulderY = headY + headRadius + (bodyLength * 0.2); // Adjusted shoulder position
+        const shoulderY = headY + headRadius + (bodyLength * 0.2);
         const hipY = this.y;
 
-        // Define segment lengths for limbs (e.g., upper arm/leg and lower arm/leg)
         const upperArmLength = armLength * 0.6;
         const lowerArmLength = armLength * 0.4;
         const upperLegLength = legLength * 0.6;
         const lowerLegLength = legLength * 0.4;
 
-        // Paths for drawing
         const headPath = new Path2D();
         headPath.arc(headX, headY, headRadius, 0, Math.PI * 2);
 
@@ -272,8 +264,7 @@
         bodyPath.moveTo(this.x, headY + headRadius);
         bodyPath.lineTo(this.x, hipY);
 
-        // Left arm
-        const baseLeftArmAngle = Math.PI / 2 + armSwing; // Angle for arm swing
+        const baseLeftArmAngle = Math.PI / 2 + armSwing;
         const leftElbowX = this.x + upperArmLength * Math.cos(baseLeftArmAngle);
         const leftElbowY = shoulderY + upperArmLength * Math.sin(baseLeftArmAngle);
         const leftHandX = leftElbowX + lowerArmLength * Math.cos(baseLeftArmAngle + Math.PI / 4);
@@ -283,8 +274,7 @@
         leftArmPath.lineTo(leftElbowX, leftElbowY);
         leftArmPath.lineTo(leftHandX, leftHandY);
 
-        // Right arm
-        const baseRightArmAngle = Math.PI / 2 - armSwing; // Opposite swing
+        const baseRightArmAngle = Math.PI / 2 - armSwing;
         const rightElbowX = this.x + upperArmLength * Math.cos(baseRightArmAngle);
         const rightElbowY = shoulderY + upperArmLength * Math.sin(baseRightArmAngle);
         const rightHandX = rightElbowX + lowerArmLength * Math.cos(baseRightArmAngle - Math.PI / 4);
@@ -294,7 +284,6 @@
         rightArmPath.lineTo(rightElbowX, rightElbowY);
         rightArmPath.lineTo(rightHandX, rightHandY);
 
-        // Left leg
         const baseLeftLegAngle = Math.PI / 2 + legSwing;
         const leftKneeX = this.x + upperLegLength * Math.cos(baseLeftLegAngle);
         const leftKneeY = hipY + upperLegLength * Math.sin(baseLeftLegAngle);
@@ -305,7 +294,6 @@
         leftLegPath.lineTo(leftKneeX, leftKneeY);
         leftLegPath.lineTo(leftFootX, leftFootY);
 
-        // Right leg
         const baseRightLegAngle = Math.PI / 2 - legSwing;
         const rightKneeX = this.x + upperLegLength * Math.cos(baseRightLegAngle);
         const rightKneeY = hipY + upperLegLength * Math.sin(baseRightLegAngle);
@@ -316,10 +304,9 @@
         rightLegPath.lineTo(rightKneeX, rightKneeY);
         rightLegPath.lineTo(rightFootX, rightFootY);
 
-        // Draw the stick figure parts
         ctx.fillStyle = this.headColor;
         ctx.fill(headPath);
-        ctx.strokeStyle = "black"; // 線の色を黒に固定
+        ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         ctx.stroke(headPath);
 
@@ -331,7 +318,6 @@
         ctx.stroke(leftLegPath);
         ctx.stroke(rightLegPath);
 
-        // Store Path2D objects for click detection
         this.parts = {
           head: headPath,
           body: bodyPath,
@@ -340,39 +326,36 @@
           leftLeg: leftLegPath,
           rightLeg: rightLegPath,
           x: this.x,
-          y: this.y // Center of the stick figure (hip)
+          y: this.y
         };
       }
     }
 
-    // Main animation loop
     function animate(now) {
       if (!gameRunning) return;
-      const dt = (now - lastTime) / 1000; // Delta time in seconds
+      const dt = (now - lastTime) / 1000;
       lastTime = now;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas for redraw
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       stickFigures.forEach(figure => {
         figure.update(dt);
-        figure.draw(ctx, now); // Pass 'now' for animation phase
+        figure.draw(ctx, now);
       });
 
       animationFrameId = requestAnimationFrame(animate);
     }
 
-    // Function to start a new question (generate stick figures)
     function startNewQuestion() {
-      cancelAnimationFrame(animationFrameId); // Stop current animation
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+      cancelAnimationFrame(animationFrameId);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      actualCount = Math.floor(Math.random() * 10) + 1; // Adjusted range for easier counting
+      actualCount = Math.floor(Math.random() * 20) + 1; // 棒人間の数を最大20人に変更
       stickFigures = [];
       for (let i = 0; i < actualCount; i++) {
-        // Adjust spawning area to be within canvas bounds and avoid too close to edges
         const x = 20 + Math.random() * (canvas.width - 40);
         const y = 20 + Math.random() * (canvas.height - 40);
-        const speed = 50 + Math.random() * 50; // Slower speed for easier counting
+        const speed = 50 + Math.random() * 50;
         const angle = Math.random() * Math.PI * 2;
         const vx = speed * Math.cos(angle);
         const vy = speed * Math.sin(angle);
@@ -380,54 +363,35 @@
         stickFigures.push(new StickFigure(x, y, vx, vy, phase));
       }
 
-      // ボーナス棒人間を生成するロジックを無効化 (黄色い棒人間を削除)
-      /*
-      if (Math.random() < 0.2) { // 20% chance
-        const x = 20 + Math.random() * (canvas.width - 40);
-        const y = 20 + Math.random() * (canvas.height - 40);
-        const speed = 70 + Math.random() * 30; // Slightly faster bonus figure
-        const angle = Math.random() * Math.PI * 2;
-        const vx = speed * Math.cos(angle);
-        const vy = speed * Math.sin(angle);
-        const phase = Math.random() * Math.PI * 2;
-        stickFigures.push(new StickFigure(x, y, vx, vy, phase, true));
-      }
-      */
-
       lastTime = performance.now();
       gameRunning = true;
-      animationFrameId = requestAnimationFrame(animate); // Start animation for the new set
+      animationFrameId = requestAnimationFrame(animate);
 
-      // Reset UI for new question
       answerInput.value = "";
       resultDiv.textContent = "";
-      submitAnswer.style.display = 'inline-block';
-      nextQuestionButton.style.display = 'none';
-      isAnswered = false;
+      isAnswered = false; // 回答状態をリセット
     }
 
-    // Function to start the game
     function startGame(mode) {
-      if (gameRunning) return; // Prevent starting if already running
+      if (gameRunning) return;
 
       audioStart.play();
       isRelaxMode = (mode === 'relax');
 
-      // UI setup for game start
       gameEndScreen.style.display = 'none';
-      modeSelectionDiv.style.display = 'none'; // モード選択ボタンを非表示に
+      modeSelectionDiv.style.display = 'none';
 
       if (isRelaxMode) {
         endGameButton.style.display = 'none';
         endRelaxModeButton.style.display = 'inline-block';
-        timeDisplay.textContent = `残り時間: 無制限`; // リラックスモードの表示
-        clearInterval(timerInterval); // タイマーをクリア
+        timeDisplay.textContent = `残り時間: 無制限`;
+        clearInterval(timerInterval);
       } else {
         endGameButton.style.display = 'inline-block';
         endRelaxModeButton.style.display = 'none';
         timeLeft = 30;
         timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-        clearInterval(timerInterval); // Clear any existing timer
+        clearInterval(timerInterval);
         timerInterval = setInterval(() => {
           timeLeft--;
           timeDisplay.textContent = `残り時間: ${timeLeft}s`;
@@ -435,58 +399,50 @@
             timeLeft = 0;
             timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`;
             clearInterval(timerInterval);
-            endGame(); // End game when time runs out
+            endGame();
           }
         }, 1000);
       }
       submitAnswer.style.display = 'inline-block';
-      nextQuestionButton.style.display = 'none';
 
       score = 0;
       scoreDisplay.textContent = `スコア: ${score}`;
       consecutiveCorrects = 0;
 
-      // Start a new question and animation
       startNewQuestion();
     }
 
-    // Function to end the game
     function endGame() {
       audioGameOver.play();
       gameRunning = false;
-      cancelAnimationFrame(animationFrameId); // Stop animation
-      clearInterval(timerInterval); // Stop timer
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas on game end
+      cancelAnimationFrame(animationFrameId);
+      clearInterval(timerInterval);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Update final score display on game over screen
       finalScoreDisplay.textContent = score;
       finalHighScoreDisplay.textContent = highScore;
-      gameEndScreen.style.display = 'flex'; // Show game over screen
+      gameEndScreen.style.display = 'flex';
 
-      // UI reset for game end
-      modeSelectionDiv.style.display = 'flex'; // モード選択ボタンを再表示
+      modeSelectionDiv.style.display = 'flex';
       endGameButton.style.display = 'none';
       endRelaxModeButton.style.display = 'none';
       submitAnswer.style.display = 'none';
-      nextQuestionButton.style.display = 'none';
     }
 
-    // --- Event Listeners ---
     startNormalModeButton.addEventListener('click', () => startGame('normal'));
     startRelaxModeButton.addEventListener('click', () => startGame('relax'));
     endGameButton.addEventListener('click', endGame);
-    endRelaxModeButton.addEventListener('click', endGame); // リラックスモード終了ボタンもendGameを呼ぶ
+    endRelaxModeButton.addEventListener('click', endGame);
     restartButton.addEventListener('click', () => {
         gameEndScreen.style.display = 'none';
-        modeSelectionDiv.style.display = 'flex'; // モード選択画面に戻る
-        score = 0; // スコアリセット
+        modeSelectionDiv.style.display = 'flex';
+        score = 0;
         scoreDisplay.textContent = `スコア: ${score}`;
-        timeDisplay.textContent = `残り時間: 30s`; // 時間表示をリセット
+        timeDisplay.textContent = `残り時間: 30s`;
     });
 
-
     submitAnswer.addEventListener('click', () => {
-      if (!gameRunning || isAnswered) return; // Only allow one answer per question
+      if (!gameRunning || isAnswered) return;
 
       const userAnswer = parseInt(answerInput.value);
       if (isNaN(userAnswer)) {
@@ -494,9 +450,7 @@
         return;
       }
 
-      isAnswered = true; // Mark as answered
-      submitAnswer.style.display = 'none';
-      nextQuestionButton.style.display = 'inline-block';
+      isAnswered = true; // 回答済みフラグを立てる
 
       if (userAnswer === actualCount) {
         audioCorrect.play();
@@ -508,43 +462,41 @@
           resultDiv.textContent += " 連続正解ボーナス！";
           audioBonus.play();
         }
-        // リラックスモードでなければ時間を加算
         if (!isRelaxMode) {
-            timeLeft = Math.min(30, timeLeft + 5); // Add time for correct answer, max 30s
+            timeLeft = Math.min(30, timeLeft + 5);
         }
       } else {
         audioIncorrect.play();
         resultDiv.textContent = `不正解… 正解は ${actualCount} 人でした。`;
-        consecutiveCorrects = 0; // Reset consecutive corrects on wrong answer
+        consecutiveCorrects = 0;
       }
       scoreDisplay.textContent = `スコア: ${score}`;
-      // リラックスモードでなければ時間表示を更新
       if (!isRelaxMode) {
-          timeDisplay.textContent = `残り時間: ${timeLeft}s`; // Update time display immediately
+          timeDisplay.textContent = `残り時間: ${timeLeft}s`;
       }
 
-      // Update high score if current score is higher
       if (score > highScore) {
         highScore = score;
         localStorage.setItem('stickCountHighScore', highScore);
         highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
       }
-    });
 
-    nextQuestionButton.addEventListener('click', () => {
-        if (!gameRunning) return; // Only proceed if game is running
-        startNewQuestion();
+      // 1.5秒後に次の問題に進む (正解発表の表示時間)
+      setTimeout(() => {
+        if (gameRunning) { // ゲームがまだ実行中であれば
+            startNewQuestion();
+        }
+      }, 1500); // ここで表示時間を調整
     });
 
     canvas.addEventListener('click', (event) => {
-      if (!gameRunning) return; // Only process clicks during active game
+      if (!gameRunning) return;
       const rect = canvas.getBoundingClientRect();
       const clickX = event.clientX - rect.left;
       const clickY = event.clientY - rect.top;
 
       stickFigures.forEach(figure => {
-        // Check if the click is within any part of the stick figure
-        if (figure.parts) { // Ensure parts are drawn and available
+        if (figure.parts) {
           if (ctx.isPointInPath(figure.parts.head, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.body, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.leftArm, clickX, clickY) ||
@@ -552,14 +504,12 @@
               ctx.isPointInPath(figure.parts.leftLeg, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.rightLeg, clickX, clickY)) {
 
-            // ボーナス棒人間をタップした際の処理は無効化 (黄色い棒人間がないため)
             if (figure.isBonus) {
-              figure.headColor = "gray"; // 頭の色は灰色になるように残す
-              figure.isBonus = false; // ボーナスフラグは解除
+              figure.headColor = "gray";
+              figure.isBonus = false;
             } else {
-              figure.headColor = "red"; // 通常の棒人間は赤色に変わる
+              figure.headColor = "red";
             }
-            // スコアや時間の加算は行わない
             scoreDisplay.textContent = `スコア: ${score}`;
             if (score > highScore) {
               highScore = score;
@@ -571,7 +521,6 @@
       });
     });
 
-    // Calculator button event listeners
     document.querySelectorAll('.calc-btn').forEach(btn => {
       if (btn.id === 'calcClear') {
         btn.addEventListener('click', () => {
@@ -588,7 +537,6 @@
       btn.addEventListener('click', () => {
         if (gameRunning && !isAnswered) {
             const dataValue = btn.getAttribute('data-value');
-            // Prevent multiple decimal points
             if (dataValue === '.' && answerInput.value.includes('.')) return;
             answerInput.value += dataValue;
         }
@@ -597,11 +545,10 @@
 
     // Initial UI setup when the page loads
     gameEndScreen.style.display = 'none';
-    modeSelectionDiv.style.display = 'flex'; // 最初はモード選択ボタンを表示
+    modeSelectionDiv.style.display = 'flex';
     endGameButton.style.display = 'none';
     endRelaxModeButton.style.display = 'none';
     submitAnswer.style.display = 'none';
-    nextQuestionButton.style.display = 'none';
   </script>
 </body>
 </html>
