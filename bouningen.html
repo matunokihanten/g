@@ -122,7 +122,8 @@
   </div>
 
   <script>
-    const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     const startButton = document.getElementById('startButton');
     const endGameButton = document.getElementById('endGameButton');
     const answerInput = document.getElementById('answerInput');
@@ -137,62 +138,105 @@
     const finalHighScoreDisplay = document.getElementById('finalHighScore');
     const restartButton = document.getElementById('restartButton');
 
-    let actualCount = 0, stickFigures = [];
-    let lastTime = performance.now(), animationFrameId;
-    let gameRunning = false, score = 0;
+    let actualCount = 0;
+    let stickFigures = [];
+    let lastTime = performance.now();
+    let animationFrameId;
+    let gameRunning = false;
+    let score = 0;
     let highScore = localStorage.getItem('stickCountHighScore') ? parseInt(localStorage.getItem('stickCountHighScore')) : 0;
-    let timeLeft = 30, timerInterval;
-    let consecutiveCorrects = 0, isAnswered = false;
+    let timeLeft = 30;
+    let timerInterval;
+    let consecutiveCorrects = 0;
+    let isAnswered = false;
 
+    // Audio assets
     const audioCorrect = new Audio('https://www.soundeffect-labo.info/sound/button/mp3/button-touch1.mp3');
     const audioIncorrect = new Audio('https://www.soundeffect-labo.info/sound/kanetuki/mp3/kanetuki-usudokoro.mp3');
     const audioGameOver = new Audio('https://www.soundeffect-labo.info/sound/se/mp3/se_maoudamashii_system23.mp3');
     const audioBonus = new Audio('https://www.soundeffect-labo.info/sound/se/mp3/se_maoudamashii_system49.mp3');
     const audioStart = new Audio('https://www.soundeffect-labo.info/sound/se/mp3/se_maoudamashii_system33.mp3');
 
+    // Initialize high score display
     highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
 
+    // StickFigure class for drawing and updating stick figures
     class StickFigure {
       constructor(x, y, vx, vy, phase, isBonus = false) {
-        this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.phase = phase;
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.phase = phase;
         this.initialHeadColor = isBonus ? "gold" : "black";
         this.headColor = this.initialHeadColor;
         this.isBonus = isBonus;
         this.bodyHeightPhase = Math.random() * Math.PI * 2;
+        this.parts = {}; // To store Path2D objects for click detection
       }
 
       update(dt) {
-        this.x += this.vx * dt; this.y += this.vy * dt;
-        // 棒人間のサイズが小さくなった分、境界のY座標を調整
-        if (this.x < 0 || this.x > canvas.width) { this.vx = -this.vx; this.x = Math.max(0, Math.min(this.x, canvas.width)); }
-        if (this.y < 20 || this.y > canvas.height) { this.vy = -this.vy; this.y = Math.max(20, Math.min(this.y, canvas.height)); }
-        this.bodyHeightPhase += dt * 5; this.y += Math.sin(this.bodyHeightPhase) * 0.5;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Boundary checks for X-axis
+        if (this.x < 0) {
+          this.x = 0;
+          this.vx = -this.vx;
+        } else if (this.x > canvas.width) {
+          this.x = canvas.width;
+          this.vx = -this.vx;
+        }
+
+        // Boundary checks for Y-axis (considering a small buffer from top/bottom)
+        const minY = 20; // Top buffer
+        const maxY = canvas.height - 20; // Bottom buffer
+        if (this.y < minY) {
+          this.y = minY;
+          this.vy = -this.vy;
+        } else if (this.y > maxY) {
+          this.y = maxY;
+          this.vy = -this.vy;
+        }
+
+        this.bodyHeightPhase += dt * 5;
+        this.y += Math.sin(this.bodyHeightPhase) * 0.5; // Slight vertical bobbing
       }
 
       draw(ctx, time) {
-        // 棒人間のサイズを半分に調整
-        const headRadius = 5, bodyLength = 15, armLength = 7.5 * 2.5, legLength = 10 * 2.5;
-        const swingAmplitude = Math.PI / 6, t = time * 8 + this.phase;
-        const armSwing = Math.sin(t) * swingAmplitude, legSwing = Math.sin(t + Math.PI / 2) * swingAmplitude;
+        // Reduced size for all parts
+        const headRadius = 5;
+        const bodyLength = 15;
+        const armLength = 10; // Original 20, now 10 (half)
+        const legLength = 12.5; // Original 25, now 12.5 (half)
 
-        const headX = this.x, headY = this.y - bodyLength - headRadius;
-        const shoulderY = headY + headRadius + 2.5; // 肩の位置も調整
+        const swingAmplitude = Math.PI / 6;
+        const t = (time / 1000) * 8 + this.phase; // Convert to seconds for time
+        const armSwing = Math.sin(t) * swingAmplitude;
+        const legSwing = Math.sin(t + Math.PI / 2) * swingAmplitude;
+
+        // Coordinates based on the stick figure's center (hip)
+        const headX = this.x;
+        const headY = this.y - bodyLength - headRadius;
+        const shoulderY = headY + headRadius + (bodyLength * 0.2); // Adjusted shoulder position
         const hipY = this.y;
 
-        const upperArmLength = armLength * 0.6, lowerArmLength = armLength * 0.4;
-        const upperLegLength = legLength * 0.6, lowerLegLength = legLength * 0.4;
+        // Define segment lengths for limbs (e.g., upper arm/leg and lower arm/leg)
+        const upperArmLength = armLength * 0.6;
+        const lowerArmLength = armLength * 0.4;
+        const upperLegLength = legLength * 0.6;
+        const lowerLegLength = legLength * 0.4;
 
-        // Head path
+        // Paths for drawing
         const headPath = new Path2D();
         headPath.arc(headX, headY, headRadius, 0, Math.PI * 2);
 
-        // Body path
         const bodyPath = new Path2D();
         bodyPath.moveTo(this.x, headY + headRadius);
         bodyPath.lineTo(this.x, hipY);
 
-        // Left arm path
-        const baseLeftArmAngle = Math.PI + armSwing;
+        // Left arm
+        const baseLeftArmAngle = Math.PI / 2 + armSwing; // Angle for arm swing
         const leftElbowX = this.x + upperArmLength * Math.cos(baseLeftArmAngle);
         const leftElbowY = shoulderY + upperArmLength * Math.sin(baseLeftArmAngle);
         const leftHandX = leftElbowX + lowerArmLength * Math.cos(baseLeftArmAngle + Math.PI / 4);
@@ -202,8 +246,8 @@
         leftArmPath.lineTo(leftElbowX, leftElbowY);
         leftArmPath.lineTo(leftHandX, leftHandY);
 
-        // Right arm path
-        const baseRightArmAngle = -armSwing;
+        // Right arm
+        const baseRightArmAngle = Math.PI / 2 - armSwing; // Opposite swing
         const rightElbowX = this.x + upperArmLength * Math.cos(baseRightArmAngle);
         const rightElbowY = shoulderY + upperArmLength * Math.sin(baseRightArmAngle);
         const rightHandX = rightElbowX + lowerArmLength * Math.cos(baseRightArmAngle - Math.PI / 4);
@@ -213,7 +257,7 @@
         rightArmPath.lineTo(rightElbowX, rightElbowY);
         rightArmPath.lineTo(rightHandX, rightHandY);
 
-        // Left leg path
+        // Left leg
         const baseLeftLegAngle = Math.PI / 2 + legSwing;
         const leftKneeX = this.x + upperLegLength * Math.cos(baseLeftLegAngle);
         const leftKneeY = hipY + upperLegLength * Math.sin(baseLeftLegAngle);
@@ -224,7 +268,7 @@
         leftLegPath.lineTo(leftKneeX, leftKneeY);
         leftLegPath.lineTo(leftFootX, leftFootY);
 
-        // Right leg path
+        // Right leg
         const baseRightLegAngle = Math.PI / 2 - legSwing;
         const rightKneeX = this.x + upperLegLength * Math.cos(baseRightLegAngle);
         const rightKneeY = hipY + upperLegLength * Math.sin(baseRightLegAngle);
@@ -235,10 +279,11 @@
         rightLegPath.lineTo(rightKneeX, rightKneeY);
         rightLegPath.lineTo(rightFootX, rightFootY);
 
+        // Draw the stick figure parts
         ctx.fillStyle = this.headColor;
         ctx.fill(headPath);
         ctx.strokeStyle = this.isBonus && this.headColor !== "gray" ? "gold" : "black";
-        ctx.lineWidth = this.isBonus && this.headColor !== "gray" ? 2 : 1;
+        ctx.lineWidth = this.isBonus && this.headColor !== "gray" ? 2 : 1; // Thicker border for bonus
         ctx.stroke(headPath);
 
         ctx.strokeStyle = "black";
@@ -249,8 +294,8 @@
         ctx.stroke(leftLegPath);
         ctx.stroke(rightLegPath);
 
-        // 各パーツのPath2Dオブジェクトを返す
-        return {
+        // Store Path2D objects for click detection
+        this.parts = {
           head: headPath,
           body: bodyPath,
           leftArm: leftArmPath,
@@ -258,184 +303,240 @@
           leftLeg: leftLegPath,
           rightLeg: rightLegPath,
           x: this.x,
-          y: this.y
+          y: this.y // Center of the stick figure (hip)
         };
       }
     }
 
+    // Main animation loop
     function animate(now) {
       if (!gameRunning) return;
-      const dt = (now - lastTime) / 1000;
+      const dt = (now - lastTime) / 1000; // Delta time in seconds
       lastTime = now;
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // ここでCanvasをクリア
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas for redraw
+
       stickFigures.forEach(figure => {
         figure.update(dt);
-        figure.parts = figure.draw(ctx, now / 1000);
+        figure.draw(ctx, now); // Pass 'now' for animation phase
       });
+
       animationFrameId = requestAnimationFrame(animate);
     }
 
+    // Function to start a new question (generate stick figures)
+    function startNewQuestion() {
+      cancelAnimationFrame(animationFrameId); // Stop current animation
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+      actualCount = Math.floor(Math.random() * 10) + 1; // Adjusted range for easier counting
+      stickFigures = [];
+      for (let i = 0; i < actualCount; i++) {
+        // Adjust spawning area to be within canvas bounds and avoid too close to edges
+        const x = 20 + Math.random() * (canvas.width - 40);
+        const y = 20 + Math.random() * (canvas.height - 40);
+        const speed = 50 + Math.random() * 50; // Slower speed for easier counting
+        const angle = Math.random() * Math.PI * 2;
+        const vx = speed * Math.cos(angle);
+        const vy = speed * Math.sin(angle);
+        const phase = Math.random() * Math.PI * 2;
+        stickFigures.push(new StickFigure(x, y, vx, vy, phase));
+      }
+
+      // Add a bonus stick figure occasionally
+      if (Math.random() < 0.2) { // 20% chance
+        const x = 20 + Math.random() * (canvas.width - 40);
+        const y = 20 + Math.random() * (canvas.height - 40);
+        const speed = 70 + Math.random() * 30; // Slightly faster bonus figure
+        const angle = Math.random() * Math.PI * 2;
+        const vx = speed * Math.cos(angle);
+        const vy = speed * Math.sin(angle);
+        const phase = Math.random() * Math.PI * 2;
+        stickFigures.push(new StickFigure(x, y, vx, vy, phase, true));
+      }
+
+      lastTime = performance.now();
+      gameRunning = true;
+      animationFrameId = requestAnimationFrame(animate); // Start animation for the new set
+
+      // Reset UI for new question
+      answerInput.value = "";
+      resultDiv.textContent = "";
+      submitAnswer.style.display = 'inline-block';
+      nextQuestionButton.style.display = 'none';
+      isAnswered = false;
+    }
+
+    // Function to start the game
     function startGame() {
-      if (gameRunning) return;
+      if (gameRunning) return; // Prevent starting if already running
+
       audioStart.play();
 
+      // UI setup for game start
       gameEndScreen.style.display = 'none';
       startButton.style.display = 'none';
       endGameButton.style.display = 'inline-block';
       submitAnswer.style.display = 'inline-block';
       nextQuestionButton.style.display = 'none';
 
-      answerInput.value = ""; resultDiv.textContent = "";
-      score = 0; scoreDisplay.textContent = `スコア: ${score}`;
-      consecutiveCorrects = 0; isAnswered = false;
+      score = 0;
+      scoreDisplay.textContent = `スコア: ${score}`;
+      consecutiveCorrects = 0;
 
-      // 新しい問題を開始
+      // Start a new question and animation
       startNewQuestion();
-      // ゲーム開始時にアニメーションを開始 (startNewQuestionでも呼ばれるため重複回避)
-      // gameRunning = true; lastTime = performance.now(); animationFrameId = requestAnimationFrame(animate);
 
-      timeLeft = 30; timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-      clearInterval(timerInterval);
+      // Initialize and start the game timer
+      timeLeft = 30;
+      timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+      clearInterval(timerInterval); // Clear any existing timer
       timerInterval = setInterval(() => {
-        timeLeft--; timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-        if (timeLeft <= 0) { timeLeft = 0; timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`; clearInterval(timerInterval); endGame(); } // 時間切れでゲーム終了
+        timeLeft--;
+        timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`;
+          clearInterval(timerInterval);
+          endGame(); // End game when time runs out
+        }
       }, 1000);
     }
 
-    function startNewQuestion() {
-      cancelAnimationFrame(animationFrameId); // 現在のアニメーションを停止
+    // Function to end the game
+    function endGame() {
+      audioGameOver.play();
+      gameRunning = false;
+      cancelAnimationFrame(animationFrameId); // Stop animation
+      clearInterval(timerInterval); // Stop timer
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas on game end
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // ここでCanvasをクリア
+      // Update final score display on game over screen
+      finalScoreDisplay.textContent = score;
+      finalHighScoreDisplay.textContent = highScore;
+      gameEndScreen.style.display = 'flex'; // Show game over screen
 
-      actualCount = Math.floor(Math.random() * 100) + 1;
-      stickFigures = [];
-      for (let i = 0; i < actualCount; i++) {
-        // 棒人間のサイズが小さくなったため、Y座標の範囲を調整
-        const x = Math.random() * canvas.width, y = 30 + Math.random() * (canvas.height - 40);
-        const speed = 50 + Math.random() * 100, angle = Math.random() * Math.PI * 2;
-        const vx = speed * Math.cos(angle), vy = speed * Math.sin(angle), phase = Math.random() * Math.PI * 2;
-        stickFigures.push(new StickFigure(x, y, vx, vy, phase));
-      }
-
-      if (Math.random() < 0.1) {
-        const x = Math.random() * canvas.width, y = 30 + Math.random() * (canvas.height - 40);
-        const speed = 70 + Math.random() * 80, angle = Math.random() * Math.PI * 2;
-        const vx = speed * Math.cos(angle), vy = speed * Math.sin(angle), phase = Math.random() * Math.PI * 2;
-        stickFigures.push(new StickFigure(x, y, vx, vy, phase, true));
-      }
-
-      lastTime = performance.now();
-      gameRunning = true; // startNewQuestionが呼ばれたらゲームは実行中
-      animationFrameId = requestAnimationFrame(animate); // ここで新しいアニメーションを開始
-
-      answerInput.value = ""; resultDiv.textContent = "";
-      submitAnswer.style.display = 'inline-block';
+      // UI reset for game end
+      startButton.style.display = 'inline-block';
+      endGameButton.style.display = 'none';
+      submitAnswer.style.display = 'none';
       nextQuestionButton.style.display = 'none';
-      isAnswered = false;
-
-      // 各問題の開始時にタイマーをリセット
-      timeLeft = 30; timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-      clearInterval(timerInterval); // 既存のタイマーをクリア
-      timerInterval = setInterval(() => {
-        timeLeft--; timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-        if (timeLeft <= 0) { timeLeft = 0; timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`; clearInterval(timerInterval); endGame(); } // 時間切れでゲーム終了
-      }, 1000);
     }
 
+    // --- Event Listeners ---
     startButton.addEventListener('click', startGame);
-    endGameButton.addEventListener('click', () => { endGame(); });
+    endGameButton.addEventListener('click', endGame);
+    restartButton.addEventListener('click', startGame);
 
     submitAnswer.addEventListener('click', () => {
-      if (!gameRunning || isAnswered) return;
-      const userAnswer = parseInt(answerInput.value);
-      if (isNaN(userAnswer)) { resultDiv.textContent = "数字を入力してください！"; return; }
+      if (!gameRunning || isAnswered) return; // Only allow one answer per question
 
-      isAnswered = true;
-      submitAnswer.style.display = 'none'; nextQuestionButton.style.display = 'inline-block';
+      const userAnswer = parseInt(answerInput.value);
+      if (isNaN(userAnswer)) {
+        resultDiv.textContent = "数字を入力してください！";
+        return;
+      }
+
+      isAnswered = true; // Mark as answered
+      submitAnswer.style.display = 'none';
+      nextQuestionButton.style.display = 'inline-block';
 
       if (userAnswer === actualCount) {
         audioCorrect.play();
         resultDiv.textContent = `正解！棒人間は ${actualCount} 人でした。`;
-        score += actualCount * 10; consecutiveCorrects++;
-        if (consecutiveCorrects >= 3) { score += 50; resultDiv.textContent += " 連続正解ボーナス！"; audioBonus.play(); } // 連続正解ボーナス音を追加
-        timeLeft = Math.min(30, timeLeft + 5);
+        score += actualCount * 10;
+        consecutiveCorrects++;
+        if (consecutiveCorrects >= 3) {
+          score += 50;
+          resultDiv.textContent += " 連続正解ボーナス！";
+          audioBonus.play();
+        }
+        timeLeft = Math.min(30, timeLeft + 5); // Add time for correct answer, max 30s
       } else {
         audioIncorrect.play();
         resultDiv.textContent = `不正解… 正解は ${actualCount} 人でした。`;
-        consecutiveCorrects = 0;
+        consecutiveCorrects = 0; // Reset consecutive corrects on wrong answer
       }
-      scoreDisplay.textContent = `スコア: ${score}`; timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-      if (score > highScore) { highScore = score; localStorage.setItem('stickCountHighScore', highScore); highScoreDisplay.textContent = `ハイスコア: ${highScore}`; }
+      scoreDisplay.textContent = `スコア: ${score}`;
+      timeDisplay.textContent = `残り時間: ${timeLeft}s`; // Update time display immediately
+
+      // Update high score if current score is higher
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('stickCountHighScore', highScore);
+        highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
+      }
     });
 
     nextQuestionButton.addEventListener('click', () => {
-        if (!gameRunning) return;
+        if (!gameRunning) return; // Only proceed if game is running
         startNewQuestion();
     });
 
-    function endGame() {
-      audioGameOver.play();
-      gameRunning = false;
-      cancelAnimationFrame(animationFrameId); // アニメーション停止
-      clearInterval(timerInterval); // タイマー停止
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // ゲーム終了時にCanvasをクリア
-
-      finalScoreDisplay.textContent = score; finalHighScoreDisplay.textContent = highScore;
-      gameEndScreen.style.display = 'flex';
-
-      startButton.style.display = 'inline-block'; endGameButton.style.display = 'none';
-      submitAnswer.style.display = 'none'; nextQuestionButton.style.display = 'none';
-    }
-
-    restartButton.addEventListener('click', startGame);
-
     canvas.addEventListener('click', (event) => {
-      if (!gameRunning) return;
+      if (!gameRunning) return; // Only process clicks during active game
       const rect = canvas.getBoundingClientRect();
-      const clickX = event.clientX - rect.left, clickY = event.clientY - rect.top;
+      const clickX = event.clientX - rect.left;
+      const clickY = event.clientY - rect.top;
 
       stickFigures.forEach(figure => {
-        if (figure.parts) {
+        // Check if the click is within any part of the stick figure
+        if (figure.parts) { // Ensure parts are drawn and available
           if (ctx.isPointInPath(figure.parts.head, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.body, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.leftArm, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.rightArm, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.leftLeg, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.rightLeg, clickX, clickY)) {
+
+            // Handle bonus stick figure click
             if (figure.isBonus) {
               audioBonus.play();
-              score += 100; timeLeft = Math.min(30, timeLeft + 10);
+              score += 100;
+              timeLeft = Math.min(30, timeLeft + 10); // Add more time for bonus
               timeDisplay.textContent = `残り時間: ${timeLeft}s`;
               resultDiv.textContent = "ボーナス棒人間をタップ！時間回復＆スコアアップ！";
-              figure.headColor = "gray";
-              figure.isBonus = false;
+              figure.headColor = "gray"; // Change color after tapping bonus
+              figure.isBonus = false; // Mark as no longer a bonus
             } else {
-              figure.headColor = "red";
+              figure.headColor = "red"; // Change color for regular stick figure tap
             }
             scoreDisplay.textContent = `スコア: ${score}`;
-            if (score > highScore) { highScore = score; localStorage.setItem('stickCountHighScore', highScore); highScoreDisplay.textContent = `ハイスコア: ${highScore}`; }
+            if (score > highScore) {
+              highScore = score;
+              localStorage.setItem('stickCountHighScore', highScore);
+              highScoreDisplay.textContent = `ハイスコア: ${highScore}`;
+            }
           }
         }
       });
     });
 
+    // Calculator button event listeners
     document.querySelectorAll('.calc-btn').forEach(btn => {
       if (btn.id === 'calcClear') {
-        btn.addEventListener('click', () => { if (gameRunning && !isAnswered) answerInput.value = ""; }); return;
+        btn.addEventListener('click', () => {
+          if (gameRunning && !isAnswered) answerInput.value = "";
+        });
+        return;
       }
       if (btn.id === 'calcEquals') {
-        btn.addEventListener('click', () => { if (gameRunning && !isAnswered) submitAnswer.click(); }); return;
+        btn.addEventListener('click', () => {
+          if (gameRunning && !isAnswered) submitAnswer.click();
+        });
+        return;
       }
       btn.addEventListener('click', () => {
         if (gameRunning && !isAnswered) {
             const dataValue = btn.getAttribute('data-value');
+            // Prevent multiple decimal points
             if (dataValue === '.' && answerInput.value.includes('.')) return;
             answerInput.value += dataValue;
         }
       });
     });
 
-    // 初期状態のUI設定
+    // Initial UI setup when the page loads
     gameEndScreen.style.display = 'none';
     startButton.style.display = 'block';
     endGameButton.style.display = 'none';
