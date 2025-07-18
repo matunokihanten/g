@@ -7,68 +7,94 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
   <style>
     body {
-      margin: 0; padding: 20px;
+      margin: 0; padding: 10px; /* パディングを減らして画面占有率を上げる */
       background: linear-gradient(135deg, #74ABE2, #5563DE);
       font-family: 'Roboto', sans-serif;
       color: #333;
       display: flex; flex-direction: column; align-items: center;
       min-height: 100vh;
+      box-sizing: border-box; /* パディングを含めてサイズを計算 */
     }
     h1 {
-      text-align: center; margin-top: 20px; color: #fff;
+      text-align: center; margin-top: 10px; color: #fff; /* マージンを調整 */
+      font-size: 1.8em; /* フォントサイズを調整 */
     }
     #gameInfo {
       display: flex; justify-content: space-around;
-      width: 800px; margin: 10px auto;
-      color: #fff; font-size: 1.4em;
+      width: 100%; /* 幅を100%にして、折り返しやすくする */
+      max-width: 800px; /* 最大幅を設定 */
+      margin: 5px auto; /* マージンを調整 */
+      color: #fff; font-size: 1.2em; /* フォントサイズを調整 */
+      flex-wrap: wrap; /* スマホ縦画面で折り返す */
+      gap: 5px; /* 要素間の隙間 */
+    }
+    #gameInfo span {
+        flex: 1 1 auto; /* 各要素が柔軟に幅を取る */
+        text-align: center;
     }
     canvas {
       background: #ffffff; border: 2px solid #ccc;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-      display: block; margin: 20px auto;
-      width: 800px; height: 600px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); /* 影を調整 */
+      display: block; margin: 10px auto; /* マージンを調整 */
+      width: 100%; /* 幅を100%にしてレスポンシブに */
+      max-width: 800px; /* 最大幅を設定 */
+      height: auto; /* 高さを自動調整 */
+      aspect-ratio: 4 / 3; /* アスペクト比を維持 (width 800px, height 600px の場合) */
     }
     #gameControls, #result {
-      margin: 10px auto; text-align: center;
+      margin: 5px auto; text-align: center; /* マージンを調整 */
+      width: 100%;
+      max-width: 800px;
+    }
+    #modeSelection {
+        display: flex; justify-content: center; gap: 10px; margin: 20px 0;
     }
     button {
-      padding: 10px 20px; font-size: 1em;
+      padding: 8px 15px; font-size: 0.9em; /* パディングとフォントサイズを調整 */
       background: #5563DE; border: none; color: #fff;
       border-radius: 4px; cursor: pointer;
-      transition: background 0.3s ease; margin: 5px;
+      transition: background 0.3s ease; margin: 3px; /* マージンを調整 */
     }
     button:hover { background: #334bb0; }
     button:disabled { background-color: #ccc; cursor: not-allowed; }
     #answerSection {
       display: flex; justify-content: center; align-items: center;
-      gap: 10px; padding: 10px; flex-wrap: wrap;
+      gap: 8px; padding: 8px; flex-wrap: wrap; /* 折り返しを有効に */
+      width: 100%;
+      max-width: 800px;
+      box-sizing: border-box;
     }
-    #answerSection p { margin: 0; color: #fff; }
+    #answerSection p { margin: 0; color: #fff; font-size: 1em; } /* フォントサイズ調整 */
     #answerInput {
-      width: 100px; padding: 10px; font-size: 1.2em;
+      width: 80px; padding: 8px; font-size: 1.1em; /* パディングとフォントサイズを調整 */
       border: 1px solid #ccc; border-radius: 4px;
     }
     #result {
-      font-size: 1.3em; margin-top: 10px; color: #fff; min-height: 1.5em;
+      font-size: 1.1em; margin-top: 5px; color: #fff; min-height: 1.5em;
     }
     #gameEndScreen {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.7); color: #fff;
       display: none; flex-direction: column; justify-content: center; align-items: center;
-      font-size: 2em; text-align: center; z-index: 100;
+      font-size: 1.8em; text-align: center; z-index: 100; /* フォントサイズ調整 */
     }
-    #gameEndScreen button { margin-top: 20px; font-size: 1.2em; }
+    #gameEndScreen button { margin-top: 15px; font-size: 1.1em; } /* フォントサイズ調整 */
     #calculator {
       background-color: #fff; border: 2px solid #ccc; border-radius: 8px;
-      width: 300px; margin: 20px auto 40px; padding: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      width: 100%; /* 幅を100%に */
+      max-width: 300px; /* 最大幅を設定 */
+      margin: 15px auto 20px; /* マージンを調整 */
+      padding: 8px; /* パディングを調整 */
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* 影を調整 */
     }
     #calcButtons {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; /* 隙間を調整 */
     }
     .calc-btn {
-      padding: 25px; font-size: 1.5em; border: none; border-radius: 4px;
+      padding: 18px; /* パディングを調整してボタンサイズを大きくする */
+      font-size: 1.3em; /* フォントサイズを調整 */
+      border: none; border-radius: 4px;
       background: #5563DE; color: #fff; cursor: pointer; transition: background 0.3s;
     }
     .calc-btn:hover { background: #334bb0; }
@@ -84,10 +110,17 @@
     <span id="highScoreDisplay">ハイスコア: 0</span>
   </div>
   <canvas id="canvas"></canvas>
-  <div id="gameControls">
-    <button id="startButton">ゲーム開始</button>
-    <button id="endGameButton">終了</button>
+  
+  <div id="modeSelection">
+    <button id="startNormalMode">通常モード開始</button>
+    <button id="startRelaxMode">リラックスモード開始</button>
   </div>
+
+  <div id="gameControls">
+    <button id="endGameButton" style="display:none;">終了</button>
+    <button id="endRelaxModeButton" style="display:none;">リラックスモード終了</button>
+  </div>
+
   <div id="answerSection">
     <p>画面に表示されている棒人間は何体ですか？</p>
     <input type="number" id="answerInput" placeholder="数字を入力">
@@ -124,8 +157,10 @@
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const startButton = document.getElementById('startButton');
+    const startNormalModeButton = document.getElementById('startNormalMode');
+    const startRelaxModeButton = document.getElementById('startRelaxMode');
     const endGameButton = document.getElementById('endGameButton');
+    const endRelaxModeButton = document.getElementById('endRelaxModeButton'); // 新しい終了ボタン
     const answerInput = document.getElementById('answerInput');
     const submitAnswer = document.getElementById('submitAnswer');
     const nextQuestionButton = document.getElementById('nextQuestionButton');
@@ -137,6 +172,7 @@
     const finalScoreDisplay = document.getElementById('finalScore');
     const finalHighScoreDisplay = document.getElementById('finalHighScore');
     const restartButton = document.getElementById('restartButton');
+    const modeSelectionDiv = document.getElementById('modeSelection');
 
     let actualCount = 0;
     let stickFigures = [];
@@ -149,6 +185,7 @@
     let timerInterval;
     let consecutiveCorrects = 0;
     let isAnswered = false;
+    let isRelaxMode = false; // リラックスモードかどうかを示すフラグ
 
     // Audio assets
     const audioCorrect = new Audio('https://www.soundeffect-labo.info/sound/button/mp3/button-touch1.mp3');
@@ -168,7 +205,7 @@
         this.vx = vx;
         this.vy = vy;
         this.phase = phase;
-        this.initialHeadColor = isBonus ? "gold" : "black";
+        this.initialHeadColor = "black"; // 頭の色は黒に固定
         this.headColor = this.initialHeadColor;
         this.isBonus = isBonus;
         this.bodyHeightPhase = Math.random() * Math.PI * 2;
@@ -207,8 +244,8 @@
         // Reduced size for all parts
         const headRadius = 5;
         const bodyLength = 15;
-        const armLength = 10; // Original 20, now 10 (half)
-        const legLength = 12.5; // Original 25, now 12.5 (half)
+        const armLength = 10;
+        const legLength = 12.5;
 
         const swingAmplitude = Math.PI / 6;
         const t = (time / 1000) * 8 + this.phase; // Convert to seconds for time
@@ -282,8 +319,8 @@
         // Draw the stick figure parts
         ctx.fillStyle = this.headColor;
         ctx.fill(headPath);
-        ctx.strokeStyle = this.isBonus && this.headColor !== "gray" ? "gold" : "black";
-        ctx.lineWidth = this.isBonus && this.headColor !== "gray" ? 2 : 1; // Thicker border for bonus
+        ctx.strokeStyle = "black"; // 線の色を黒に固定
+        ctx.lineWidth = 1;
         ctx.stroke(headPath);
 
         ctx.strokeStyle = "black";
@@ -343,7 +380,8 @@
         stickFigures.push(new StickFigure(x, y, vx, vy, phase));
       }
 
-      // Add a bonus stick figure occasionally
+      // ボーナス棒人間を生成するロジックを無効化 (黄色い棒人間を削除)
+      /*
       if (Math.random() < 0.2) { // 20% chance
         const x = 20 + Math.random() * (canvas.width - 40);
         const y = 20 + Math.random() * (canvas.height - 40);
@@ -354,6 +392,7 @@
         const phase = Math.random() * Math.PI * 2;
         stickFigures.push(new StickFigure(x, y, vx, vy, phase, true));
       }
+      */
 
       lastTime = performance.now();
       gameRunning = true;
@@ -368,15 +407,38 @@
     }
 
     // Function to start the game
-    function startGame() {
+    function startGame(mode) {
       if (gameRunning) return; // Prevent starting if already running
 
       audioStart.play();
+      isRelaxMode = (mode === 'relax');
 
       // UI setup for game start
       gameEndScreen.style.display = 'none';
-      startButton.style.display = 'none';
-      endGameButton.style.display = 'inline-block';
+      modeSelectionDiv.style.display = 'none'; // モード選択ボタンを非表示に
+
+      if (isRelaxMode) {
+        endGameButton.style.display = 'none';
+        endRelaxModeButton.style.display = 'inline-block';
+        timeDisplay.textContent = `残り時間: 無制限`; // リラックスモードの表示
+        clearInterval(timerInterval); // タイマーをクリア
+      } else {
+        endGameButton.style.display = 'inline-block';
+        endRelaxModeButton.style.display = 'none';
+        timeLeft = 30;
+        timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+        clearInterval(timerInterval); // Clear any existing timer
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          timeDisplay.textContent = `残り時間: ${timeLeft}s`;
+          if (timeLeft <= 0) {
+            timeLeft = 0;
+            timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`;
+            clearInterval(timerInterval);
+            endGame(); // End game when time runs out
+          }
+        }, 1000);
+      }
       submitAnswer.style.display = 'inline-block';
       nextQuestionButton.style.display = 'none';
 
@@ -386,21 +448,6 @@
 
       // Start a new question and animation
       startNewQuestion();
-
-      // Initialize and start the game timer
-      timeLeft = 30;
-      timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-      clearInterval(timerInterval); // Clear any existing timer
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-        if (timeLeft <= 0) {
-          timeLeft = 0;
-          timeDisplay.textContent = `残り時間: ${timeLeft}s (時間切れ)`;
-          clearInterval(timerInterval);
-          endGame(); // End game when time runs out
-        }
-      }, 1000);
     }
 
     // Function to end the game
@@ -417,16 +464,26 @@
       gameEndScreen.style.display = 'flex'; // Show game over screen
 
       // UI reset for game end
-      startButton.style.display = 'inline-block';
+      modeSelectionDiv.style.display = 'flex'; // モード選択ボタンを再表示
       endGameButton.style.display = 'none';
+      endRelaxModeButton.style.display = 'none';
       submitAnswer.style.display = 'none';
       nextQuestionButton.style.display = 'none';
     }
 
     // --- Event Listeners ---
-    startButton.addEventListener('click', startGame);
+    startNormalModeButton.addEventListener('click', () => startGame('normal'));
+    startRelaxModeButton.addEventListener('click', () => startGame('relax'));
     endGameButton.addEventListener('click', endGame);
-    restartButton.addEventListener('click', startGame);
+    endRelaxModeButton.addEventListener('click', endGame); // リラックスモード終了ボタンもendGameを呼ぶ
+    restartButton.addEventListener('click', () => {
+        gameEndScreen.style.display = 'none';
+        modeSelectionDiv.style.display = 'flex'; // モード選択画面に戻る
+        score = 0; // スコアリセット
+        scoreDisplay.textContent = `スコア: ${score}`;
+        timeDisplay.textContent = `残り時間: 30s`; // 時間表示をリセット
+    });
+
 
     submitAnswer.addEventListener('click', () => {
       if (!gameRunning || isAnswered) return; // Only allow one answer per question
@@ -451,14 +508,20 @@
           resultDiv.textContent += " 連続正解ボーナス！";
           audioBonus.play();
         }
-        timeLeft = Math.min(30, timeLeft + 5); // Add time for correct answer, max 30s
+        // リラックスモードでなければ時間を加算
+        if (!isRelaxMode) {
+            timeLeft = Math.min(30, timeLeft + 5); // Add time for correct answer, max 30s
+        }
       } else {
         audioIncorrect.play();
         resultDiv.textContent = `不正解… 正解は ${actualCount} 人でした。`;
         consecutiveCorrects = 0; // Reset consecutive corrects on wrong answer
       }
       scoreDisplay.textContent = `スコア: ${score}`;
-      timeDisplay.textContent = `残り時間: ${timeLeft}s`; // Update time display immediately
+      // リラックスモードでなければ時間表示を更新
+      if (!isRelaxMode) {
+          timeDisplay.textContent = `残り時間: ${timeLeft}s`; // Update time display immediately
+      }
 
       // Update high score if current score is higher
       if (score > highScore) {
@@ -489,18 +552,14 @@
               ctx.isPointInPath(figure.parts.leftLeg, clickX, clickY) ||
               ctx.isPointInPath(figure.parts.rightLeg, clickX, clickY)) {
 
-            // Handle bonus stick figure click
+            // ボーナス棒人間をタップした際の処理は無効化 (黄色い棒人間がないため)
             if (figure.isBonus) {
-              audioBonus.play();
-              score += 100;
-              timeLeft = Math.min(30, timeLeft + 10); // Add more time for bonus
-              timeDisplay.textContent = `残り時間: ${timeLeft}s`;
-              resultDiv.textContent = "ボーナス棒人間をタップ！時間回復＆スコアアップ！";
-              figure.headColor = "gray"; // Change color after tapping bonus
-              figure.isBonus = false; // Mark as no longer a bonus
+              figure.headColor = "gray"; // 頭の色は灰色になるように残す
+              figure.isBonus = false; // ボーナスフラグは解除
             } else {
-              figure.headColor = "red"; // Change color for regular stick figure tap
+              figure.headColor = "red"; // 通常の棒人間は赤色に変わる
             }
+            // スコアや時間の加算は行わない
             scoreDisplay.textContent = `スコア: ${score}`;
             if (score > highScore) {
               highScore = score;
@@ -538,8 +597,9 @@
 
     // Initial UI setup when the page loads
     gameEndScreen.style.display = 'none';
-    startButton.style.display = 'block';
+    modeSelectionDiv.style.display = 'flex'; // 最初はモード選択ボタンを表示
     endGameButton.style.display = 'none';
+    endRelaxModeButton.style.display = 'none';
     submitAnswer.style.display = 'none';
     nextQuestionButton.style.display = 'none';
   </script>
