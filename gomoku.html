@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>五目並べゲーム - AI対戦モード (Miracle Hard モード 改善版)</title>
+  <title>五目並べゲーム - AI対戦モード (改良版)</title>
   <style>
     /* 全体背景とレイアウト */
     body {
@@ -17,6 +17,7 @@
       align-items: center;
       min-height: 100vh;
       padding: 20px;
+      box-sizing: border-box;
     }
     h1 {
       margin-bottom: 10px;
@@ -62,7 +63,6 @@
       border-collapse: collapse;
       margin-bottom: 15px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-      /* 木目風背景：実際の画像を使う場合はbackground-imageを利用してください */
       background: linear-gradient(135deg, #deb887, #d2b48c);
       background-size: cover;
       border: 2px solid #8B4513;
@@ -75,18 +75,20 @@
       vertical-align: middle;
       cursor: pointer;
       font-size: 28px;
-      transition: transform 0.2s ease, background-color 0.2s ease;
+      /* --- 修正点 --- */
+      transition: background-color 0.2s ease; /* transformによる変形を削除 */
       user-select: none;
       background: transparent;
+      box-sizing: border-box; /* サイズ計算を安定化 */
+      line-height: 40px; /* 文字の高さをセルに合わせる */
     }
     #board td:hover {
       background-color: rgba(255, 255, 255, 0.1);
-      transform: scale(1.05);
+      /* transformを削除したのでホバー時の変形なし */
     }
     /* 石のスタイル */
     .stone-black {
       color: #111;
-      /* やや浮かび上がるように影を付ける */
       text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
     }
     .stone-white {
@@ -121,17 +123,17 @@
     </select>
     <label for="ai-difficulty">AIの強さ:</label>
     <select id="ai-difficulty">
-      <option value="easy">Easy</option>
-      <option value="normal" selected>Normal</option>
-      <option value="hard">Hard</option>
-      <option value="superhard">Super Hard</option>
-      <option value="miraclehard">Miracle Hard</option>
+      <option value="easy">簡単</option>
+      <option value="normal" selected>普通</option>
+      <option value="hard">難しい</option>
+      <option value="superhard">とても難しい</option>
+      <option value="miraclehard">奇跡的に難しい</option>
     </select>
     <button id="start">ゲーム開始</button>
   </div>
   
   <p id="status">設定画面からゲーム開始してください。</p>
-  <p id="ai-level">AIレベル: 5</p>
+  <p id="ai-level">AIの強さ: 普通</p>
   <table id="board"></table>
   <button id="reset">リセット</button>
   
@@ -186,26 +188,12 @@
       }
     }
 
-    // AIレベル表示更新
+    // --- 修正点：AIレベル表示を日本語対応に ---
     function updateAILevel() {
       const levelDisplay = document.getElementById("ai-level");
-      switch (aiDifficulty) {
-        case "easy":
-          levelDisplay.textContent = "AIレベル: 1";
-          break;
-        case "normal":
-          levelDisplay.textContent = "AIレベル: 5";
-          break;
-        case "hard":
-          levelDisplay.textContent = "AIレベル: 10";
-          break;
-        case "superhard":
-          levelDisplay.textContent = "AIレベル: 15";
-          break;
-        case "miraclehard":
-          levelDisplay.textContent = "AIレベル: 20";
-          break;
-      }
+      const difficultySelect = document.getElementById("ai-difficulty");
+      const selectedOptionText = difficultySelect.options[difficultySelect.selectedIndex].text;
+      levelDisplay.textContent = "AIの強さ: " + selectedOptionText;
     }
 
     // 人間がセルをクリック時の処理（自分の手番なら着手）
@@ -217,7 +205,6 @@
       if (board[row][col] !== "") return;
       board[row][col] = humanSymbol;
       event.target.textContent = humanSymbol;
-      // 人間の石のスタイルを付与（黒石はstone-black、白石はstone-white）
       event.target.classList.add(humanSymbol === "●" ? "stone-black" : "stone-white");
       if (checkWin(row, col, humanSymbol)) {
         document.getElementById("status").textContent = "あなたの勝ち!";
@@ -226,7 +213,8 @@
       }
       currentPlayer = aiSymbol;
       updateStatusMessage();
-      setTimeout(makeAIMove, 500);
+      // --- 修正点：AIの思考開始までの遅延を短縮 ---
+      setTimeout(makeAIMove, 200);
     }
 
     // 勝利判定：横、縦、斜め両方向で連続数をチェック
@@ -314,22 +302,21 @@
     // 候補手生成：既存の駒の周囲のみを対象
     function getCandidateMoves() {
       let moves = [];
+      const checked = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(false));
+
       for (let i = 0; i < BOARD_SIZE; i++) {
         for (let j = 0; j < BOARD_SIZE; j++) {
-          if (board[i][j] === "") {
-            let found = false;
+          if (board[i][j] !== "") {
             for (let di = -1; di <= 1; di++) {
               for (let dj = -1; dj <= 1; dj++) {
+                 if (di === 0 && dj === 0) continue;
                 let r = i + di, c = j + dj;
-                if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) continue;
-                if (board[r][c] !== "") {
-                  found = true;
-                  break;
+                if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === "" && !checked[r][c]) {
+                  moves.push({ row: r, col: c });
+                  checked[r][c] = true;
                 }
               }
-              if (found) break;
             }
-            if (found) moves.push({ row: i, col: j });
           }
         }
       }
@@ -339,7 +326,7 @@
       }
       return moves;
     }
-
+    
     // ミニマックス法 (α‐β剪定付き)
     function minimax(depth, maximizingPlayer, alpha, beta) {
       if (depth === 0) return evaluateBoard();
@@ -403,16 +390,32 @@
     // Miracle Hard モードの最善手探索 (反復深化＋タイムリミット)
     function miracleMinimaxDecision() {
       const moves = getCandidateMoves();
+      if (moves.length === 0) return null;
       // 初手なら中央へ着手
-      if (moves.length === 1 && moves[0].row === Math.floor(BOARD_SIZE / 2)) {
-        return moves[0];
+      let isEmpty = true;
+      for(let r=0; r<BOARD_SIZE; r++) {
+        for(let c=0; c<BOARD_SIZE; c++) {
+          if (board[r][c] !== "") {
+            isEmpty = false;
+            break;
+          }
+        }
+        if(!isEmpty) break;
       }
+      if (isEmpty) {
+        return { row: Math.floor(BOARD_SIZE / 2), col: Math.floor(BOARD_SIZE / 2) };
+      }
+
       const startTime = performance.now();
-      const timeLimit = 800; // 800ms タイムリミット
-      let bestMove = null;
+      // --- 修正点：思考タイムリミットを短縮 ---
+      const timeLimit = 400;
+      let bestMove = moves[0];
       let bestEval = -Infinity;
-      let currentDepth = 2; // 初期探索深度
-      while (performance.now() - startTime < timeLimit && currentDepth <= 4) {
+      let currentDepth = 1;
+      
+      while (performance.now() - startTime < timeLimit && currentDepth <= 6) {
+        let currentBestMove = null;
+        let currentBestEval = -Infinity;
         for (let move of moves) {
           board[move.row][move.col] = aiSymbol;
           let eval;
@@ -422,15 +425,22 @@
             eval = minimax(currentDepth, false, -Infinity, Infinity);
           }
           board[move.row][move.col] = "";
-          if (eval > bestEval) {
-            bestEval = eval;
-            bestMove = move;
+          if (eval > currentBestEval) {
+            currentBestEval = eval;
+            currentBestMove = move;
           }
         }
+        if(currentBestMove) {
+           bestMove = currentBestMove;
+           bestEval = currentBestEval;
+        }
+        // 時間が残っていても、勝利手を見つけたら探索終了
+        if (bestEval >= 1000000) break;
         currentDepth++;
       }
       return bestMove;
     }
+
 
     // AIが手を打つ処理 (難易度に応じて切り替え)
     function makeAIMove() {
@@ -452,29 +462,65 @@
       } else {
         // Normal, Hard モード：評価関数による手選択
         let bestScore = -Infinity;
+        let candidateMoves = [];
         outerLoop:
         for (let i = 0; i < BOARD_SIZE; i++) {
           for (let j = 0; j < BOARD_SIZE; j++) {
             if (board[i][j] !== "") continue;
+            
             const attackScore = evaluateCell(i, j, aiSymbol);
+            // 自分が勝てる手なら即座に選択
             if (attackScore >= 100000) {
               bestMove = { row: i, col: j };
-              bestScore = attackScore;
+              bestScore = Infinity; // 最高スコア
               break outerLoop;
             }
+            
             let defenseScore = evaluateCell(i, j, humanSymbol);
-            if (aiDifficulty === "hard") {
-              defenseScore = (defenseScore >= 100000) ? defenseScore * 1000 : defenseScore * 5;
+            // 相手がリーチなら最優先で防ぐ
+            if (defenseScore >= 100000) {
+               defenseScore *= 1.5; // 防御を少し優先
             }
+            
+            if (aiDifficulty === "hard") {
+              defenseScore *= 1.2; // Hardモードはより防御を重視
+            }
+
             const currentScore = attackScore + defenseScore;
+            
             if (currentScore > bestScore) {
               bestScore = currentScore;
               bestMove = { row: i, col: j };
+              candidateMoves = [bestMove];
+            } else if (currentScore === bestScore) {
+              candidateMoves.push({ row: i, col: j });
             }
           }
         }
+        // 最高スコアの手が複数ある場合はランダムに選択
+        if (candidateMoves.length > 0) {
+             bestMove = candidateMoves[Math.floor(Math.random() * candidateMoves.length)];
+        }
       }
-      if (!bestMove) return;
+
+      if (!bestMove) { // 万が一手が見つからない場合（例：盤面が埋まっている）
+        // 空いているセルを探して打つ
+        let emptyCells = [];
+        for (let i = 0; i < BOARD_SIZE; i++) {
+          for (let j = 0; j < BOARD_SIZE; j++) {
+            if (board[i][j] === "") emptyCells.push({ row: i, col: j });
+          }
+        }
+        if (emptyCells.length > 0) {
+           bestMove = emptyCells[0];
+        } else {
+           // 引き分け処理
+           document.getElementById("status").textContent = "引き分けです！";
+           gameOver = true;
+           return;
+        }
+      }
+
       board[bestMove.row][bestMove.col] = aiSymbol;
       const td = document.querySelector(`td[data-row="${bestMove.row}"][data-col="${bestMove.col}"]`);
       if (td) {
@@ -495,33 +541,40 @@
       initBoard();
       drawBoard();
       gameOver = false;
+      
+      const playerTurn = document.getElementById("player-turn").value;
+      if (playerTurn === 'first') {
+        currentPlayer = humanSymbol;
+      } else {
+        currentPlayer = aiSymbol;
+      }
+
       updateStatusMessage();
       if (currentPlayer === aiSymbol && !gameOver) {
-        setTimeout(makeAIMove, 500);
+        // --- 修正点：AIの思考開始までの遅延を短縮 ---
+        setTimeout(makeAIMove, 200);
       }
     }
 
-    // ゲーム開始時の設定読み込み（先手／後手、AI強さ）および初手の設定
+    // ゲーム開始時の設定読み込みおよび初手の設定
     function startGame() {
       const playerTurn = document.getElementById("player-turn").value;
       aiDifficulty = document.getElementById("ai-difficulty").value;
       updateAILevel();
       if (playerTurn === "first") {
-        // 先手：人間は黒 "●"（深いブラック）、AIは白 "○"
         humanSymbol = "●";
         aiSymbol = "○";
         currentPlayer = humanSymbol;
       } else {
-        // 後手：人間は白 "○"、AIは黒 "●"
         humanSymbol = "○";
         aiSymbol = "●";
-        currentPlayer = aiSymbol; // AIが先手
+        currentPlayer = aiSymbol;
       }
       resetGame();
     }
 
     document.getElementById("start").addEventListener("click", startGame);
-    document.getElementById("reset").addEventListener("click", resetGame);
+    document.getElementById("reset").addEventListener("click", startGame); // リセットもstartGameを呼ぶことで設定を再読み込み
 
     // 初期状態：盤面を描画（ゲームは未開始）
     initBoard();
