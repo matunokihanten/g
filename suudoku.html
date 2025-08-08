@@ -1,165 +1,414 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-  <script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
-
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>数独ゲーム - PCはキーボード、スマホはキーパッド入力</title>
   <style>
+    :root {
+      --main-bg-color: #f5f5f5;
+      --container-bg-color: #ffffff;
+      --sudoku-border-color: #000000;
+      --block-border-color: #000000;
+      --cell-border-color: #999999;
+      --prefilled-bg-color: #e9ecef;
+      --prefilled-text-color: #333333;
+      --editable-bg-color: #ffffff;
+      --editable-text-color: #000000;
+      --selected-bg-color: #cce5ff;
+      --selected-border-color: #007bff;
+      --highlight-same-bg-color: #fff3cd;
+      --highlight-related-bg-color: #f8f9fa;
+      --error-bg-color: #ffcccc;
+      --error-text-color: #cc0000;
+      --note-color: #888888;
+      --primary-btn-bg: #007bff;
+      --primary-btn-hover-bg: #0056b3;
+      --primary-btn-text: #ffffff;
+      --keypad-btn-bg: #f8f9fa;
+      --keypad-btn-hover-bg: #e2e6ea;
+      --keypad-btn-active-bg: #cce5ff;
+      --keypad-btn-border: #cccccc;
+    }
+    
     body {
-      font-family: sans-serif;
+      font-family: 'Arial', sans-serif;
       margin: 20px;
+      background-color: var(--main-bg-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
     h1 {
       text-align: center;
       color: #333;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+      font-size: 2.5rem;
     }
     #game-container {
-      max-width: 400px;
+      max-width: 550px;
+      width: 100%;
       margin: 0 auto;
+      background-color: var(--container-bg-color);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    /* ゲームオプション：難易度選択＆新規ゲーム */
+    
+    /* ゲームオプションと統計 */
+    #game-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
     #game-options {
-      text-align: center;
-      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     #game-options select,
     #game-options button {
-      padding: 5px 10px;
+      padding: 8px 15px;
       font-size: 16px;
-      margin: 0 5px;
+      border: 2px solid var(--primary-btn-bg);
+      border-radius: 5px;
+      background-color: white;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    #game-options button {
+      background-color: var(--primary-btn-bg);
+      color: var(--primary-btn-text);
+      border-color: var(--primary-btn-bg);
+    }
+    #game-options button:hover {
+      background-color: var(--primary-btn-hover-bg);
+    }
+    #stats {
+      font-size: 1.1rem;
+      color: #666;
+      display: flex;
+      gap: 15px;
+      white-space: nowrap;
+    }
+
+    /* 数独盤のテーブル */
+    #sudoku-board {
+      margin-bottom: 15px;
     }
     table {
       border-collapse: collapse;
-      margin: 10px auto;
+      margin: 0 auto;
+      background-color: var(--editable-bg-color);
+      border: 4px solid var(--sudoku-border-color);
+      width: 100%;
+      aspect-ratio: 1 / 1;
     }
-    /* すべてのセルはデフォルト1pxの境界線 */
+    
+    /* 基本のセルスタイル */
     td {
-      width: 40px;
-      height: 40px;
-      border: 1px solid #333;
+      width: calc(100% / 9);
+      height: calc(100% / 9);
       text-align: center;
       vertical-align: middle;
-      font-size: 18px;
+      font-size: 24px;
+      font-weight: bold;
+      border: 1px solid var(--cell-border-color);
+      position: relative;
     }
-    /* 入力欄：PCの場合は通常入力、スマホの場合はreadonlyでキーパッド専用 */
+    
+    /* 3×3ブロックの境界線を太くする */
+    td:nth-child(3n) { border-right: 3px solid var(--block-border-color); }
+    tr:nth-child(3n) td { border-bottom: 3px solid var(--block-border-color); }
+    td:nth-child(9) { border-right: 1px solid var(--cell-border-color); }
+    tr:nth-child(9) td { border-bottom: 1px solid var(--cell-border-color); }
+    td:nth-child(3), td:nth-child(6) { border-right-width: 3px; }
+    tr:nth-child(3) td, tr:nth-child(6) td { border-bottom-width: 3px; }
+
+    /* 固定セル（初期配置の数字） */
+    .prefilled {
+      background-color: var(--prefilled-bg-color);
+      color: var(--prefilled-text-color);
+    }
+    
+    /* 入力フィールド */
     input {
-      width: 38px;
-      height: 38px;
+      width: 95%;
+      height: 95%;
       border: none;
       outline: none;
       text-align: center;
-      font-size: 18px;
-      cursor: pointer;
-    }
-    /* 固定セル */
-    .prefilled {
-      background-color: #eee;
+      font-size: 24px;
       font-weight: bold;
+      cursor: pointer;
+      background-color: transparent;
+      box-sizing: border-box;
+      color: var(--editable-text-color);
     }
+    
     /* エラー表示 */
     .error {
-      background-color: #f99;
+      background-color: var(--error-bg-color) !important;
+      color: var(--error-text-color) !important;
     }
-    /* 編集可能なセル（空欄）の<td>：選択時に太線で表示 */
-    td.editable {}
+    
+    /* 選択されたセル */
     td.selected {
-      border: 3px solid #000;
+      background-color: var(--selected-bg-color) !important;
+      outline: 3px solid var(--selected-border-color);
+      outline-offset: -3px;
     }
-    /* 数字キーパッド用 */
+    
+    /* 同じ数字のハイライト */
+    .highlight-same {
+      background-color: var(--highlight-same-bg-color) !important;
+    }
+    
+    /* 関連する行・列・ブロックのハイライト */
+    .highlight-related {
+      background-color: var(--highlight-related-bg-color) !important;
+    }
+
+    /* メモ（鉛筆書き）機能 */
+    .notes-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      padding: 3px;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .note {
+      font-size: 10px;
+      color: var(--note-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* 操作用ボタン */
+    #control-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    #control-buttons button {
+      padding: 12px 18px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid #28a745;
+      background-color: #f8f9fa;
+      transition: all 0.3s;
+      flex-grow: 1;
+      min-width: 80px;
+    }
+    #control-buttons button:hover {
+      background-color: #28a745;
+      color: white;
+    }
+    #control-buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #control-buttons button.toggle-active {
+        background-color: #28a745;
+        color: white;
+    }
+    #checkBtn, #solveBtn {
+      background-color: #17a2b8;
+      border-color: #17a2b8;
+      color: white;
+    }
+    #checkBtn:hover, #solveBtn:hover {
+      background-color: #138496;
+    }
+
+    /* 数字キーパッド */
     #keypad-container {
-      margin: 20px auto;
+      margin: 10px auto;
       text-align: center;
+    }
+    #keypad-table {
+      margin: 0 auto;
+      border: none;
     }
     #keypad-table td {
       border: none;
       padding: 5px;
+      width: auto;
+      height: auto;
     }
-    /* 数字ボタン（通常） */
-    #keypad-table button.num-btn {
-      width: 60px;
-      height: 60px;
+    .num-btn {
+      width: 50px;
+      height: 50px;
       font-size: 20px;
-    }
-    /* クリアボタン：横いっぱい */
-    #keypad-table #clearBtn {
-      width: 100%;
-      height: 60px;
-      font-size: 20px;
-    }
-    /* コントロールボタン */
-    #control-buttons {
-      text-align: center;
-      margin-top: 10px;
-    }
-    #control-buttons button {
-      margin: 5px;
-      padding: 10px 15px;
-      font-size: 16px;
+      font-weight: bold;
+      border: 1px solid var(--keypad-btn-border);
+      border-radius: 8px;
+      background-color: var(--keypad-btn-bg);
       cursor: pointer;
+      transition: all 0.2s;
     }
+    .num-btn:hover {
+      background-color: var(--keypad-btn-hover-bg);
+    }
+    .num-btn:active {
+      background-color: var(--keypad-btn-active-bg);
+      transform: scale(0.95);
+    }
+    #clearBtn {
+      width: 100%;
+      height: 50px;
+      font-size: 18px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+    }
+    #clearBtn:hover {
+      background-color: #c82333;
+    }
+
+    /* メッセージ表示 */
     #message {
       text-align: center;
-      font-size: 18px;
-      margin-top: 10px;
-      min-height: 24px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-top: 15px;
+      min-height: 40px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error-message {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+
+    /* レスポンシブデザイン */
+    @media (max-width: 600px) {
+      body { margin: 10px; }
+      h1 { font-size: 1.8rem; margin-bottom: 15px; }
+      #game-container { padding: 15px; }
+      td { font-size: 18px; }
+      input { font-size: 18px; }
+      .note { font-size: 8px; }
+      #stats { font-size: 0.9rem; gap: 10px; }
+      #game-info { flex-direction: column; align-items: stretch; gap: 10px; }
+      #game-options { justify-content: center; }
+      #control-buttons button { padding: 10px; font-size: 14px; flex-basis: 30%; }
+      .num-btn { width: 40px; height: 40px; font-size: 18px; }
+      #clearBtn { height: 40px; font-size: 16px; }
     }
   </style>
 </head>
 <body>
-  <h1>数独ゲーム</h1>
+  <h1>🎯 完璧な数独ゲーム</h1>
   <div id="game-container">
-    <!-- ゲームオプション：難易度選択＆新規ゲーム -->
-    <div id="game-options">
-      <label for="difficultySelect">難易度：</label>
-      <select id="difficultySelect">
-        <option value="30">易しい</option>
-        <option value="40" selected>普通</option>
-        <option value="50">難しい</option>
-      </select>
-      <button id="newGameBtn">新しいゲーム</button>
+    <div id="game-info">
+      <div id="game-options">
+        <label for="difficultySelect">難易度：</label>
+        <select id="difficultySelect">
+          <option value="20">超易しい (20個削除)</option>
+          <option value="35">易しい (35個削除)</option>
+          <option value="45" selected>普通 (45個削除)</option>
+          <option value="55">難しい (55個削除)</option>
+          <option value="65">超難しい (65個削除)</option>
+        </select>
+        <button id="newGameBtn">🎮 新しいゲーム</button>
+      </div>
+
+      <div id="stats">
+        <span id="filled-count">入力済み: 0/81</span>
+        <span id="timer">時間: 00:00</span>
+      </div>
     </div>
 
-    <!-- 数独盤 -->
     <div id="sudoku-board"></div>
-    <!-- 数字キーパッド -->
-    <div id="keypad-container"></div>
-    <!-- 操作用ボタン：Undo/Redo, ヒント, 答えチェック・表示 -->
+    
     <div id="control-buttons">
-      <button id="undoBtn">Undo</button>
-      <button id="redoBtn">Redo</button>
-      <button id="hintBtn">ヒント</button>
-      <button id="checkBtn">答えをチェック</button>
-      <button id="solveBtn">答えを表示</button>
+      <button id="undoBtn" title="前の操作に戻る">↶ Undo</button>
+      <button id="redoBtn" title="後の操作に進む">↷ Redo</button>
+      <button id="notesToggleBtn" title="メモ機能のオン/オフ">✏️ メモ</button>
+      <button id="hintBtn" title="選択中のセルのヒントを表示">💡 ヒント</button>
+      <button id="validateBtn" title="現在の入力ミスを検証">✓ 検証</button>
+      <button id="solveBtn" title="解答を表示して終了">📋 答えを表示</button>
     </div>
+    
+    <div id="keypad-container"></div>
+    
     <div id="message"></div>
   </div>
 
   <script>
-    // デバイス判定：スマホなら isMobile = true、PCは false
+    // デバイス判定
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    
+    // ゲーム状態管理
     let activeCell = null;
-    let puzzleBoard, solvedBoard;
+    let puzzleBoard, solvedBoard, initialBoard;
     let undoStack = [];
     let redoStack = [];
+    let gameStartTime = null;
+    let timerInterval = null;
+    let isGameComplete = false;
+    let isPaused = false;
+    let notesMode = false;
+    let boardStateHistory = [];
+    let historyIndex = -1;
 
-    // --- 盤面生成用ヘルパー関数 --- //
+    // --- 数独生成用ヘルパー関数 --- //
+    /**
+     * 配列をシャッフルする
+     * @param {Array} arr - シャッフルする配列
+     * @returns {Array} - シャッフルされた新しい配列
+     */
     function shuffleArray(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        let j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+      const newArr = [...arr];
+      for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
       }
-      return arr;
+      return newArr;
     }
 
-    function isValid(board, row, col, num) {
+    /**
+     * 指定された位置に数字が配置可能かチェックする
+     * @param {Array<Array<number>>} board - 現在の盤面
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     * @param {number} num - 配置する数字
+     * @returns {boolean} - 配置可能であればtrue
+     */
+    function isValidPlacement(board, row, col, num) {
+      // 行・列チェック
       for (let i = 0; i < 9; i++) {
-        if (board[row][i] === num) return false;
+        if (board[row][i] === num || board[i][col] === num) return false;
       }
-      for (let i = 0; i < 9; i++) {
-        if (board[i][col] === num) return false;
-      }
+      
+      // 3×3ブロックチェック
       const startRow = Math.floor(row / 3) * 3;
       const startCol = Math.floor(col / 3) * 3;
       for (let r = 0; r < 3; r++) {
@@ -170,20 +419,606 @@
       return true;
     }
 
-    function fillBoard(board) {
+    /**
+     * バックトラッキングで数独を解く（解の一意性チェック用）
+     * @param {Array<Array<number>>} board - 解く盤面
+     * @param {number} solutionsCount - 見つかった解の数
+     * @returns {number} - 解の数
+     */
+    function solveSudokuWithCount(board, solutionsCount = 0) {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           if (board[row][col] === 0) {
-            let numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
             for (let num of numbers) {
-              if (isValid(board, row, col, num)) {
+              if (isValidPlacement(board, row, col, num)) {
                 board[row][col] = num;
-                if (fillBoard(board)) {
-                  return true;
-                }
+                solutionsCount = solveSudokuWithCount(board, solutionsCount);
+                if (solutionsCount > 1) return solutionsCount;
                 board[row][col] = 0;
               }
             }
+            return solutionsCount;
+          }
+        }
+      }
+      return solutionsCount + 1;
+    }
+
+    /**
+     * 完全な数独盤面を生成する
+     * @returns {Array<Array<number>>} - 完成した盤面
+     */
+    function generateCompleteBoard() {
+      const board = Array(9).fill().map(() => Array(9).fill(0));
+      function solve(b) {
+        for (let row = 0; row < 9; row++) {
+          for (let col = 0; col < 9; col++) {
+            if (b[row][col] === 0) {
+              const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+              for (let num of numbers) {
+                if (isValidPlacement(b, row, col, num)) {
+                  b[row][col] = num;
+                  if (solve(b)) return true;
+                  b[row][col] = 0;
+                }
+              }
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+      solve(board);
+      return board;
+    }
+
+    /**
+     * 難易度に応じてマスを削除し、パズルを生成する
+     * @param {Array<Array<number>>} solvedBoard - 完成した盤面
+     * @param {number} removalCount - 削除するマスの数
+     * @returns {Array<Array<number>>} - パズル盤面
+     */
+    function generatePuzzle(solvedBoard, removalCount) {
+      const puzzle = solvedBoard.map(row => [...row]);
+      let removedCount = 0;
+      const allCells = shuffleArray(Array.from({ length: 81 }, (_, i) => i));
+
+      for (const cellIndex of allCells) {
+        if (removedCount >= removalCount) break;
+
+        const row = Math.floor(cellIndex / 9);
+        const col = cellIndex % 9;
+        
+        if (puzzle[row][col] === 0) continue;
+        
+        const temp = puzzle[row][col];
+        puzzle[row][col] = 0;
+
+        // 解の一意性をチェック (高負荷のため簡略化)
+        const tempBoard = puzzle.map(r => [...r]);
+        if (solveSudokuWithCount(tempBoard) !== 1) {
+          puzzle[row][col] = temp;
+        } else {
+          removedCount++;
+        }
+      }
+      return puzzle;
+    }
+    
+    // --- セル選択・ハイライト機能 --- //
+    /**
+     * セルをクリックした時の処理
+     * @param {HTMLElement} element - クリックされたtd要素
+     */
+    function selectCell(element) {
+      if (isGameComplete) return;
+
+      const input = element.querySelector('input');
+      const row = parseInt(element.dataset.row);
+      const col = parseInt(element.dataset.col);
+      
+      clearHighlights();
+      
+      // 固定セルは選択不可
+      if (element.classList.contains('prefilled')) {
+        activeCell = null;
+        return;
+      }
+      
+      activeCell = { element: element, input: input, row: row, col: col };
+      element.classList.add('selected');
+      
+      // 同じ数字をハイライト
+      const value = input.value;
+      if (value) {
+        highlightSameNumbers(value);
+      }
+      
+      // 関連する行・列・ブロックをハイライト
+      highlightRelated(row, col);
+      
+      // スマホではキーパッド表示
+      if (isMobile) {
+        document.getElementById('keypad-container').style.display = 'block';
+      }
+    }
+
+    /**
+     * すべてのハイライトをクリアする
+     */
+    function clearHighlights() {
+      document.querySelectorAll('td.selected, td.highlight-same, td.highlight-related, td.error').forEach(td => {
+        td.classList.remove('selected', 'highlight-same', 'highlight-related', 'error');
+      });
+    }
+
+    /**
+     * 同じ数字を持つセルをハイライトする
+     * @param {string} num - ハイライトする数字
+     */
+    function highlightSameNumbers(num) {
+      document.querySelectorAll('input').forEach(input => {
+        if (input.value === num) {
+          input.closest('td').classList.add('highlight-same');
+        }
+      });
+    }
+
+    /**
+     * 指定されたセルに関連する行・列・ブロックをハイライトする
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     */
+    function highlightRelated(row, col) {
+      for (let i = 0; i < 9; i++) {
+        document.querySelector(`[data-row='${row}'][data-col='${i}']`).classList.add('highlight-related');
+        document.querySelector(`[data-row='${i}'][data-col='${col}']`).classList.add('highlight-related');
+      }
+      const startRow = Math.floor(row / 3) * 3;
+      const startCol = Math.floor(col / 3) * 3;
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          document.querySelector(`[data-row='${startRow + r}'][data-col='${startCol + c}']`).classList.add('highlight-related');
+        }
+      }
+    }
+    
+    // --- メモ（鉛筆書き）機能 --- //
+    function toggleNotesMode() {
+        notesMode = !notesMode;
+        const notesBtn = document.getElementById('notesToggleBtn');
+        if (notesMode) {
+            notesBtn.classList.add('toggle-active');
+            showMessage("メモ機能がONになりました。複数の数字を候補として入力できます。", "info");
+        } else {
+            notesBtn.classList.remove('toggle-active');
+            showMessage("メモ機能がOFFになりました。", "info");
+        }
+    }
+    
+    function toggleNote(number) {
+        if (!activeCell || activeCell.element.classList.contains('prefilled')) return;
+        
+        const cell = activeCell.element;
+        const notesContainer = cell.querySelector('.notes-container');
+        if (!notesContainer) return;
+        
+        const noteElement = notesContainer.querySelector(`.note[data-note='${number}']`);
+        
+        if (noteElement) {
+            // メモが存在すれば削除
+            notesContainer.removeChild(noteElement);
+            if (notesContainer.children.length === 0) {
+                notesContainer.style.display = 'none';
+            }
+        } else {
+            // メモが存在しなければ追加
+            notesContainer.style.display = 'grid';
+            const newNote = document.createElement('div');
+            newNote.className = 'note';
+            newNote.dataset.note = number;
+            newNote.textContent = number;
+            notesContainer.appendChild(newNote);
+        }
+        
+        // 履歴に保存
+        saveState();
+    }
+    
+    // --- 入力処理 --- //
+    /**
+     * 数字を入力する
+     * @param {string} value - 入力する数字 ('1'~'9')または空文字列
+     */
+    function inputNumber(value) {
+        if (!activeCell || activeCell.element.classList.contains('prefilled') || isGameComplete) return;
+
+        const cell = activeCell.element;
+        const input = activeCell.input;
+        const notesContainer = cell.querySelector('.notes-container');
+
+        if (notesMode) {
+            if (value === "") {
+                 // メモモードでクリアボタンを押した場合、メモを全消去
+                if (notesContainer) {
+                    notesContainer.innerHTML = '';
+                    notesContainer.style.display = 'none';
+                }
+            } else {
+                // メモモードで数字を入力
+                input.value = '';
+                toggleNote(value);
+                clearHighlights();
+                selectCell(cell);
+            }
+        } else {
+            // 通常の数字入力
+            const oldValue = input.value;
+            input.value = value;
+            if (notesContainer) {
+                notesContainer.innerHTML = '';
+                notesContainer.style.display = 'none';
+            }
+            
+            // 履歴に保存
+            if (oldValue !== value) {
+                saveState();
+            }
+
+            // ハイライト更新
+            validateAll();
+            clearHighlights();
+            selectCell(cell);
+            
+            // 完成チェック
+            if (isBoardCompleteAndCorrect()) {
+                completeGame();
+            }
+        }
+        updateStats();
+    }
+
+    /**
+     * PC用キーボード入力処理
+     * @param {Event} e - キーボードイベント
+     */
+    function handleKeyboardInput(e) {
+      if (!activeCell || isGameComplete) return;
+      const key = e.key;
+      const cell = activeCell.element;
+
+      if (key >= '1' && key <= '9') {
+        e.preventDefault();
+        inputNumber(key);
+      } else if (key === 'Backspace' || key === 'Delete' || key === '0') {
+        e.preventDefault();
+        inputNumber('');
+      } else if (key === 'ArrowUp') {
+        e.preventDefault();
+        if (activeCell.row > 0) selectCell(document.querySelector(`[data-row='${activeCell.row - 1}'][data-col='${activeCell.col}']`));
+      } else if (key === 'ArrowDown') {
+        e.preventDefault();
+        if (activeCell.row < 8) selectCell(document.querySelector(`[data-row='${activeCell.row + 1}'][data-col='${activeCell.col}']`));
+      } else if (key === 'ArrowLeft') {
+        e.preventDefault();
+        if (activeCell.col > 0) selectCell(document.querySelector(`[data-row='${activeCell.row}'][data-col='${activeCell.col - 1}']`));
+      } else if (key === 'ArrowRight') {
+        e.preventDefault();
+        if (activeCell.col < 8) selectCell(document.querySelector(`[data-row='${activeCell.row}'][data-col='${activeCell.col + 1}']`));
+      }
+    }
+    
+    // --- バリデーション機能 --- //
+    /**
+     * すべての入力ミスを検証し、ハイライトする
+     * @returns {boolean} - エラーがなければtrue
+     */
+    function validateAll() {
+      let hasError = false;
+      const currentBoard = getCurrentBoard();
+      
+      // 全てのエラークラスをクリア
+      document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+      
+      document.querySelectorAll('td.editable').forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const value = currentBoard[row][col];
+        
+        if (value !== 0) {
+          const tempBoard = getCurrentBoard();
+          tempBoard[row][col] = 0; // 現在のセルを一時的に空にして検証
+          if (!isValidPlacement(tempBoard, row, col, value)) {
+            cell.classList.add('error');
+            hasError = true;
+          }
+        }
+      });
+      return !hasError;
+    }
+
+    /**
+     * 現在の盤面状態を取得する
+     * @returns {Array<Array<number>>} - 盤面状態
+     */
+    function getCurrentBoard() {
+      const board = Array(9).fill().map(() => Array(9).fill(0));
+      document.querySelectorAll('td').forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const input = cell.querySelector('input');
+        if (input && input.value) {
+          board[row][col] = parseInt(input.value);
+        } else if (cell.classList.contains('prefilled')) {
+          board[row][col] = parseInt(cell.textContent);
+        }
+      });
+      return board;
+    }
+
+    // --- ゲーム初期化・表示 --- //
+    /**
+     * 新しいゲームを開始する
+     */
+    function newGame() {
+      stopTimer();
+      clearHighlights();
+      activeCell = null;
+      isGameComplete = false;
+      isPaused = false;
+      notesMode = false;
+      document.getElementById('notesToggleBtn').classList.remove('toggle-active');
+      
+      showMessage("パズルを生成中...", "info");
+      
+      setTimeout(() => {
+        const removalCount = parseInt(document.getElementById("difficultySelect").value);
+        solvedBoard = generateCompleteBoard();
+        initialBoard = generatePuzzle(solvedBoard, removalCount);
+        
+        displayBoard();
+        createKeypad();
+        updateStats();
+        
+        gameStartTime = new Date();
+        startTimer();
+        clearMessage();
+        saveState(); // 初期状態を履歴に保存
+      }, 100);
+    }
+
+    /**
+     * 盤面をHTMLに描画する
+     */
+    function displayBoard() {
+      const boardDiv = document.getElementById("sudoku-board");
+      let html = "<table><tbody>";
+      
+      for (let row = 0; row < 9; row++) {
+        html += "<tr>";
+        for (let col = 0; col < 9; col++) {
+          const value = initialBoard[row][col];
+          const isPrefilled = value !== 0;
+          const cellClass = isPrefilled ? 'prefilled' : 'editable';
+          
+          html += `<td class="${cellClass}" data-row="${row}" data-col="${col}" tabindex="${isPrefilled ? -1 : 0}">`;
+          if (isPrefilled) {
+            html += value;
+          } else {
+            html += `<input type="text" maxlength="1" readonly>`;
+            html += `<div class="notes-container" style="display: none;"></div>`;
+          }
+          html += "</td>";
+        }
+        html += "</tr>";
+      }
+      html += "</tbody></table>";
+      boardDiv.innerHTML = html;
+      
+      document.querySelectorAll('td.editable').forEach(td => {
+        td.addEventListener('click', () => selectCell(td));
+      });
+    }
+
+    /**
+     * キーパッドを生成する
+     */
+    function createKeypad() {
+      const keypadContainer = document.getElementById("keypad-container");
+      let html = '<table id="keypad-table"><tbody>';
+      
+      const numbers = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ];
+      
+      numbers.forEach(row => {
+        html += "<tr>";
+        row.forEach(num => {
+          html += `<td><button class="num-btn" data-value="${num}">${num}</button></td>`;
+        });
+        html += "</tr>";
+      });
+      
+      html += '<tr><td colspan="3"><button id="clearBtn">🗑️ クリア</button></td></tr>';
+      html += "</tbody></table>";
+      
+      if (isMobile) {
+        keypadContainer.innerHTML = html;
+        keypadContainer.style.display = 'none'; // 選択するまで非表示
+        
+        document.querySelectorAll(".num-btn").forEach(button => {
+          button.addEventListener("click", () => {
+            if (activeCell) {
+              inputNumber(button.dataset.value);
+            }
+          });
+        });
+        document.getElementById("clearBtn").addEventListener("click", () => {
+          if (activeCell) {
+            inputNumber("");
+          }
+        });
+      } else {
+        keypadContainer.innerHTML = '';
+        keypadContainer.style.display = 'none';
+      }
+    }
+    
+    // --- 履歴管理（Undo/Redo）機能 --- //
+    /**
+     * 現在の盤面状態を履歴に保存する
+     */
+    function saveState() {
+        if (historyIndex < boardStateHistory.length - 1) {
+            boardStateHistory = boardStateHistory.slice(0, historyIndex + 1);
+        }
+        const state = {
+            values: [],
+            notes: []
+        };
+        document.querySelectorAll('td.editable').forEach(cell => {
+            const input = cell.querySelector('input');
+            const notes = cell.querySelector('.notes-container');
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            state.values.push({ row, col, value: input.value });
+            if (notes) {
+                const noteValues = Array.from(notes.children).map(note => note.textContent);
+                if (noteValues.length > 0) {
+                    state.notes.push({ row, col, notes: noteValues });
+                }
+            }
+        });
+        boardStateHistory.push(state);
+        historyIndex++;
+        updateUndoRedoButtons();
+    }
+
+    /**
+     * 履歴から一つ戻る
+     */
+    function doUndo() {
+        if (historyIndex <= 0) return;
+        historyIndex--;
+        restoreState(boardStateHistory[historyIndex]);
+    }
+
+    /**
+     * 履歴から一つ進む
+     */
+    function doRedo() {
+        if (historyIndex >= boardStateHistory.length - 1) return;
+        historyIndex++;
+        restoreState(boardStateHistory[historyIndex]);
+    }
+
+    /**
+     * 指定された履歴の状態を盤面に復元する
+     * @param {object} state - 復元する状態オブジェクト
+     */
+    function restoreState(state) {
+        // すべての入力をクリア
+        document.querySelectorAll('td.editable input').forEach(input => input.value = '');
+        document.querySelectorAll('.notes-container').forEach(notes => {
+            notes.innerHTML = '';
+            notes.style.display = 'none';
+        });
+
+        // 値を復元
+        state.values.forEach(item => {
+            const cell = document.querySelector(`[data-row='${item.row}'][data-col='${item.col}']`);
+            if (cell) {
+                cell.querySelector('input').value = item.value;
+            }
+        });
+
+        // ノートを復元
+        state.notes.forEach(item => {
+            const cell = document.querySelector(`[data-row='${item.row}'][data-col='${item.col}']`);
+            if (cell) {
+                const notesContainer = cell.querySelector('.notes-container');
+                notesContainer.style.display = 'grid';
+                item.notes.forEach(noteVal => {
+                    const newNote = document.createElement('div');
+                    newNote.className = 'note';
+                    newNote.dataset.note = noteVal;
+                    newNote.textContent = noteVal;
+                    notesContainer.appendChild(newNote);
+                });
+            }
+        });
+        
+        validateAll();
+        updateStats();
+        updateUndoRedoButtons();
+    }
+
+    /**
+     * Undo/Redoボタンの有効/無効状態を更新する
+     */
+    function updateUndoRedoButtons() {
+        document.getElementById('undoBtn').disabled = historyIndex <= 0;
+        document.getElementById('redoBtn').disabled = historyIndex >= boardStateHistory.length - 1;
+    }
+
+    // --- コントロール機能 --- //
+    /**
+     * 選択中のセルにヒントを適用する
+     */
+    function provideHint() {
+      if (!activeCell || isGameComplete) {
+        showMessage("ヒントを適用するセルを選択してください", "error-message");
+        return;
+      }
+      const hintVal = String(solvedBoard[activeCell.row][activeCell.col]);
+      
+      // ヒントを適用
+      inputNumber(hintVal);
+      showMessage("ヒントを適用しました", "info");
+    }
+
+    /**
+     * 答えを表示してゲームを終了する
+     */
+    function showSolution() {
+      if (confirm("答えを表示しますか？（ゲームが終了します）")) {
+        for (let row = 0; row < 9; row++) {
+          for (let col = 0; col < 9; col++) {
+            if (initialBoard[row][col] === 0) {
+              const cell = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
+              if (cell) {
+                cell.querySelector('input').value = solvedBoard[row][col];
+                const notesContainer = cell.querySelector('.notes-container');
+                if (notesContainer) {
+                    notesContainer.innerHTML = '';
+                    notesContainer.style.display = 'none';
+                }
+              }
+            }
+          }
+        }
+        
+        saveState();
+        stopTimer();
+        isGameComplete = true;
+        validateAll();
+        showMessage("解答が表示されました", "info");
+      }
+    }
+
+    // --- ゲーム完成処理 --- //
+    /**
+     * 盤面が完成し、かつ正解しているかチェックする
+     * @returns {boolean} - 完成していればtrue
+     */
+    function isBoardCompleteAndCorrect() {
+      const currentBoard = getCurrentBoard();
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          if (currentBoard[row][col] !== solvedBoard[row][col]) {
             return false;
           }
         }
@@ -191,265 +1026,144 @@
       return true;
     }
 
-    function generateCompleteBoard() {
-      let board = [];
-      for (let i = 0; i < 9; i++) {
-        board.push(new Array(9).fill(0));
-      }
-      fillBoard(board);
-      return board;
-    }
-
-    function generatePuzzle(solvedBoard, removalCount) {
-      let puzzle = solvedBoard.map(row => row.slice());
-      let removed = 0;
-      while (removed < removalCount) {
-        let r = Math.floor(Math.random() * 9);
-        let c = Math.floor(Math.random() * 9);
-        if (puzzle[r][c] !== 0) {
-          puzzle[r][c] = 0;
-          removed++;
-        }
-      }
-      return puzzle;
-    }
-
-    // --- セル選択用関数 --- //
-    function selectCell(input) {
-      activeCell = input;
-      // 既に選択中のセルから selected クラスを除去
-      const selectedCells = document.querySelectorAll("td.editable.selected");
-      selectedCells.forEach(function(td) {
-        td.classList.remove("selected");
-      });
-      // クリックされたセルの親 <td> に selected クラスを追加
-      input.parentElement.classList.add("selected");
-      // PCの場合は、現在の値を記録（キーボード入力用）
-      if (!isMobile) {
-        input.lastValue = input.value;
-      }
-    }
-
-    // --- PC用：キーボード入力処理 ---
-    function processKeyboardInput(el) {
-      // 数字以外を排除
-      const newValue = el.value.replace(/[^1-9]/g, '');
-      if (el.value !== newValue) {
-        el.value = newValue;
-      }
-      if (el.lastValue === undefined) {
-        el.lastValue = "";
-      }
-      if (newValue !== el.lastValue) {
-        // キーボード入力時の変更もUndoスタックに記録
-        undoStack.push({ cellId: el.id, prev: el.lastValue, next: newValue });
-        redoStack = [];
-        el.lastValue = newValue;
-      }
-    }
-
-    // --- ゲーム初期化・表示 --- //
-    function initializeGame() {
-      const removalCount = parseInt(document.getElementById("difficultySelect").value, 10);
-      solvedBoard = generateCompleteBoard();
-      puzzleBoard = generatePuzzle(solvedBoard, removalCount);
-      // 新規ゲーム開始時にUndo/Redoスタックをリセット
-      undoStack = [];
-      redoStack = [];
-    }
-
-    function displayBoard() {
-      const boardDiv = document.getElementById("sudoku-board");
-      let html = "<table>";
-      for (let row = 0; row < 9; row++) {
-        html += "<tr>";
-        for (let col = 0; col < 9; col++) {
-          const cellId = "cell-" + row + "-" + col;
-          if (puzzleBoard[row][col] !== 0) {
-            html += `<td class="prefilled">${puzzleBoard[row][col]}</td>`;
-          } else {
-            // PCならキーボード入力可能（readonly属性を付加しない）、スマホはreadonly
-            if (isMobile) {
-              html += `<td class="editable"><input type="text" id="${cellId}" maxlength="1" readonly onfocus="selectCell(this)" onclick="selectCell(this)"></td>`;
-            } else {
-              html += `<td class="editable"><input type="text" id="${cellId}" maxlength="1" onfocus="selectCell(this)" onclick="selectCell(this)" oninput="processKeyboardInput(this)"></td>`;
-            }
-          }
-        }
-        html += "</tr>";
-      }
-      html += "</table>";
-      boardDiv.innerHTML = html;
-    }
-
-    // --- 数字キーパッド --- //
-    function createKeypad() {
-      const keypadContainer = document.getElementById("keypad-container");
-      let keypadHTML = '<table id="keypad-table">';
-      keypadHTML += "<tr>";
-      keypadHTML += '<td><button class="num-btn" data-value="7">7</button></td>';
-      keypadHTML += '<td><button class="num-btn" data-value="8">8</button></td>';
-      keypadHTML += '<td><button class="num-btn" data-value="9">9</button></td>';
-      keypadHTML += "</tr>";
-      keypadHTML += "<tr>";
-      keypadHTML += '<td><button class="num-btn" data-value="4">4</button></td>';
-      keypadHTML += '<td><button class="num-btn" data-value="5">5</button></td>';
-      keypadHTML += '<td><button class="num-btn" data-value="6">6</button></td>';
-      keypadHTML += "</tr>";
-      keypadHTML += "<tr>";
-      keypadHTML += '<td><button class="num-btn" data-value="1">1</button></td>';
-      keypadHTML += '<td><button class="num-btn" data-value="2">2</button></td>';
-      keypadHTML += '<td><button class="num-btn" data-value="3">3</button></td>';
-      keypadHTML += "</tr>";
-      // 0ボタンは削除、代わりにクリアボタン
-      keypadHTML += "<tr>";
-      keypadHTML += '<td colspan="3"><button id="clearBtn">クリア</button></td>';
-      keypadHTML += "</tr>";
-      keypadHTML += "</table>";
-      keypadContainer.innerHTML = keypadHTML;
-
-      // キーパッドの数字ボタンによる入力（Undo/Redo 対象）
-      const numButtons = document.querySelectorAll(".num-btn");
-      numButtons.forEach(button => {
-        button.addEventListener("click", function() {
-          if (activeCell) {
-            const newValue = this.getAttribute("data-value");
-            if (activeCell.value !== newValue) {
-              undoStack.push({ cellId: activeCell.id, prev: activeCell.value, next: newValue });
-              redoStack = [];
-              activeCell.value = newValue;
-              activeCell.classList.remove("error");
-              if (!isMobile) {
-                activeCell.lastValue = newValue; // PCの場合はlastValueも更新
-              }
-            }
-          }
+    /**
+     * ゲーム完了時の処理
+     */
+    function completeGame() {
+      if (isGameComplete) return;
+      
+      isGameComplete = true;
+      stopTimer();
+      
+      const timeStr = document.getElementById("timer").textContent;
+      showMessage(`🎉 おめでとうございます！完成です！ ${timeStr}`, "success");
+      
+      // 完成後は操作を無効化
+      document.querySelectorAll('td.editable input').forEach(input => input.setAttribute('readonly', true));
+      
+      // 花火エフェクト
+      let blinkCount = 0;
+      const blinkInterval = setInterval(() => {
+        document.querySelectorAll('td').forEach(td => {
+          td.style.backgroundColor = blinkCount % 2 === 0 ? '#90EE90' : '';
         });
-      });
+        blinkCount++;
+        if (blinkCount > 6) {
+          clearInterval(blinkInterval);
+          document.querySelectorAll('td').forEach(td => {
+            td.style.backgroundColor = '';
+          });
+        }
+      }, 200);
+    }
 
-      // クリアボタンの処理
-      document.getElementById("clearBtn").addEventListener("click", function() {
-        if (activeCell && activeCell.value !== "") {
-          undoStack.push({ cellId: activeCell.id, prev: activeCell.value, next: "" });
-          redoStack = [];
-          activeCell.value = "";
-          activeCell.classList.remove("error");
-          if (!isMobile) {
-            activeCell.lastValue = "";
-          }
+    // --- 統計・タイマー --- //
+    /**
+     * 統計情報を更新する
+     */
+    function updateStats() {
+      const filledCount = getFilledCellsCount();
+      document.getElementById("filled-count").textContent = `入力済み: ${filledCount}/81`;
+    }
+
+    /**
+     * 埋まっているセルの数をカウントする
+     * @returns {number} - 埋まっているセルの数
+     */
+    function getFilledCellsCount() {
+      let count = 0;
+      document.querySelectorAll('td').forEach(cell => {
+        const input = cell.querySelector('input');
+        if (cell.classList.contains('prefilled') || (input && input.value)) {
+          count++;
         }
       });
+      return count;
     }
 
-    // --- コントロールボタン --- //
-    function provideHint() {
-      if (!activeCell) {
-        alert("ヒントを適用するセルを選択してください。");
-        return;
-      }
-      const parts = activeCell.id.split("-");
-      const row = parseInt(parts[1], 10);
-      const col = parseInt(parts[2], 10);
-      const hintVal = String(solvedBoard[row][col]);
-      if (activeCell.value !== hintVal) {
-        undoStack.push({ cellId: activeCell.id, prev: activeCell.value, next: hintVal });
-        redoStack = [];
-        activeCell.value = hintVal;
-        activeCell.classList.remove("error");
-        if (!isMobile) {
-          activeCell.lastValue = hintVal;
-        }
-      }
+    /**
+     * タイマーを開始する
+     */
+    function startTimer() {
+      stopTimer();
+      timerInterval = setInterval(updateTimer, 1000);
     }
 
-    function doUndo() {
-      if (undoStack.length === 0) {
-        alert("これ以上戻せません。");
-        return;
-      }
-      const move = undoStack.pop();
-      const cell = document.getElementById(move.cellId);
-      redoStack.push({ cellId: move.cellId, prev: cell.value, next: move.prev });
-      cell.value = move.prev;
-      if (!isMobile) {
-        cell.lastValue = move.prev;
+    /**
+     * タイマーを停止する
+     */
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
       }
     }
 
-    function doRedo() {
-      if (redoStack.length === 0) {
-        alert("これ以上進めません。");
-        return;
-      }
-      const move = redoStack.pop();
-      const cell = document.getElementById(move.cellId);
-      undoStack.push({ cellId: move.cellId, prev: cell.value, next: move.next });
-      cell.value = move.next;
-      if (!isMobile) {
-        cell.lastValue = move.next;
-      }
+    /**
+     * タイマーを更新する
+     */
+    function updateTimer() {
+      if (!gameStartTime || isPaused) return;
+      
+      const elapsed = Math.floor((new Date() - gameStartTime) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      
+      document.getElementById("timer").textContent = 
+        `時間: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    function checkAnswer() {
+    // --- メッセージ表示 --- //
+    /**
+     * メッセージを表示する
+     * @param {string} text - 表示するテキスト
+     * @param {string} className - スタイルクラス
+     */
+    function showMessage(text, className = "") {
       const messageDiv = document.getElementById("message");
-      let correct = true;
-      for (let row = 0; row < 9; row++) {
-        for (let col = 0; col < 9; col++) {
-          const cellId = "cell-" + row + "-" + col;
-          const input = document.getElementById(cellId);
-          if (input) {
-            input.classList.remove("error");
-          }
-        }
-      }
-      for (let row = 0; row < 9; row++) {
-        for (let col = 0; col < 9; col++) {
-          if (puzzleBoard[row][col] === 0) {
-            const cellId = "cell-" + row + "-" + col;
-            const input = document.getElementById(cellId);
-            const userVal = parseInt(input.value, 10);
-            if (userVal !== solvedBoard[row][col]) {
-              correct = false;
-              input.classList.add("error");
-            }
-          }
-        }
-      }
-      messageDiv.textContent = correct ? "おめでとうございます！正解です。" : "入力に誤りがあります。再度挑戦してください。";
+      messageDiv.textContent = text;
+      messageDiv.className = className;
     }
 
-    function showSolution() {
-      for (let row = 0; row < 9; row++) {
-        for (let col = 0; col < 9; col++) {
-          if (puzzleBoard[row][col] === 0) {
-            const cellId = "cell-" + row + "-" + col;
-            const input = document.getElementById(cellId);
-            input.value = solvedBoard[row][col];
-            input.classList.remove("error");
-            if (!isMobile) {
-              input.lastValue = String(solvedBoard[row][col]);
-            }
+    /**
+     * メッセージをクリアする
+     */
+    function clearMessage() {
+      document.getElementById("message").textContent = "";
+      document.getElementById("message").className = "";
+    }
+
+    // --- 初期化・イベント設定 --- //
+    document.addEventListener("DOMContentLoaded", () => {
+      newGame();
+      
+      // グローバルイベントリスナー
+      document.addEventListener('keydown', handleKeyboardInput);
+      document.addEventListener('click', (e) => {
+          // 盤面外をクリックしたら選択解除
+          if (!e.target.closest('#sudoku-board') && !e.target.closest('#keypad-container')) {
+              clearHighlights();
+              activeCell = null;
+              if (isMobile) {
+                  document.getElementById('keypad-container').style.display = 'none';
+              }
           }
-        }
-      }
-      document.getElementById("message").textContent = "解答が表示されました。";
-    }
+      });
 
-    // --- 初期化＆イベント設定 --- //
-    function newGame() {
-      initializeGame();
-      displayBoard();
-      createKeypad();
-    }
-
-    newGame();
-
-    document.getElementById("newGameBtn").addEventListener("click", newGame);
-    document.getElementById("undoBtn").addEventListener("click", doUndo);
-    document.getElementById("redoBtn").addEventListener("click", doRedo);
-    document.getElementById("hintBtn").addEventListener("click", provideHint);
-    document.getElementById("checkBtn").addEventListener("click", checkAnswer);
-    document.getElementById("solveBtn").addEventListener("click", showSolution);
+      // ボタンイベントリスナー
+      document.getElementById("newGameBtn").addEventListener("click", newGame);
+      document.getElementById("undoBtn").addEventListener("click", doUndo);
+      document.getElementById("redoBtn").addEventListener("click", doRedo);
+      document.getElementById("notesToggleBtn").addEventListener("click", toggleNotesMode);
+      document.getElementById("hintBtn").addEventListener("click", provideHint);
+      document.getElementById("validateBtn").addEventListener("click", () => {
+          const isValid = validateAll();
+          showMessage(isValid ? "現在の入力にエラーはありません！" : "入力に誤りがあります（赤色のセル）", isValid ? "success" : "error-message");
+      });
+      document.getElementById("solveBtn").addEventListener("click", showSolution);
+      
+      // キーパッドのイベントはcreateKeypadで設定
+    });
   </script>
 </body>
 </html>
