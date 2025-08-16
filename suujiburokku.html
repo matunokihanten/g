@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>数字パズル脳トレ</title>
+    <style>
+        :root {
+            /* モバイルブラウザのアドレスバー表示/非表示に対応するため、動的なビューポート高さを定義 */
+            --app-height: 100vh;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            /* --app-height を使用して高さを設定 */
+            height: var(--app-height);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 8px; /* 各UI要素間のスペースを確保 */
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 10px 15px;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0; /* コンテンツが縮まないように設定 */
+        }
+
+        .score-info {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+        }
+
+        .level-info {
+            font-size: 16px;
+            color: #ffd700;
+        }
+
+        .game-container {
+            flex: 1; /* 利用可能なスペースを最大限使用 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 0; /* flexアイテムが縮小できるように設定 */
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 3px; /* 少し広げて視認性を向上 */
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            
+            /* UI/UX改善の核となる部分: 画面サイズに応じてグリッドサイズを最適化 */
+            /* 画面の幅と、ヘッダーなどを除いた高さのうち、小さい方に合わせる */
+            width: min(95vw, calc(var(--app-height) - 160px));
+            aspect-ratio: 1; /* 正方形を維持 */
+            max-width: 600px; /* PCなど大画面で広がりすぎないように制限 */
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            /* UI/UX改善: フォントサイズも画面に応じてスケールさせる */
+            font-size: clamp(14px, 5vmin, 32px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            touch-action: none; /* タッチ操作時の意図しないスクロールやズームを防止 */
+            border-radius: 4px; /* 角を少し丸める */
+        }
+
+        .cell:hover {
+            transform: scale(1.05);
+        }
+
+        .cell.selected {
+            background: linear-gradient(145deg, #ffd700, #ffed4e);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        .cell.matched {
+            background: linear-gradient(145deg, #4CAF50, #66BB6A);
+            color: white;
+            animation: match-effect 0.6s ease-in-out forwards;
+        }
+
+        .cell.empty {
+            background: transparent;
+            box-shadow: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes match-effect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); background: #4CAF50; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .cell-content {
+            animation: cell-appear 0.5s ease-out;
+        }
+
+        @keyframes cell-appear {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .combo-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 69, 0, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: combo-popup 1s ease-out forwards;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        @keyframes combo-popup {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-shrink: 0; /* コンテンツが縮まないように設定 */
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .hint-btn {
+            background: linear-gradient(145deg, #ff9800, #f57c00);
+        }
+        
+        .shuffle-btn {
+             background: linear-gradient(145deg, #03a9f4, #0288d1);
+        }
+        
+        .shuffle-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            font-size: 10px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .special-effect {
+            position: absolute;
+            pointer-events: none;
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffd700;
+            animation: float-up 1s ease-out forwards;
+            z-index: 1000;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            animation: fade-in 0.5s;
+        }
+
+        .popup {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            animation: slide-up 0.5s;
+            max-width: 90%;
+        }
+
+        .popup h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #764ba2;
+        }
+
+        .popup p {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        .popup-buttons .btn {
+            margin: 0 5px;
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slide-up {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @media (max-width: 400px) {
+            .header { padding: 8px 12px; }
+            .score-info { gap: 10px; font-size: 12px; }
+            .level-info { font-size: 14px; }
+            .btn { padding: 6px 12px; font-size: 12px; }
+            .popup h2 { font-size: 20px; }
+            .popup p { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="score-info">
+            <span>スコア: <span id="score">0</span></span>
+            <span>コンボ: <span id="combo">0</span></span>
+            <span id="high-score-display">ハイスコア: 0</span>
+        </div>
+        <div class="level-info">
+            Lv.<span id="level">1</span>
+        </div>
+    </div>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" id="progress"></div>
+    </div>
+
+    <div class="game-container">
+        <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn shuffle-btn" id="shuffle-btn" onclick="requestShuffle()">シャッフル (<span id="shuffle-count">3</span>)</button>
+        <button class="btn hint-btn" onclick="showHint()">ヒント</button>
+        <button class="btn" onclick="requestReset()">リセット</button>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="popup" id="popup">
+            <h2 id="popup-title"></h2>
+            <p id="popup-message"></p>
+            <div class="popup-buttons" id="popup-buttons">
+                <button class="btn" onclick="closePopup()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let grid = [];
+        let selectedCells = [];
+        let score = 0;
+        let combo = 0;
+        let level = 1;
+        let totalClears = 0;
+        let shuffleCount = 3;
+        const GRID_SIZE = 10;
+        let isProcessing = false;
+        let isSelecting = false;
+        let highScore = localStorage.getItem('highScore') || 0;
+
+        // UI/UX改善: モバイルブラウザのビューポートの高さを動的に設定
+        function setAppHeight() {
+            const doc = document.documentElement;
+            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+        }
+        window.addEventListener('resize', setAppHeight);
+        setAppHeight(); // 初期ロード時にも実行
+
+        document.getElementById('high-score-display').textContent = `ハイスコア: ${highScore}`;
+
+        function initializeGrid() {
+            grid = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+                grid[i] = [];
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    grid[i][j] = Math.floor(Math.random() * 10);
+                }
+            }
+            renderGrid();
+            updateDisplay();
+            checkAndShuffleIfNoMatch();
+        }
+
+        function renderGrid() {
+            const gridElement = document.getElementById('grid');
+            gridElement.innerHTML = '';
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    
+                    if (grid[i][j] !== null) {
+                        const content = document.createElement('span');
+                        content.className = 'cell-content';
+                        content.textContent = grid[i][j];
+                        content.style.color = getNumberColor(grid[i][j]);
+                        cell.appendChild(content);
+                    } else {
+                        cell.classList.add('empty');
+                    }
+                    
+                    setupCellEvents(cell);
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function getNumberColor(num) {
+            const colors = [
+                '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
+                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#c0392b'
+            ];
+            return colors[num];
+        }
+
+        function setupCellEvents(cell) {
+            cell.addEventListener('mousedown', startSelection);
+            cell.addEventListener('mouseenter', continueSelection);
+            cell.addEventListener('touchstart', handleTouch, { passive: false });
+            cell.addEventListener('touchmove', handleTouchMove, { passive: false });
+        }
+        
+        function handleTouch(e) {
+            e.preventDefault();
+            startSelection(e);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (element && element.closest('.cell')) {
+                continueSelection({ target: element.closest('.cell') });
+            }
+        }
+        
+        // バグ修正: touchend/touchcancel用のハンドラを追加してイベントの二重発火などを防ぐ
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            endSelection();
+        }
+
+        function startSelection(e) {
+            const cell = e.target.closest('.cell');
+            if (!cell || isProcessing || cell.classList.contains('empty')) return;
+            
+            isSelecting = true;
+            clearSelection();
+            selectCell(cell);
+        }
+
+        function continueSelection(e) {
+            if (!isSelecting || isProcessing) return;
+            
+            const cell = e.target.closest('.cell');
+            if (!cell || cell.classList.contains('empty')) return;
+            
+            if (!selectedCells.includes(cell)) {
+                selectCell(cell);
+            }
+        }
+
+        function selectCell(cell) {
+            if (selectedCells.includes(cell)) {
+                const index = selectedCells.indexOf(cell);
+                if (index > -1 && index < selectedCells.length - 1) {
+                    for (let i = selectedCells.length - 1; i > index; i--) {
+                        selectedCells[i].classList.remove('selected');
+                    }
+                    selectedCells.splice(index + 1);
+                }
+            } else {
+                selectedCells.push(cell);
+                cell.classList.add('selected');
+            }
+        }
+
+        function endSelection() {
+            if (!isSelecting) return;
+
+            if (selectedCells.length < 2 || isProcessing) {
+                clearSelection();
+                isSelecting = false;
+                return;
+            }
+            
+            if (isValidMatch()) {
+                isProcessing = true;
+                processMatch();
+            } else {
+                clearSelection();
+            }
+            
+            isSelecting = false;
+        }
+
+        function isValidMatch() {
+            if (selectedCells.length < 2) return false;
+            
+            const firstNum = parseInt(selectedCells[0].textContent);
+            const allSame = selectedCells.every(cell => parseInt(cell.textContent) === firstNum);
+            
+            if (allSame) return true;
+            
+            if (selectedCells.length === 2) {
+                const num1 = parseInt(selectedCells[0].textContent);
+                const num2 = parseInt(selectedCells[1].textContent);
+                return num1 + num2 === 10;
+            }
+            
+            return false;
+        }
+
+        function processMatch() {
+            const cellsToClear = [...selectedCells];
+            
+            const basePoints = cellsToClear.length * 10;
+            const comboBonus = combo * 10;
+            const levelBonus = level * 5;
+            const points = basePoints + comboBonus + levelBonus;
+            
+            score += points;
+            combo++;
+            totalClears += cellsToClear.length;
+            
+            showSpecialEffect(`+${points}`, cellsToClear[0]);
+            
+            if (combo >= 3) {
+                showComboEffect();
+            }
+            
+            cellsToClear.forEach(cell => {
+                cell.classList.add('matched');
+            });
+            
+            setTimeout(() => {
+                cellsToClear.forEach(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    grid[row][col] = null;
+                });
+                
+                applyGravity();
+                selectedCells = [];
+                updateDisplay();
+                checkLevelUp();
+                
+                // GravityとFillのアニメーション時間を考慮してロック解除を遅らせる
+                setTimeout(() => {
+                    isProcessing = false;
+                    checkAndShuffleIfNoMatch();
+                }, 600);
+            }, 600);
+        }
+
+        function applyGravity() {
+            for (let col = 0; col < GRID_SIZE; col++) {
+                let emptyRow = -1;
+                for (let row = GRID_SIZE - 1; row >= 0; row--) {
+                    if (grid[row][col] === null) {
+                        if (emptyRow === -1) emptyRow = row;
+                    } else if (emptyRow !== -1) {
+                        grid[emptyRow][col] = grid[row][col];
+                        grid[row][col] = null;
+                        emptyRow--;
+                    }
+                }
+            }
+            
+            // データ更新後、少し遅れて描画を更新してアニメーションを見せる
+            setTimeout(() => {
+                fillEmptySpaces();
+            }, 300);
+        }
+
+        function fillEmptySpaces() {
+            for (let col = 0; col < GRID_SIZE; col++) {
+                for (let row = 0; row < GRID_SIZE; row++) {
+                    if (grid[row][col] === null) {
+                        grid[row][col] = Math.floor(Math.random() * 10);
+                    }
+                }
+            }
+            
+            setTimeout(() => {
+                renderGrid();
+            }, 100);
+        }
+
+        function showSpecialEffect(text, element) {
+            const effect = document.createElement('div');
+            effect.className = 'special-effect';
+            effect.textContent = text;
+            document.body.appendChild(effect);
+            
+            const rect = element.getBoundingClientRect();
+            effect.style.left = `${rect.left + rect.width / 2}px`;
+            effect.style.top = `${rect.top}px`;
+            
+            setTimeout(() => {
+                document.body.removeChild(effect);
+            }, 1000);
+        }
+
+        function showComboEffect() {
+            const comboDiv = document.createElement('div');
+            comboDiv.className = 'combo-display';
+            comboDiv.textContent = `${combo} コンボ!`;
+            document.body.appendChild(comboDiv);
+            
+            setTimeout(() => {
+                document.body.removeChild(comboDiv);
+            }, 1000);
+        }
+        
+        function showGamePopup(title, message, buttons) {
+            document.getElementById('popup-title').textContent = title;
+            document.getElementById('popup-message').innerHTML = message.replace(/\n/g, '<br>'); // 改行を<br>に変換
+            const popupButtons = document.getElementById('popup-buttons');
+            popupButtons.innerHTML = '';
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = 'btn';
+                button.textContent = btn.text;
+                button.onclick = btn.action;
+                popupButtons.appendChild(button);
+            });
+            document.getElementById('overlay').style.display = 'flex';
+        }
+
+        function closePopup() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function clearSelection() {
+            selectedCells.forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            selectedCells = [];
+            combo = 0;
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo;
+            document.getElementById('level').textContent = level;
+            document.getElementById('shuffle-count').textContent = shuffleCount;
+            
+            const requiredClears = level * 50;
+            const progress = (totalClears / requiredClears) * 100;
+            document.getElementById('progress').style.width = Math.min(progress, 100) + '%';
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+                document.getElementById('high-score-display').textContent = `ハイスコア: ${highScore}`;
+            }
+        }
+
+        function checkLevelUp() {
+            const requiredClears = level * 50;
+            if (totalClears >= requiredClears) {
+                level++;
+                totalClears = 0;
+                shuffleCount = Math.min(5, shuffleCount + 1); // レベルアップでシャッフル回数を1増やす（上限5）
+                showSpecialEffect('LEVEL UP!🎉', document.querySelector('.header'));
+                updateDisplay();
+            }
+        }
+        
+        function requestShuffle() {
+            if (isProcessing) return;
+            if (shuffleCount > 0) {
+                showGamePopup(
+                    'シャッフルしますか？',
+                    'シャッフルするとスコアが20点減ります。',
+                    [
+                        { text: 'はい', action: () => shuffleGrid(true) },
+                        { text: 'キャンセル', action: closePopup }
+                    ]
+                );
+            } else {
+                showGamePopup(
+                    'シャッフルできません',
+                    'シャッフル回数が残っていません。',
+                    [{ text: 'OK', action: closePopup }]
+                );
+            }
+        }
+        
+        function shuffleGrid(isManual = false) {
+            closePopup();
+            if (isManual) {
+                score = Math.max(0, score - 20);
+            }
+            combo = 0;
+            shuffleCount--;
+            
+            const numbers = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (grid[i][j] !== null) {
+                        numbers.push(grid[i][j]);
+                    }
+                }
+            }
+            // Fisher-Yates shuffle
+            for (let i = numbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+            }
+
+            let k = 0;
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (grid[i][j] !== null) {
+                        grid[i][j] = numbers[k++];
+                    }
+                }
+            }
+
+            renderGrid();
+            updateDisplay();
+            isProcessing = true;
+            setTimeout(() => {
+                isProcessing = false;
+                checkAndShuffleIfNoMatch();
+            }, 500);
+        }
+        
+        function showHint() {
+            // バグ修正: isProcessingフラグでヒント表示中の多重操作を防止
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            const match = findAnyMatch();
+            if (match) {
+                score = Math.max(0, score - 10);
+                updateDisplay();
+                const cell1 = document.querySelector(`[data-row="${match[0].row}"][data-col="${match[0].col}"]`);
+                const cell2 = document.querySelector(`[data-row="${match[1].row}"][data-col="${match[1].col}"]`);
+                
+                if (cell1) cell1.style.background = 'linear-gradient(145deg, #ffeb3b, #ffc107)';
+                if (cell2) cell2.style.background = 'linear-gradient(145deg, #ffeb3b, #ffc107)';
+                
+                setTimeout(() => {
+                    renderGrid(); // 再描画してハイライトを消す
+                    isProcessing = false; // 処理完了
+                }, 1500);
+            } else {
+                 showGamePopup(
+                    'ヒントなし',
+                    '現在、マッチできる組み合わせはありません。',
+                    [{ text: 'OK', action: closePopup }]
+                );
+                isProcessing = false; // 処理完了
+            }
+        }
+
+        function findAnyMatch() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (grid[i][j] === null) continue;
+                    
+                    const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+                    
+                    for (let [di, dj] of directions) {
+                        const ni = i + di, nj = j + dj;
+                        if (ni >= 0 && ni < GRID_SIZE && nj >= 0 && nj < GRID_SIZE && grid[ni][nj] !== null) {
+                            if (grid[i][j] === grid[ni][nj] || grid[i][j] + grid[ni][nj] === 10) {
+                                return [{ row: i, col: j }, { row: ni, col: nj }];
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+        
+        function checkAndShuffleIfNoMatch() {
+            if (isProcessing) return;
+
+            if (!findAnyMatch()) {
+                if (shuffleCount > 0) {
+                    showGamePopup(
+                        'マッチがありません！',
+                        '盤面をシャッフルします。<br>(シャッフル回数を1消費)',
+                        [{ text: 'OK', action: () => shuffleGrid(false) }]
+                    );
+                } else {
+                    showGamePopup(
+                        'ゲームオーバー...',
+                        `すべてのシャッフル回数を使い果たしました。\nスコア: ${score}\nハイスコア: ${highScore}`,
+                        [{ text: 'リトライ', action: resetGame }]
+                    );
+                }
+            }
+        }
+
+        function requestReset() {
+            if (isProcessing) return;
+            showGamePopup(
+                'ゲームをリセットしますか？',
+                '現在のスコアは失われます。',
+                [
+                    { text: 'はい', action: resetGame },
+                    { text: 'キャンセル', action: closePopup }
+                ]
+            );
+        }
+
+        function resetGame() {
+            closePopup();
+            score = 0;
+            combo = 0;
+            level = 1;
+            totalClears = 0;
+            shuffleCount = 3;
+            isProcessing = false;
+            isSelecting = false;
+            initializeGrid();
+        }
+
+        // イベントリスナーの登録
+        document.addEventListener('mouseup', endSelection);
+        document.addEventListener('touchend', handleTouchEnd);
+        document.addEventListener('touchcancel', handleTouchEnd);
+
+        // ゲーム開始
+        initializeGrid();
+    </script>
+</body>
+</html>
