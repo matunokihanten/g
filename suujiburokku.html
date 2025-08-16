@@ -8,6 +8,410 @@
         :root {
             --app-height: 100vh;
         }
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>数字パズル脳トレ</title>
+    <style>
+        :root { --app-height: 100vh; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: var(--app-height); overflow: hidden; display: flex; flex-direction: column; padding: 10px; gap: 8px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 15px; padding: 10px 15px; color: white; font-weight: bold; flex-shrink: 0; }
+        .score-info { display: flex; gap: 15px; font-size: 14px; }
+        .level-info { font-size: 16px; color: #ffd700; }
+        .game-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+        .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; background: rgba(255, 255, 255, 0.1); padding: 8px; border-radius: 12px; backdrop-filter: blur(5px); width: min(95vw, calc(var(--app-height) - 160px)); aspect-ratio: 1; max-width: 600px; position: relative; }
+        .cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: linear-gradient(145deg, #ffffff, #e6e6e6); font-weight: bold; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; font-size: clamp(14px, 5vmin, 32px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; touch-action: none; border-radius: 4px; }
+        .cell:hover { transform: scale(1.05); }
+        .cell.selected { background: linear-gradient(145deg, #ffd700, #ffed4e); box-shadow: 0 0 10px rgba(255, 215, 0, 0.8); animation: pulse 0.5s ease-in-out; }
+        .cell.hint { background: linear-gradient(145deg, #ffeb3b, #ffc107); animation: pulse-hint 1.5s ease-in-out infinite; }
+        .cell.matched { background: linear-gradient(145deg, #4CAF50, #66BB6A); color: white; animation: match-effect 0.6s ease-in-out forwards; }
+        .cell.empty { background: transparent; box-shadow: none; pointer-events: none; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        @keyframes pulse-hint { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @keyframes match-effect { 0% { transform: scale(1); } 50% { transform: scale(1.2); background: #4CAF50; } 100% { transform: scale(0); opacity: 0; } }
+        .cell-content { animation: cell-appear 0.5s ease-out; }
+        .cell-content.fall-in { animation: fall-in 0.5s ease-out; }
+        @keyframes cell-appear { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes fall-in { from { transform: translateY(-200%); opacity: 0; } to   { transform: translateY(0); opacity: 1; } }
+        .combo-display { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 69, 0, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 18px; font-weight: bold; z-index: 1000; animation: combo-popup 1s ease-out forwards; pointer-events: none; white-space: nowrap; }
+        @keyframes combo-popup { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+        .controls { display: flex; gap: 10px; justify-content: center; flex-shrink: 0; }
+        .btn { padding: 8px 16px; background: linear-gradient(145deg, #4CAF50, #45a049); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.2s ease; font-size: 14px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); position: relative; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3); }
+        .btn:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
+        .hint-btn { background: linear-gradient(145deg, #ff9800, #f57c00); }
+        .shuffle-btn { background: linear-gradient(145deg, #03a9f4, #0288d1); }
+        .shuffle-count { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; border-radius: 50%; font-size: 10px; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .special-effect { position: absolute; pointer-events: none; font-size: 20px; font-weight: bold; color: #ffd700; animation: float-up 1s ease-out forwards; z-index: 1000; text-shadow: 1px 1px 2px black; }
+        @keyframes float-up { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+        .progress-bar { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.3); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s ease; border-radius: 3px; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 2000; animation: fade-in 0.5s; }
+        .popup { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); animation: slide-up 0.5s; max-width: 90%; }
+        .popup h2 { font-size: 24px; margin-bottom: 10px; color: #764ba2; }
+        .popup p { font-size: 18px; margin-bottom: 20px; color: #555; }
+        .popup-buttons .btn { margin: 0 5px; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @media (max-width: 400px) { .header { padding: 8px 12px; } .score-info { gap: 10px; font-size: 12px; } .level-info { font-size: 14px; } .btn { padding: 6px 12px; font-size: 12px; } .popup h2 { font-size: 20px; } .popup p { font-size: 16px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="score-info">
+            <span>スコア: <span id="score">0</span></span>
+            <span>コンボ: <span id="combo">0</span></span>
+            <span id="high-score-display">ハイスコア: 0</span>
+        </div>
+        <div class="level-info">Lv.<span id="level">1</span></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    <div class="game-container"><div class="grid" id="grid"></div></div>
+    <div class="controls">
+        <button class="btn shuffle-btn" id="shuffle-btn" onclick="requestShuffle()">シャッフル (<span id="shuffle-count">3</span>)</button>
+        <button class="btn hint-btn" onclick="showHint()">ヒント</button>
+        <button class="btn" onclick="requestReset()">リセット</button>
+    </div>
+    <div class="overlay" id="overlay">
+        <div class="popup" id="popup">
+            <h2 id="popup-title"></h2><p id="popup-message"></p>
+            <div class="popup-buttons" id="popup-buttons">
+                <button class="btn" onclick="closePopup()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 10;
+        const gridElement = document.getElementById('grid');
+        let grid = [];
+        let selectedCells = [];
+        let score = 0, combo = 0, level = 1, totalClears = 0, shuffleCount = 3;
+        let isProcessing = false, isSelecting = false;
+        let highScore = localStorage.getItem('highScore') || 0;
+        let progressTimer = null;
+
+        function setAppHeight() { document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`); }
+        window.addEventListener('resize', setAppHeight); setAppHeight();
+        document.getElementById('high-score-display').textContent = `ハイスコア: ${highScore}`;
+
+        function showGamePopup(title, message, buttons) {
+            isProcessing = true;
+            document.getElementById('popup-title').textContent = title;
+            document.getElementById('popup-message').innerHTML = message.replace(/\n/g, '<br>');
+            const popupButtons = document.getElementById('popup-buttons');
+            popupButtons.innerHTML = '';
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = 'btn';
+                button.textContent = btn.text;
+                button.onclick = btn.action;
+                popupButtons.appendChild(button);
+            });
+            document.getElementById('overlay').style.display = 'flex';
+        }
+        function closePopup() { 
+            document.getElementById('overlay').style.display = 'none'; 
+            isProcessing = false;
+        }
+
+        function initializeGrid() {
+            grid = [];
+            gridElement.innerHTML = '';
+            let numbers = [];
+            for (let i = 1; i <= GRID_SIZE * GRID_SIZE / 2; i++) {
+                numbers.push(i, i);
+            }
+            shuffleArray(numbers);
+            let index = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = {
+                        x, y,
+                        value: numbers[index++],
+                        element: null,
+                        isMatched: false
+                    };
+                    grid[y][x] = cell;
+                    renderCell(cell);
+                }
+            }
+            selectedCells = [];
+            combo = 0;
+            updateUI();
+            resetProgressTimer();
+        }
+
+        function renderCell(cell) {
+            const cellElement = document.createElement('div');
+            cellElement.className = 'cell';
+            cellElement.innerHTML = `<span class="cell-content">${cell.value}</span>`;
+            cellElement.dataset.x = cell.x;
+            cellElement.dataset.y = cell.y;
+            cellElement.addEventListener('click', () => handleCellClick(cell));
+            cell.element = cellElement;
+            gridElement.appendChild(cellElement);
+        }
+
+        function handleCellClick(cell) {
+            if (isProcessing || isSelecting || cell.isMatched) return;
+
+            if (selectedCells.length < 2 && !selectedCells.includes(cell)) {
+                selectedCells.push(cell);
+                cell.element.classList.add('selected');
+            }
+
+            if (selectedCells.length === 2) {
+                isSelecting = true;
+                const [cell1, cell2] = selectedCells;
+                if (checkMatch(cell1, cell2)) {
+                    setTimeout(() => {
+                        matchEffect(cell1, cell2);
+                        updateScore(10 * (combo + 1));
+                        totalClears++;
+                        checkLevelUp();
+                        selectedCells = [];
+                        combo++;
+                        updateUI();
+                        isSelecting = false;
+                        checkGameOver();
+                        resetProgressTimer();
+                    }, 500);
+                } else {
+                    combo = 0;
+                    updateUI();
+                    setTimeout(() => {
+                        cell1.element.classList.remove('selected');
+                        cell2.element.classList.remove('selected');
+                        selectedCells = [];
+                        isSelecting = false;
+                    }, 500);
+                }
+            }
+        }
+
+        function checkMatch(cell1, cell2) {
+            const isAdjacent = Math.abs(cell1.x - cell2.x) <= 1 && Math.abs(cell1.y - cell2.y) <= 1;
+            const isSameValue = cell1.value === cell2.value;
+            const canClear = checkPath(cell1, cell2);
+
+            return isSameValue && (isAdjacent || canClear);
+        }
+
+        function checkPath(start, end) {
+            const visited = new Set();
+            const stack = [[start.x, start.y, 0, null]];
+            const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+            while (stack.length > 0) {
+                const [x, y, changes, lastDir] = stack.pop();
+                const key = `${x}-${y}-${changes}`;
+                if (visited.has(key)) continue;
+                visited.add(key);
+
+                if (x === end.x && y === end.y) return true;
+
+                if (changes > 2) continue;
+
+                for (let i = 0; i < directions.length; i++) {
+                    const [dx, dy] = directions[i];
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                        const cell = grid[ny][nx];
+                        if ((!cell.isMatched || (nx === end.x && ny === end.y)) && cell !== start) {
+                            const newChanges = lastDir !== null && lastDir !== i ? changes + 1 : changes;
+                            stack.push([nx, ny, newChanges, i]);
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function matchEffect(cell1, cell2) {
+            cell1.isMatched = true;
+            cell2.isMatched = true;
+            cell1.element.classList.add('matched');
+            cell2.element.classList.add('matched');
+
+            setTimeout(() => {
+                cell1.element.textContent = '';
+                cell1.element.classList.add('empty');
+                cell2.element.textContent = '';
+                cell2.element.classList.add('empty');
+                checkGameOver();
+            }, 600);
+        }
+
+        function updateScore(points) {
+            score += points;
+            document.getElementById('score').textContent = score;
+            const effect = document.createElement('div');
+            effect.textContent = `+${points}`;
+            effect.className = 'special-effect';
+            effect.style.left = `${selectedCells[1].element.offsetLeft + selectedCells[1].element.offsetWidth / 2}px`;
+            effect.style.top = `${selectedCells[1].element.offsetTop + selectedCells[1].element.offsetHeight / 2}px`;
+            gridElement.appendChild(effect);
+            effect.addEventListener('animationend', () => effect.remove());
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+                document.getElementById('high-score-display').textContent = `ハイスコア: ${highScore}`;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo;
+            document.getElementById('level').textContent = level;
+            document.getElementById('shuffle-count').textContent = shuffleCount;
+        }
+
+        function checkLevelUp() {
+            if (totalClears >= 10 * level) {
+                level++;
+                totalClears = 0;
+                const remainingCells = grid.flat().filter(cell => !cell.isMatched);
+                if (remainingCells.length > 0) {
+                    addNewCells(remainingCells);
+                }
+                showGamePopup('レベルアップ！', `レベル ${level} へ！`, [{ text: 'OK', action: closePopup }]);
+            }
+        }
+
+        function addNewCells(remaining) {
+            const newNumbers = [];
+            const numToAdd = Math.min(20, GRID_SIZE * GRID_SIZE - remaining.length);
+            for (let i = 0; i < numToAdd / 2; i++) {
+                newNumbers.push(Math.floor(Math.random() * 50) + 1, Math.floor(Math.random() * 50) + 1);
+            }
+            shuffleArray(newNumbers);
+
+            for (let i = 0; i < newNumbers.length; i++) {
+                const cell = remaining[i];
+                if (cell) {
+                    cell.value = newNumbers[i];
+                    cell.isMatched = false;
+                    cell.element.classList.remove('empty', 'matched');
+                    cell.element.innerHTML = `<span class="cell-content fall-in">${cell.value}</span>`;
+                }
+            }
+        }
+
+        function checkGameOver() {
+            const matchedCount = grid.flat().filter(cell => cell.isMatched).length;
+            if (matchedCount === GRID_SIZE * GRID_SIZE) {
+                showGamePopup('ゲームクリア！', `おめでとうございます！\nスコア: ${score}`, [{ text: 'もう一度', action: () => { closePopup(); initializeGrid(); } }]);
+            } else if (!hasPossibleMoves() && shuffleCount === 0) {
+                showGamePopup('ゲームオーバー', `お手上げです。\nスコア: ${score}`, [{ text: 'もう一度', action: () => { closePopup(); initializeGrid(); } }]);
+            }
+        }
+
+        function hasPossibleMoves() {
+            const remaining = grid.flat().filter(cell => !cell.isMatched);
+            for (let i = 0; i < remaining.length; i++) {
+                for (let j = i + 1; j < remaining.length; j++) {
+                    if (remaining[i].value === remaining[j].value) {
+                        if (checkMatch(remaining[i], remaining[j])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function showHint() {
+            if (isProcessing) return;
+            const remaining = grid.flat().filter(cell => !cell.isMatched);
+            for (let i = 0; i < remaining.length; i++) {
+                for (let j = i + 1; j < remaining.length; j++) {
+                    if (remaining[i].value === remaining[j].value) {
+                        if (checkMatch(remaining[i], remaining[j])) {
+                            remaining[i].element.classList.add('hint');
+                            remaining[j].element.classList.add('hint');
+                            setTimeout(() => {
+                                remaining[i].element.classList.remove('hint');
+                                remaining[j].element.classList.remove('hint');
+                            }, 3000);
+                            return;
+                        }
+                    }
+                }
+            }
+            showGamePopup('ヒントなし', '現在、マッチできる組み合わせはありません。', [{ text: 'OK', action: closePopup }]);
+        }
+
+        function requestShuffle() {
+            if (isProcessing || shuffleCount <= 0) {
+                if (shuffleCount <= 0) showGamePopup('シャッフルなし', 'シャッフルの残りがありません。', [{ text: 'OK', action: closePopup }]);
+                return;
+            }
+            shuffleCount--;
+            shuffleGrid();
+        }
+
+        function shuffleGrid() {
+            const remaining = grid.flat().filter(cell => !cell.isMatched).map(cell => cell.value);
+            shuffleArray(remaining);
+            let index = 0;
+            grid.flat().forEach(cell => {
+                if (!cell.isMatched) {
+                    cell.value = remaining[index++];
+                    cell.element.textContent = cell.value;
+                }
+            });
+            updateUI();
+            showGamePopup('シャッフル！', '盤面がシャッフルされました。', [{ text: 'OK', action: closePopup }]);
+        }
+
+        function requestReset() {
+            showGamePopup('リセットしますか？', '現在のゲームを最初からやり直しますか？', [
+                { text: 'はい', action: () => { closePopup(); initializeGrid(); } },
+                { text: 'いいえ', action: closePopup }
+            ]);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function resetProgressTimer() {
+            clearTimeout(progressTimer);
+            let progress = 100;
+            const progressFill = document.getElementById('progress');
+            progressFill.style.width = `${progress}%`;
+
+            const interval = 100;
+            const decreaseRate = 0.5 * level;
+            progressTimer = setInterval(() => {
+                progress -= decreaseRate;
+                if (progress <= 0) {
+                    clearInterval(progressTimer);
+                    handleTimeUp();
+                }
+                progressFill.style.width = `${progress}%`;
+            }, interval);
+        }
+
+        function handleTimeUp() {
+            showGamePopup('タイムアップ！', `時間切れです。\nスコア: ${score}`, [{ text: 'もう一度', action: () => { closePopup(); initializeGrid(); } }]);
+        }
+
+        initializeGrid();
+    </script>
+</body>
+</html>
 
         * {
             margin: 0;
