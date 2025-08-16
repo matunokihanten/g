@@ -28,11 +28,10 @@
         @keyframes fall-in { from { transform: translateY(-200%); opacity: 0; } to   { transform: translateY(0); opacity: 1; } }
         .combo-display { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 69, 0, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 18px; font-weight: bold; z-index: 1000; animation: combo-popup 1s ease-out forwards; pointer-events: none; white-space: nowrap; }
         @keyframes combo-popup { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
-        .controls { display: flex; gap: 10px; justify-content: center; flex-shrink: 0; }
+        .controls { display: flex; gap: 10px; justify-content: center; flex-shrink: 0; flex-wrap: wrap; }
         .btn { padding: 8px 16px; background: linear-gradient(145deg, #4CAF50, #45a049); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.2s ease; font-size: 14px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); position: relative; }
         .btn:hover { transform: translateY(-2px); box-shadow: 6px 10px rgba(0, 0, 0, 0.3); }
         .btn:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
-        .hint-btn { background: linear-gradient(145deg, #ff9800, #f57c00); }
         .shuffle-btn { background: linear-gradient(145deg, #03a9f4, #0288d1); }
         .shuffle-count { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; border-radius: 50%; font-size: 10px; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .special-effect { position: absolute; pointer-events: none; font-size: 20px; font-weight: bold; color: #ffd700; animation: float-up 1s ease-out forwards; z-index: 1000; text-shadow: 1px 1px 2px black; }
@@ -47,6 +46,36 @@
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @media (max-width: 400px) { .header { padding: 8px 12px; } .score-info { gap: 10px; font-size: 12px; } .level-info { font-size: 14px; } .btn { padding: 6px 12px; font-size: 12px; } .popup h2 { font-size: 20px; } .popup p { font-size: 16px; } }
+        
+        .cell.falling {
+            transition: transform 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53);
+        }
+
+        .time-options {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .time-options input[type="radio"] {
+            display: none;
+        }
+        
+        .time-options label {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: background 0.2s ease;
+        }
+
+        .time-options input[type="radio"]:checked + label {
+            background: #4CAF50;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -61,8 +90,13 @@
     <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
     <div class="game-container"><div class="grid" id="grid"></div></div>
     <div class="controls">
+        <div class="time-options">
+            <input type="radio" id="time-limit-on" name="time-limit" value="on" checked>
+            <label for="time-limit-on">時間制限あり</label>
+            <input type="radio" id="time-limit-off" name="time-limit" value="off">
+            <label for="time-limit-off">時間制限なし</label>
+        </div>
         <button class="btn shuffle-btn" id="shuffle-btn" onclick="requestShuffle()">シャッフル (<span id="shuffle-count">3</span>)</button>
-        <button class="btn hint-btn" onclick="showHint()">ヒント</button>
         <button class="btn" onclick="requestReset()">リセット</button>
     </div>
     <div class="overlay" id="overlay">
@@ -77,6 +111,7 @@
     <script>
         const GRID_SIZE = 10;
         const gridElement = document.getElementById('grid');
+        const timeLimitOnRadio = document.getElementById('time-limit-on');
         let grid = [];
         let selectedCells = [];
         let score = 0, combo = 0, level = 1, totalClears = 0, shuffleCount = 3;
@@ -104,6 +139,7 @@
             });
             document.getElementById('overlay').style.display = 'flex';
         }
+
         function closePopup() { 
             document.getElementById('overlay').style.display = 'none'; 
             isProcessing = false;
@@ -189,13 +225,11 @@
                         matchEffect(selectedCells);
                         updateScore(selectedCells.length * 10 * (combo + 1));
                         totalClears += selectedCells.length;
-                        checkLevelUp();
                         combo++;
                         selectedCells = [];
                         updateUI();
                         isSelecting = false;
                         checkGameOver();
-                        resetProgressTimer();
                     }, 500);
                 } else {
                     combo = 0;
@@ -246,8 +280,53 @@
                     cell.element.textContent = '';
                     cell.element.classList.add('empty');
                 });
+                
+                setTimeout(dropCells, 600);
                 checkGameOver();
+
             }, 600);
+        }
+
+        function dropCells() {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                let emptyCount = 0;
+                for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                    if (grid[y][x].isMatched) {
+                        emptyCount++;
+                    } else if (emptyCount > 0) {
+                        const cell = grid[y][x];
+                        const targetCell = grid[y + emptyCount][x];
+                        
+                        targetCell.value = cell.value;
+                        targetCell.isMatched = false;
+                        targetCell.element.innerHTML = `<span class="cell-content">${targetCell.value}</span>`;
+                        targetCell.element.classList.remove('empty', 'matched', 'falling');
+                        
+                        cell.isMatched = true;
+                        cell.element.textContent = '';
+                        cell.element.classList.add('empty');
+                        
+                        targetCell.element.style.transform = `translateY(-${emptyCount * (targetCell.element.offsetHeight + 3)}px)`;
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                targetCell.element.classList.add('falling');
+                                targetCell.element.style.transform = `translateY(0)`;
+                            });
+                        });
+                    }
+                }
+                
+                // 上部に新しい数字を生成
+                for (let y = 0; y < emptyCount; y++) {
+                    grid[y][x].value = Math.floor(Math.random() * 10);
+                    grid[y][x].isMatched = false;
+                    grid[y][x].element.classList.remove('empty', 'matched');
+                    grid[y][x].element.innerHTML = `<span class="cell-content fall-in">${grid[y][x].value}</span>`;
+                }
+            }
+            
+            checkLevelUp();
+            resetProgressTimer();
         }
 
         function updateScore(points) {
@@ -274,36 +353,14 @@
             document.getElementById('combo').textContent = combo;
             document.getElementById('level').textContent = level;
             document.getElementById('shuffle-count').textContent = shuffleCount;
+            document.getElementById('progress').style.display = timeLimitOnRadio.checked ? 'block' : 'none';
         }
 
         function checkLevelUp() {
             if (totalClears >= 20 * level) {
                 level++;
                 totalClears = 0;
-                const remainingCells = grid.flat().filter(cell => !cell.isMatched);
-                if (remainingCells.length > 0) {
-                    addNewCells(remainingCells);
-                }
                 showGamePopup('レベルアップ！', `レベル ${level} へ！`, [{ text: 'OK', action: closePopup }]);
-            }
-        }
-
-        function addNewCells(remaining) {
-            const newNumbers = [];
-            const numToAdd = Math.min(20, GRID_SIZE * GRID_SIZE - remaining.length);
-            for (let i = 0; i < numToAdd; i++) {
-                newNumbers.push(Math.floor(Math.random() * 10));
-            }
-            shuffleArray(newNumbers);
-
-            for (let i = 0; i < newNumbers.length; i++) {
-                const cell = remaining[i];
-                if (cell) {
-                    cell.value = newNumbers[i];
-                    cell.isMatched = false;
-                    cell.element.classList.remove('empty', 'matched');
-                    cell.element.innerHTML = `<span class="cell-content fall-in">${cell.value}</span>`;
-                }
             }
         }
 
@@ -318,49 +375,19 @@
 
         function hasPossibleMoves() {
             const remaining = grid.flat().filter(cell => !cell.isMatched);
-            if (remaining.length === 0) return false;
+            if (remaining.length < 2) return false;
             
-            // 総当たりで有効な組み合わせを探す
-            for (let i = 0; i < remaining.length; i++) {
-                for (let j = i + 1; j < remaining.length; j++) {
-                    const group = [remaining[i], remaining[j]];
-                    if (checkMatch(group)) {
-                        return true;
-                    }
-                }
-            }
-            
-            // より複雑な組み合わせもチェック（3つ以上）
-            // このチェックはパフォーマンスに影響するため、簡略化
-            // 2つのペアでパスが存在すればOKとします。
-            
-            return false;
-        }
-
-        function showHint() {
-            if (isProcessing) return;
-            const remaining = grid.flat().filter(cell => !cell.isMatched);
-            const hints = [];
             for (let i = 0; i < remaining.length; i++) {
                 for (let j = i + 1; j < remaining.length; j++) {
                     const combo = [remaining[i], remaining[j]];
                     if (checkMatch(combo)) {
-                        hints.push(combo);
+                        return true;
                     }
                 }
             }
-
-            if (hints.length > 0) {
-                const hint = hints[Math.floor(Math.random() * hints.length)];
-                hint.forEach(cell => cell.element.classList.add('hint'));
-                setTimeout(() => {
-                    hint.forEach(cell => cell.element.classList.remove('hint'));
-                }, 3000);
-                return;
-            }
-            showGamePopup('ヒントなし', '現在、マッチできる組み合わせはありません。', [{ text: 'OK', action: closePopup }]);
+            return false;
         }
-        
+
         function requestShuffle() {
             if (isProcessing || shuffleCount <= 0) {
                 if (shuffleCount <= 0) showGamePopup('シャッフルなし', 'シャッフルの残りがありません。', [{ text: 'OK', action: closePopup }]);
@@ -400,8 +427,13 @@
 
         function resetProgressTimer() {
             clearTimeout(progressTimer);
-            let progress = 100;
             const progressFill = document.getElementById('progress');
+            if (!timeLimitOnRadio.checked) {
+                progressFill.style.width = '100%';
+                return;
+            }
+
+            let progress = 100;
             progressFill.style.width = `${progress}%`;
 
             const interval = 100;
@@ -419,6 +451,13 @@
         function handleTimeUp() {
             showGamePopup('タイムアップ！', `時間切れです。\nスコア: ${score}`, [{ text: 'もう一度', action: () => { closePopup(); initializeGrid(); } }]);
         }
+
+        document.querySelectorAll('input[name="time-limit"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                updateUI();
+                resetProgressTimer();
+            });
+        });
 
         initializeGrid();
     </script>
