@@ -48,7 +48,7 @@
         @media (max-width: 400px) { .header { padding: 8px 12px; } .score-info { gap: 10px; font-size: 12px; } .level-info { font-size: 14px; } .btn { padding: 6px 12px; font-size: 12px; } .popup h2 { font-size: 20px; } .popup p { font-size: 16px; } }
         
         .cell.falling {
-            transition: transform 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53);
+            transition: transform 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53);
         }
 
         .time-options {
@@ -123,6 +123,13 @@
         function setAppHeight() { document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`); }
         window.addEventListener('resize', setAppHeight); setAppHeight();
         document.getElementById('high-score-display').textContent = `ハイスコア: ${highScore}`;
+        
+        // リロード問題を解決するため、タッチ操作のデフォルト動作を無効にする
+        document.body.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.grid')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         function showGamePopup(title, message, buttons) {
             isProcessing = true;
@@ -182,7 +189,6 @@
         }
 
         function getTouchedCell(e) {
-            e.preventDefault();
             const touch = e.touches[0];
             const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
             if (targetElement && targetElement.classList.contains('cell')) {
