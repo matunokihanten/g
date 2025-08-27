@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マインドフルネス・スキャン</title>
+    <style>
+        :root {
+            --bg-grad-light: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-grad-dark: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            --text-light: white;
+            --text-dark: #333;
+            --primary-accent: #feca57;
+            --secondary-accent: #ff6b6b;
+            --info-accent: #48dbfb;
+            --component-bg-light: rgba(255, 255, 255, 0.1);
+            --component-bg-dark: rgba(0, 0, 0, 0.2);
+            --border-color-light: rgba(255, 255, 255, 0.2);
+            --border-color-dark: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: var(--bg-grad-light);
+            min-height: 100vh;
+            color: var(--text-light);
+            overflow-x: hidden;
+            transition: background 0.5s ease;
+        }
+
+        body.dark-mode {
+            background: var(--bg-grad-dark);
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+
+        .control-group {
+            background: var(--component-bg-light);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color-light);
+            min-width: 200px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        body.dark-mode .control-group {
+            background: var(--component-bg-dark);
+            border: 1px solid var(--border-color-dark);
+        }
+
+        .control-group h3 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        fieldset {
+            border: none;
+        }
+
+        fieldset:disabled .control-row,
+        fieldset:disabled button {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button {
+            background: linear-gradient(45deg, var(--secondary-accent), var(--primary-accent));
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(45deg, var(--info-accent), #0abde3);
+        }
+
+        select, input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 1em;
+        }
+        
+        body.dark-mode select, body.dark-mode input[type="range"] {
+             background: rgba(0, 0, 0, 0.3);
+        }
+
+        select option {
+            background: #333;
+            color: white;
+        }
+
+        .session-area {
+            background: var(--component-bg-light);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color-light);
+            text-align: center;
+            margin-bottom: 20px;
+            animation: fadeIn 1s ease-out 0.6s both;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        
+        body.dark-mode .session-area {
+            background: var(--component-bg-dark);
+            border: 1px solid var(--border-color-dark);
+        }
+
+        .timer-display {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary-accent), var(--primary-accent));
+            width: 0%;
+            transition: width 1s ease;
+            border-radius: 4px;
+        }
+
+        .guidance-text {
+            font-size: 1.2em;
+            line-height: 1.6;
+            margin: 20px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .guidance-text.show {
+            opacity: 1;
+        }
+
+        .body-parts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+            transition: opacity 0.5s, max-height 0.5s;
+            max-height: 500px;
+            opacity: 1;
+        }
+        
+        .body-parts.hidden {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .body-part {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .body-part:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .body-part.active {
+            border-color: var(--primary-accent);
+            background: rgba(254, 202, 87, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .breathing-guide-container {
+            position: relative;
+            margin: 20px auto;
+            width: 150px;
+            height: 150px;
+            display: none; /* Initially hidden */
+        }
+        
+        .breathing-guide-container.active {
+            display: block;
+        }
+
+        .breathing-guide {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            position: relative;
+            transition: all 4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .breathing-guide-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2em;
+            color: var(--text-light);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        .breathing-guide-text.show {
+            opacity: 1;
+        }
+
+        .breathing-guide.inhale {
+            transform: scale(1.5);
+            border-color: var(--info-accent);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            animation: fadeInUp 1s ease-out 0.9s both;
+        }
+
+        .stat-card {
+            background: var(--component-bg-light);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            transition: background 0.3s;
+        }
+        
+        body.dark-mode .stat-card {
+            background: var(--component-bg-dark);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--primary-accent);
+        }
+
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            from { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            to { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; } to { opacity: 1; }
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            .controls { flex-direction: column; }
+            .control-group { min-width: auto; }
+            .timer-display { font-size: 2.5em; }
+        }
+    </style>
+</head>
+<body>
+    <audio id="bgm-rain" loop src="https://www.soundjay.com/nature/rain-07.mp3"></audio>
+    <audio id="bgm-ocean" loop src="https://www.soundjay.com/nature/ocean-wave-1.mp3"></audio>
+    <audio id="bgm-forest" loop src="https://www.soundjay.com/nature/forest-01.mp3"></audio>
+    <audio id="bell-sound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
+
+    <div class="floating-particles" id="particles"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🧘 マインドフルネス・スキャン</h1>
+            <p>心と身体の調和を見つけましょう</p>
+        </div>
+
+        <div class="controls">
+            <fieldset id="sessionSettings">
+                <div class="control-group">
+                    <h3>⏰ セッション設定</h3>
+                    <div class="control-row">
+                        <label for="duration">時間:</label>
+                        <select id="duration">
+                            <option value="300">5分</option>
+                            <option value="600" selected>10分</option>
+                            <option value="900">15分</option>
+                            <option value="1200">20分</option>
+                            <option value="1800">30分</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <label for="scanType">タイプ:</label>
+                        <select id="scanType">
+                            <option value="body">ボディスキャン</option>
+                            <option value="breathing">呼吸瞑想</option>
+                            <option value="mindfulness">マインドフルネス</option>
+                            <option value="gratitude">感謝の瞑想</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+            
+            <fieldset id="audioSettings">
+                 <div class="control-group">
+                    <h3>🎵 音響設定</h3>
+                    <div class="control-row">
+                        <label for="backgroundMusic">BGM:</label>
+                        <select id="backgroundMusic">
+                            <option value="none" selected>なし</option>
+                            <option value="rain">雨音</option>
+                            <option value="ocean">海の音</option>
+                            <option value="forest">森林</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <label for="volume">音量:</label>
+                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                    <button id="bellToggle">🔔 ベル音: オン</button>
+                </div>
+            </fieldset>
+
+            <div class="control-group">
+                <h3>🎨 環境設定</h3>
+                <button id="themeToggle">🌙 ダークモード</button>
+                <button id="particleToggle">✨ パーティクル: オン</button>
+            </div>
+        </div>
+
+        <div class="session-area">
+            <div class="timer-display" id="timerDisplay">10:00</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="breathing-guide-container" id="breathingGuideContainer">
+                <div class="breathing-guide" id="breathingCircle"></div>
+                <div class="breathing-guide-text" id="breathingText"></div>
+            </div>
+            
+            <div class="guidance-text show" id="guidanceText">
+                リラックスして、準備ができたら開始ボタンを押してください
+            </div>
+
+            <button id="startBtn">▶ 開始</button>
+            <button id="pauseBtn" class="hidden">⏸ 一時停止</button>
+            <button id="stopBtn" class="hidden">⏹ 停止</button>
+
+            <div class="body-parts" id="bodyParts">
+                <div class="body-part" data-part="頭">頭</div>
+                <div class="body-part" data-part="額">額</div>
+                <div class="body-part" data-part="目">目</div>
+                <div class="body-part" data-part="鼻">鼻</div>
+                <div class="body-part" data-part="口">口</div>
+                <div class="body-part" data-part="首">首</div>
+                <div class="body-part" data-part="肩">肩</div>
+                <div class="body-part" data-part="腕">腕</div>
+                <div class="body-part" data-part="手">手</div>
+                <div class="body-part" data-part="胸">胸</div>
+                <div class="body-part" data-part="背中">背中</div>
+                <div class="body-part" data-part="腹">腹</div>
+                <div class="body-part" data-part="腰">腰</div>
+                <div class="body-part" data-part="太もも">太もも</div>
+                <div class="body-part" data-part="膝">膝</div>
+                <div class="body-part" data-part="ふくらはぎ">ふくらはぎ</div>
+                <div class="body-part" data-part="足">足</div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalSessions">0</div>
+                <div>総セッション数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalTime">0</div>
+                <div>総瞑想時間（分）</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="streak">0</div>
+                <div>連続日数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="todayTime">0</div>
+                <div>今日の瞑想時間（分）</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MindfulnessApp {
+            constructor() {
+                // DOM Elements
+                this.dom = {
+                    timerDisplay: document.getElementById('timerDisplay'),
+                    progressFill: document.getElementById('progressFill'),
+                    guidanceText: document.getElementById('guidanceText'),
+                    bodyPartsContainer: document.getElementById('bodyParts'),
+                    bodyPartElements: document.querySelectorAll('.body-part'),
+                    breathingGuideContainer: document.getElementById('breathingGuideContainer'),
+                    breathingCircle: document.getElementById('breathingCircle'),
+                    breathingText: document.getElementById('breathingText'),
+                    durationSelect: document.getElementById('duration'),
+                    scanTypeSelect: document.getElementById('scanType'),
+                    startBtn: document.getElementById('startBtn'),
+                    pauseBtn: document.getElementById('pauseBtn'),
+                    stopBtn: document.getElementById('stopBtn'),
+                    sessionSettings: document.getElementById('sessionSettings'),
+                    audioSettings: document.getElementById('audioSettings'),
+                    bellToggle: document.getElementById('bellToggle'),
+                    themeToggle: document.getElementById('themeToggle'),
+                    particleToggle: document.getElementById('particleToggle'),
+                    // Audio
+                    bgmRain: document.getElementById('bgm-rain'),
+                    bgmOcean: document.getElementById('bgm-ocean'),
+                    bgmForest: document.getElementById('bgm-forest'),
+                    bellSound: document.getElementById('bell-sound'),
+                    backgroundMusicSelect: document.getElementById('backgroundMusic'),
+                    volumeSlider: document.getElementById('volume'),
+                    // Stats
+                    totalSessions: document.getElementById('totalSessions'),
+                    totalTime: document.getElementById('totalTime'),
+                    streak: document.getElementById('streak'),
+                    todayTime: document.getElementById('todayTime'),
+                };
+                
+                // State
+                this.state = {
+                    isRunning: false,
+                    isPaused: false,
+                    currentTime: 0,
+                    totalTime: 0,
+                    bellEnabled: true,
+                    particlesEnabled: true,
+                    isDarkMode: false,
+                    stats: {},
+                    timer: null,
+                    guidanceInterval: null,
+                    breathingTimeout: null,
+                };
+                
+                this.bodyParts = [ '頭', '額', '目', '鼻', '口', '首', '肩', '腕', '手', '胸', '背中', '腹', '腰', '太もも', '膝', 'ふくらはぎ', '足' ];
+                this.guidanceTexts = {
+                    body: [
+                        "まず、頭のてっぺんに意識を向けます", "額の筋肉の緊張に気づき、ゆっくりと解放します", "目の周りの筋肉を優しくリラックスさせます", "鼻を通る空気の流れを感じます", "口と顎の力を抜き、リラックスさせます", "首の緊張を解放し、楽な状態にします", "肩の力を抜き、自然な位置に下ろします", "腕全体の重さを感じ、完全にリラックスさせます", "手のひらと指先の感覚に注意を向けます", "胸の穏やかな動きと呼吸のリズムを感じます", "背中の筋肉を意識し、緊張を解放します", "お腹の自然なふくらみとへこみを感じます", "腰回りの筋肉を緩めていきましょう", "太ももの重さと温かさを感じます", "膝周りの感覚に気づきましょう", "ふくらはぎの筋肉をリラックスさせます", "足の裏、そして足先の感覚まで意識を向けます", "全身が深くリラックスしているのを感じます"
+                    ],
+                    breathing: ["自然な呼吸のリズムを感じましょう", "鼻からゆっくりと息を吸い込みます", "息を数秒間、心地よく保持します", "口からゆっくりと息を吐き出します", "呼吸の音と感覚に集中しましょう"],
+                    mindfulness: ["今この瞬間に意識を向けましょう", "思考が浮かんでも、判断せずに観察します", "感情を雲のように、ただ流れていくのを見守ります", "周囲の音や体の感覚に気づきましょう", "現在の瞬間に完全に存在します"],
+                    gratitude: ["今日感謝できることを3つ思い浮かべましょう", "あなたの人生を豊かにしてくれる人々へ感謝します", "自分自身の存在と健康に感謝しましょう", "今日あった小さな喜びを思い出します", "感謝の気持ちが心を満たすのを感じます"]
+                };
+
+                this.initializeApp();
+            }
+
+            initializeApp() {
+                this.loadStats();
+                this.bindEvents();
+                this.createParticles();
+                this.setDuration(this.dom.durationSelect.value);
+                this.updateBodyPartVisibility();
+            }
+
+            bindEvents() {
+                this.dom.startBtn.addEventListener('click', () => this.start());
+                this.dom.pauseBtn.addEventListener('click', () => this.pause());
+                this.dom.stopBtn.addEventListener('click', () => this.stop());
+                this.dom.durationSelect.addEventListener('change', (e) => this.setDuration(e.target.value));
+                this.dom.scanTypeSelect.addEventListener('change', () => this.updateBodyPartVisibility());
+                this.dom.bellToggle.addEventListener('click', () => this.toggleBell());
+                this.dom.particleToggle.addEventListener('click', () => this.toggleParticles());
+                this.dom.themeToggle.addEventListener('click', () => this.toggleTheme());
+                this.dom.backgroundMusicSelect.addEventListener('change', (e) => this.setBackgroundMusic(e.target.value));
+                this.dom.volumeSlider.addEventListener('input', (e) => this.setVolume(e.target.value));
+            }
+
+            start() {
+                this.state.isRunning = true;
+                this.state.isPaused = false;
+                this.setDuration(this.dom.durationSelect.value);
+                
+                this.toggleControls(true);
+                this.dom.startBtn.classList.add('hidden');
+                this.dom.pauseBtn.classList.remove('hidden');
+                this.dom.stopBtn.classList.remove('hidden');
+
+                if (this.state.bellEnabled) this.playBell();
+                this.setBackgroundMusic(this.dom.backgroundMusicSelect.value);
+
+                this.state.timer = setInterval(() => {
+                    if (!this.state.isPaused) this.tick();
+                }, 1000);
+
+                this.startGuidance();
+            }
+
+            pause() {
+                this.state.isPaused = !this.state.isPaused;
+                this.dom.pauseBtn.textContent = this.state.isPaused ? '▶ 再開' : '⏸ 一時停止';
+                
+                if (this.state.isPaused) {
+                    this.stopBackgroundMusic();
+                    clearTimeout(this.state.breathingTimeout);
+                } else {
+                    this.setBackgroundMusic(this.dom.backgroundMusicSelect.value);
+                     if (this.dom.scanTypeSelect.value === 'breathing') this.startBreathingGuide();
+                }
+            }
+
+            stop(completed = true) {
+                if (completed && this.state.isRunning) {
+                    const elapsedSeconds = this.state.totalTime - this.state.currentTime;
+                    this.updateStats(elapsedSeconds);
+                    if (this.state.bellEnabled) this.playBell();
+                }
+
+                this.state.isRunning = false;
+                this.state.isPaused = false;
+                clearInterval(this.state.timer);
+                clearInterval(this.state.guidanceInterval);
+                clearTimeout(this.state.breathingTimeout);
+                
+                this.stopBackgroundMusic();
+                this.toggleControls(false);
+
+                this.dom.startBtn.classList.remove('hidden');
+                this.dom.pauseBtn.classList.add('hidden');
+                this.dom.stopBtn.classList.add('hidden');
+                this.dom.pauseBtn.textContent = '⏸ 一時停止';
+
+                this.setDuration(this.dom.durationSelect.value);
+                this.resetVisuals();
+                this.showGuidanceText(completed ? "お疲れ様でした。セッションが完了しました。" : "セッションを中断しました。");
+            }
+
+            tick() {
+                this.state.currentTime--;
+                this.updateDisplay();
+
+                if (this.state.currentTime <= 0) {
+                    this.stop(true);
+                }
+            }
+
+            updateDisplay() {
+                const minutes = Math.floor(this.state.currentTime / 60);
+                const seconds = this.state.currentTime % 60;
+                this.dom.timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                const progress = ((this.state.totalTime - this.state.currentTime) / this.state.totalTime) * 100;
+                this.dom.progressFill.style.width = `${progress}%`;
+            }
+
+            startGuidance() {
+                const scanType = this.dom.scanTypeSelect.value;
+                if (scanType === 'body') {
+                    this.startBodyScanGuidance();
+                } else if (scanType === 'breathing') {
+                    this.startBreathingGuide();
+                    this.startGenericGuidance(scanType);
+                } else {
+                    this.startGenericGuidance(scanType);
+                }
+            }
+            
+            startBodyScanGuidance() {
+                const partDuration = this.state.totalTime / this.bodyParts.length;
+                let currentPartIndex = -1;
+                
+                this.guidanceInterval = setInterval(() => {
+                    if(this.state.isPaused) return;
+                    
+                    const elapsed = this.state.totalTime - this.state.currentTime;
+                    const newPartIndex = Math.min(Math.floor(elapsed / partDuration), this.bodyParts.length - 1);
+                    
+                    if (newPartIndex !== currentPartIndex) {
+                        currentPartIndex = newPartIndex;
+                        this.highlightBodyPart(currentPartIndex);
+                    }
+                }, 1000);
+            }
+            
+            startGenericGuidance(scanType) {
+                const texts = this.guidanceTexts[scanType];
+                let textIndex = 0;
+                this.showGuidanceText(texts[0]);
+                
+                const interval = Math.max(10000, (this.state.totalTime / texts.length) * 1000);
+
+                this.state.guidanceInterval = setInterval(() => {
+                    if (!this.state.isPaused) {
+                        textIndex = (textIndex + 1) % texts.length;
+                        this.showGuidanceText(texts[textIndex]);
+                    }
+                }, interval);
+            }
+            
+            highlightBodyPart(index) {
+                this.dom.bodyPartElements.forEach(el => el.classList.remove('active'));
+                if (index < this.dom.bodyPartElements.length) {
+                    this.dom.bodyPartElements[index].classList.add('active');
+                    this.showGuidanceText(this.guidanceTexts.body[index]);
+                }
+            }
+
+            showGuidanceText(text) {
+                this.dom.guidanceText.classList.remove('show');
+                setTimeout(() => {
+                    this.dom.guidanceText.textContent = text;
+                    this.dom.guidanceText.classList.add('show');
+                }, 250);
+            }
+            
+            startBreathingGuide() {
+                const cycle = { inhale: 4000, hold: 4000, exhale: 6000 };
+                let phase = 'inhale';
+
+                const runPhase = () => {
+                    if (!this.state.isRunning || this.state.isPaused) return;
+
+                    switch (phase) {
+                        case 'inhale':
+                            this.updateBreathingVisuals('吸って', 'inhale');
+                            phase = 'hold';
+                            this.state.breathingTimeout = setTimeout(runPhase, cycle.inhale);
+                            break;
+                        case 'hold':
+                            this.updateBreathingVisuals('止めて');
+                            phase = 'exhale';
+                            this.state.breathingTimeout = setTimeout(runPhase, cycle.hold);
+                            break;
+                        case 'exhale':
+                            this.updateBreathingVisuals('吐いて', 'exhale');
+                            phase = 'inhale';
+                            this.state.breathingTimeout = setTimeout(runPhase, cycle.exhale);
+                            break;
+                    }
+                };
+                runPhase();
+            }
+            
+            updateBreathingVisuals(text, state) {
+                this.dom.breathingText.textContent = text;
+                this.dom.breathingText.classList.add('show');
+
+                if(state === 'inhale') {
+                    this.dom.breathingCircle.classList.add('inhale');
+                } else if (state === 'exhale') {
+                    this.dom.breathingCircle.classList.remove('inhale');
+                }
+            }
+            
+            setDuration(seconds) {
+                if (this.state.isRunning) return;
+                this.state.currentTime = parseInt(seconds, 10);
+                this.state.totalTime = this.state.currentTime;
+                this.updateDisplay();
+            }
+
+            toggleControls(disabled) {
+                this.dom.sessionSettings.disabled = disabled;
+                this.dom.audioSettings.disabled = disabled;
+            }
+            
+            updateBodyPartVisibility() {
+                const show = this.dom.scanTypeSelect.value === 'body';
+                this.dom.bodyPartsContainer.classList.toggle('hidden', !show);
+                this.dom.breathingGuideContainer.classList.toggle('active', this.dom.scanTypeSelect.value === 'breathing');
+            }
+
+            resetVisuals() {
+                this.dom.bodyPartElements.forEach(el => el.classList.remove('active'));
+                this.dom.progressFill.style.width = '0%';
+                this.dom.breathingCircle.classList.remove('inhale');
+                this.dom.breathingText.classList.remove('show');
+            }
+            
+            // --- Settings ---
+            toggleBell() {
+                this.state.bellEnabled = !this.state.bellEnabled;
+                this.dom.bellToggle.textContent = `🔔 ベル音: ${this.state.bellEnabled ? 'オン' : 'オフ'}`;
+                this.dom.bellToggle.classList.toggle('active', this.state.bellEnabled);
+            }
+
+            toggleParticles() {
+                this.state.particlesEnabled = !this.state.particlesEnabled;
+                this.dom.particleToggle.textContent = `✨ パーティクル: ${this.state.particlesEnabled ? 'オン' : 'オフ'}`;
+                document.getElementById('particles').style.display = this.state.particlesEnabled ? 'block' : 'none';
+                this.dom.particleToggle.classList.toggle('active', this.state.particlesEnabled);
+            }
+
+            toggleTheme() {
+                this.state.isDarkMode = !this.state.isDarkMode;
+                document.body.classList.toggle('dark-mode', this.state.isDarkMode);
+                this.dom.themeToggle.textContent = `${this.state.isDarkMode ? '☀️ ライト' : '🌙 ダーク'}`;
+                this.dom.themeToggle.classList.toggle('active', this.state.isDarkMode);
+            }
+
+            // --- Audio ---
+            playBell() {
+                this.dom.bellSound.currentTime = 0;
+                this.dom.bellSound.play().catch(e => console.error("Bell sound failed:", e));
+            }
+            
+            setBackgroundMusic(type) {
+                this.stopBackgroundMusic();
+                if (type !== 'none' && !this.state.isPaused) {
+                    const bgm = this.dom[`bgm${type.charAt(0).toUpperCase() + type.slice(1)}`];
+                    if (bgm) {
+                        bgm.play().catch(e => console.error("BGM failed:", e));
+                    }
+                }
+            }
+            
+            stopBackgroundMusic() {
+                this.dom.bgmRain.pause();
+                this.dom.bgmOcean.pause();
+                this.dom.bgmForest.pause();
+            }
+
+            setVolume(volume) {
+                const vol = parseFloat(volume);
+                this.dom.bgmRain.volume = vol;
+                this.dom.bgmOcean.volume = vol;
+                this.dom.bgmForest.volume = vol;
+                this.dom.bellSound.volume = vol;
+            }
+
+            // --- Particles ---
+            createParticles() {
+                const container = document.getElementById('particles');
+                if (!container) return;
+                for (let i = 0; i < 50; i++) {
+                    const p = document.createElement('div');
+                    p.classList.add('particle');
+                    p.style.left = `${Math.random() * 100}%`;
+                    p.style.animationDelay = `${Math.random() * 20}s`;
+                    p.style.animationDuration = `${15 + Math.random() * 10}s`;
+                    container.appendChild(p);
+                }
+            }
+
+            // --- Stats Persistence ---
+            loadStats() {
+                const stats = localStorage.getItem('mindfulnessStats');
+                this.state.stats = stats ? JSON.parse(stats) : {
+                    totalSessions: 0, totalTime: 0, streak: 0,
+                    todayTime: 0, lastSessionDate: null
+                };
+                
+                const today = new Date().toDateString();
+                if (this.state.stats.lastSessionDate !== today) {
+                    this.state.stats.todayTime = 0;
+                }
+                
+                this.updateStatsDisplay();
+            }
+            
+            saveStats() {
+                localStorage.setItem('mindfulnessStats', JSON.stringify(this.state.stats));
+            }
+
+            updateStats(completedSeconds) {
+                const completedMinutes = Math.round(completedSeconds / 60);
+                if (completedMinutes < 1) return; // Ignore sessions less than a minute
+
+                this.state.stats.totalSessions++;
+                this.state.stats.totalTime += completedMinutes;
+                this.state.stats.todayTime += completedMinutes;
+
+                const today = new Date();
+                const yesterday = new Date();
+                yesterday.setDate(today.getDate() - 1);
+                
+                if (this.state.stats.lastSessionDate !== today.toDateString()) {
+                     if (this.state.stats.lastSessionDate === yesterday.toDateString()) {
+                        this.state.stats.streak++;
+                    } else {
+                        this.state.stats.streak = 1;
+                    }
+                }
+                
+                this.state.stats.lastSessionDate = today.toDateString();
+                this.saveStats();
+                this.updateStatsDisplay();
+            }
+            
+            updateStatsDisplay() {
+                this.dom.totalSessions.textContent = this.state.stats.totalSessions;
+                this.dom.totalTime.textContent = this.state.stats.totalTime;
+                this.dom.streak.textContent = this.state.stats.streak;
+                this.dom.todayTime.textContent = this.state.stats.todayTime;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new MindfulnessApp();
+        });
+    </script>
+</body>
+</html>
+
