@@ -1,349 +1,562 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>付箋掲示板（日本語ボード＋検索・進化版）</title>
-  <style>
-    html, body {
-      margin: 0; padding: 0;
-      width: 100%; height: 100%;
-      overflow: hidden;
-      font-family: sans-serif;
-    }
-    /* ツールバー */
-    #toolbar {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 40px;
-      background: #333; color: #fff;
-      display: flex; align-items: center;
-      padding: 0 10px; box-sizing: border-box;
-      z-index: 2000;
-    }
-    #toolbar select,
-    #toolbar button,
-    #toolbar input[type="text"] {
-      margin-right: 8px;
-      padding: 4px 8px;
-      font-size: 14px;
-      border: none; border-radius: 4px;
-      cursor: pointer;
-    }
-    #toolbar select,
-    #toolbar input[type="text"] {
-      background: #555; color: #fff;
-    }
-    #toolbar button {
-      background: #007acc; color: #fff;
-    }
-    /* パン・ズーム用ラッパー */
-    #wrapper {
-      position: absolute;
-      top: 40px; bottom: 0; left: 0; right: 0;
-      overflow: hidden;
-      background: #f0f0f0;
-      cursor: grab;
-    }
-    /* 付箋ボード */
-    #board {
-      position: absolute;
-      top: 0; left: 0;
-      transform-origin: 0 0;
-    }
-    /* 付箋スタイル */
-    .note {
-      position: absolute;
-      padding: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
-      resize: both;
-      overflow: auto;
-      cursor: move;
-      background: #fffa65;
-    }
-    .close-btn {
-      position: absolute;
-      top: 2px; right: 4px;
-      font-size: 14px; color: #333;
-      cursor: pointer;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプル付箋掲示板</title>
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --toolbar-bg: #2c3e50;
+            --toolbar-color: #ecf0f1;
+            --button-bg: #3498db;
+            --button-hover: #2980b9;
+            --input-bg: #34495e;
+            --note-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+        }
+
+        #toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 55px;
+            background: var(--toolbar-bg);
+            color: var(--toolbar-color);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            box-sizing: border-box;
+            z-index: 2000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        #toolbar .group {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+
+        #toolbar select,
+        #toolbar button,
+        #toolbar input[type="text"] {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        #toolbar select,
+        #toolbar input[type="text"] {
+            background: var(--input-bg);
+            color: var(--toolbar-color);
+            border: 1px solid transparent;
+            min-width: 120px;
+        }
+        
+        #toolbar select:focus,
+        #toolbar input[type="text"]:focus {
+            outline: none;
+            border-color: var(--button-bg);
+        }
+
+        #toolbar button {
+            background: var(--button-bg);
+            color: #fff;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        #toolbar button:first-child {
+            margin-left: 0;
+        }
+
+        #toolbar button:hover {
+            background: var(--button-hover);
+        }
+
+        #addBtn {
+            background: #2ecc71;
+            margin-left: auto;
+        }
+        #addBtn:hover {
+            background: #27ae60;
+        }
+
+        #wrapper {
+            position: absolute;
+            top: 55px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            overflow: hidden;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #board {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+
+        .note {
+            position: absolute;
+            padding: 15px;
+            box-shadow: var(--note-shadow);
+            border-radius: 8px;
+            white-space: pre-wrap;
+            resize: both;
+            overflow: auto;
+            cursor: move;
+            transition: box-shadow 0.2s ease;
+            min-width: 150px;
+            min-height: 100px;
+            box-sizing: border-box;
+            line-height: 1.5;
+            word-wrap: break-word;
+            background: #fffa65;
+            color: #333;
+        }
+        .note:hover {
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+
+        .note-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 100%;
+            padding: 0;
+            margin: 0;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .note-content:empty::before {
+            content: "ここに記入…";
+            color: #ccc;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            font-size: 16px;
+            color: rgba(0,0,0,0.4);
+            cursor: pointer;
+            line-height: 1;
+        }
+        .close-btn:hover {
+            color: rgba(0,0,0,0.8);
+        }
+
+    </style>
 </head>
 <body>
-  <div id="toolbar">
-    <select id="boardSelect"></select>
-    <button id="arrangeBtn">整列</button>
-    <input type="text" id="searchInput" placeholder="検索ワード">
-    <button id="exportBtn">エクスポート</button>
-    <button id="importBtn">インポート</button>
-    <input type="file" id="importFile" accept=".json" style="display:none">
-    <button id="addBtn">付箋を追加</button>
-  </div>
+    <div id="toolbar">
+        <div class="group">
+            <select id="boardSelect"></select>
+            <button id="addBoardBtn" title="新しいボードを追加">➕</button>
+            <button id="deleteBoardBtn" title="現在のボードを削除">✖️</button>
+        </div>
+        <div class="group">
+            <input type="text" id="searchInput" placeholder="検索...">
+            <button id="arrangeBtn" title="付箋を整列">整列</button>
+        </div>
+        <div class="group">
+            <button id="exportBtn" title="付箋データをエクスポート">エクスポート</button>
+            <button id="importBtn" title="付箋データをインポート">インポート</button>
+            <input type="file" id="importFile" accept=".json" style="display:none">
+        </div>
+        <button id="addBtn" title="新しい付箋を追加">付箋を追加</button>
+    </div>
 
-  <div id="wrapper">
-    <div id="board"></div>
-  </div>
+    <div id="wrapper">
+        <div id="board"></div>
+    </div>
 
-  <script>
-  (function(){
-    const boards = ['デフォルト', '仕事用', 'プライベート', 'アイデア'];
-    let currentBoard = boards[0];
-    let notes = [];
-    let scale = 1, translateX = 0, translateY = 0;
-    let isPanning = false, panStartX = 0, panStartY = 0, panInitX = 0, panInitY = 0;
+    <script>
+        (function() {
+            // State
+            let boards = JSON.parse(localStorage.getItem('stickynotes_boards') || '["デフォルト"]');
+            let currentBoard = boards[0];
+            let notes = [];
+            let scale = 1, translateX = 0, translateY = 0;
+            let isPanning = false, panStartX = 0, panStartY = 0;
 
-    const wrapper    = document.getElementById('wrapper');
-    const board      = document.getElementById('board');
-    const sel        = document.getElementById('boardSelect');
-    const addBtn     = document.getElementById('addBtn');
-    const arrBtn     = document.getElementById('arrangeBtn');
-    const expBtn     = document.getElementById('exportBtn');
-    const impBtn     = document.getElementById('importBtn');
-    const impFile    = document.getElementById('importFile');
-    const searchInput= document.getElementById('searchInput');
+            // DOM Elements
+            const wrapper = document.getElementById('wrapper');
+            const board = document.getElementById('board');
+            const boardSelect = document.getElementById('boardSelect');
+            const addBoardBtn = document.getElementById('addBoardBtn');
+            const deleteBoardBtn = document.getElementById('deleteBoardBtn');
+            const searchInput = document.getElementById('searchInput');
+            const arrangeBtn = document.getElementById('arrangeBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const importBtn = document.getElementById('importBtn');
+            const importFile = document.getElementById('importFile');
+            const addBtn = document.getElementById('addBtn');
+            const noteColors = ['#fffa65', '#ff9ff3', '#feca57', '#48dbfb', '#1dd1a1', '#7bed9f'];
 
-    function init(){
-      // ボード選択肢セット
-      boards.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name; opt.innerText = name;
-        sel.appendChild(opt);
-      });
-      sel.onchange = switchBoard;
+            // --- Core Functions ---
+            function init() {
+                setupBoardSelect();
+                setupEventListeners();
+                switchBoard(currentBoard);
+            }
 
-      // パン&ズーム
-      wrapper.addEventListener('mousedown', startPan);
-      document.addEventListener('mousemove', doPan);
-      document.addEventListener('mouseup', endPan);
-      wrapper.addEventListener('wheel', doZoom, { passive: false });
+            function setupBoardSelect() {
+                boardSelect.innerHTML = '';
+                boards.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.innerText = name;
+                    boardSelect.appendChild(opt);
+                });
+                boardSelect.value = currentBoard;
+                localStorage.setItem('stickynotes_boards', JSON.stringify(boards));
+            }
 
-      // ボタンクリック
-      addBtn.onclick     = addNote;
-      arrBtn.onclick     = arrangeNotes;
-      expBtn.onclick     = exportNotes;
-      impBtn.onclick     = ()=> impFile.click();
-      impFile.onchange   = importNotes;
-      searchInput.oninput= filterNotes;
+            function setupEventListeners() {
+                // Board management
+                boardSelect.addEventListener('change', (e) => switchBoard(e.target.value));
+                boardSelect.addEventListener('dblclick', renameBoard);
+                addBoardBtn.addEventListener('click', addBoard);
+                deleteBoardBtn.addEventListener('click', deleteBoard);
 
-      switchBoard();
-    }
+                // Pan & Zoom
+                wrapper.addEventListener('mousedown', startPan);
+                document.addEventListener('mousemove', doPan);
+                document.addEventListener('mouseup', endPan);
+                wrapper.addEventListener('wheel', doZoom, { passive: false });
 
-    function switchBoard(){
-      currentBoard = sel.value;
-      searchInput.value = '';
-      notes = loadNotes();
-      renderAll();
-    }
+                // Actions
+                addBtn.addEventListener('click', () => addNote(''));
+                arrangeBtn.addEventListener('click', arrangeNotes);
+                searchInput.addEventListener('input', filterNotes);
+                exportBtn.addEventListener('click', exportNotes);
+                importBtn.addEventListener('click', () => importFile.click());
+                importFile.addEventListener('change', importNotes);
+            }
 
-    function loadNotes(){
-      return JSON.parse(localStorage.getItem('stickynotes_' + currentBoard) || '[]');
-    }
+            function switchBoard(boardName) {
+                currentBoard = boardName;
+                searchInput.value = '';
+                notes = loadNotes();
+                renderAll();
+            }
 
-    function saveNotes(){
-      localStorage.setItem('stickynotes_' + currentBoard, JSON.stringify(notes));
-    }
+            function loadNotes() {
+                return JSON.parse(localStorage.getItem('stickynotes_' + currentBoard) || '[]');
+            }
 
-    function renderAll(){
-      board.innerHTML = '';
-      notes.forEach(renderNote);
-      filterNotes();
-    }
+            function saveNotes() {
+                localStorage.setItem('stickynotes_' + currentBoard, JSON.stringify(notes));
+            }
 
-    function renderNote(n){
-      const el = document.createElement('div');
-      el.className = 'note';
-      el.dataset.id = n.id;
-      applyStyle(el, n);
-      el.innerText = n.content;
+            function renderAll() {
+                board.innerHTML = '';
+                notes.forEach(renderNote);
+                filterNotes();
+                updateTransform();
+            }
 
-      const btn = document.createElement('span');
-      btn.className = 'close-btn';
-      btn.innerText = '✕';
-      btn.onclick = () => deleteNote(n.id, el);
-      el.appendChild(btn);
+            function renderNote(n, focusOnCreate = false) {
+                const el = document.createElement('div');
+                el.className = 'note';
+                el.dataset.id = n.id;
+                applyStyle(el, n);
 
-      makeDraggable(el);
-      makeEditable(el);
-      observeResize(el);
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'note-content';
+                contentDiv.contentEditable = true;
+                contentDiv.innerText = n.content;
+                el.appendChild(contentDiv);
 
-      board.appendChild(el);
-    }
+                const closeBtn = document.createElement('span');
+                closeBtn.className = 'close-btn';
+                closeBtn.innerText = '✕';
+                closeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteNote(n.id, el);
+                };
+                el.appendChild(closeBtn);
 
-    function applyStyle(el, n){
-      el.style.left       = n.x + 'px';
-      el.style.top        = n.y + 'px';
-      el.style.width      = n.width  + 'px';
-      el.style.height     = n.height + 'px';
-      el.style.background = n.color;
-      el.style.zIndex     = n.zIndex || 1;
-    }
+                makeDraggable(el);
+                makeEditable(el, contentDiv);
+                observeResize(el);
 
-    function addNote(){
-      const text = prompt('メモ内容を入力');
-      if (!text) return;
-      const cols = ['#fffa65','#ff9ff3','#feca57','#48dbfb','#1dd1a1'];
-      const color= cols[Math.floor(Math.random()*cols.length)];
-      const note = {
-        id:      Date.now() + '' + Math.floor(Math.random()*999),
-        content: text, x:20, y:20,
-        width:200, height:150, color:color,
-        zIndex:1
-      };
-      notes.push(note);
-      saveNotes();
-      renderNote(note);
-      filterNotes();
-    }
+                board.appendChild(el);
+                
+                if (focusOnCreate) {
+                    contentDiv.focus();
+                }
+            }
 
-    function makeDraggable(el){
-      let ox, oy, sx, sy;
-      el.onmousedown = e => {
-        if (e.target !== el) return;
-        // z-index 前面
-        notes.forEach(n=>{ if(n.id==el.dataset.id) n.zIndex = ++n.zIndex; });
-        el.style.zIndex = notes.find(n=>n.id==el.dataset.id).zIndex;
-        saveNotes();
+            function applyStyle(el, n) {
+                el.style.left = n.x + 'px';
+                el.style.top = n.y + 'px';
+                el.style.width = n.width + 'px';
+                el.style.height = n.height + 'px';
+                el.style.background = n.color || noteColors[0];
+                el.style.zIndex = n.zIndex || 1;
+            }
 
-        ox = e.clientX; oy = e.clientY;
-        sx = parseInt(el.style.left); sy = parseInt(el.style.top);
-        document.onmousemove = move;
-        document.onmouseup   = drop;
-      };
-      function move(e){
-        el.style.left = sx + (e.clientX-ox) + 'px';
-        el.style.top  = sy + (e.clientY-oy) + 'px';
-      }
-      function drop(){
-        document.onmousemove = null; document.onmouseup = null;
-        updateNote(el, {
-          x: parseInt(el.style.left),
-          y: parseInt(el.style.top)
-        });
-      }
-    }
+            // --- Board Management ---
+            function addBoard() {
+                const name = prompt('新しいボード名を入力してください。');
+                if (name && !boards.includes(name)) {
+                    boards.push(name);
+                    setupBoardSelect();
+                    switchBoard(name);
+                } else if (name) {
+                    alert('そのボードはすでに存在します。');
+                }
+            }
 
-    function makeEditable(el){
-      el.ondblclick = ()=>{
-        el.contentEditable = true;
-        el.focus();
-      };
-      el.onblur = ()=>{
-        if (!el.contentEditable) return;
-        el.contentEditable = false;
-        updateNote(el, { content: el.innerText });
-        filterNotes();
-      };
-    }
+            function renameBoard() {
+                const oldName = boardSelect.value;
+                const newName = prompt(`「${oldName}」の新しいボード名を入力してください。`);
+                if (newName && newName !== oldName && !boards.includes(newName)) {
+                    const oldIndex = boards.indexOf(oldName);
+                    if (oldIndex > -1) {
+                        boards[oldIndex] = newName;
+                        localStorage.setItem('stickynotes_' + newName, localStorage.getItem('stickynotes_' + oldName));
+                        localStorage.removeItem('stickynotes_' + oldName);
+                        setupBoardSelect();
+                        switchBoard(newName);
+                    }
+                } else if (newName && newName !== oldName) {
+                    alert('そのボード名はすでに存在します。');
+                }
+            }
 
-    function observeResize(el){
-      new ResizeObserver(entries=>{
-        entries.forEach(en=>{
-          updateNote(el,{
-            width: Math.round(en.contentRect.width),
-            height:Math.round(en.contentRect.height)
-          });
-        });
-      }).observe(el);
-    }
+            function deleteBoard() {
+                if (boards.length <= 1) {
+                    alert('最後のボードは削除できません。');
+                    return;
+                }
+                if (confirm(`本当にボード「${currentBoard}」を削除しますか？\n（付箋もすべて消えます）`)) {
+                    localStorage.removeItem('stickynotes_' + currentBoard);
+                    boards = boards.filter(name => name !== currentBoard);
+                    setupBoardSelect();
+                    switchBoard(boards[0]);
+                }
+            }
 
-    function updateNote(el, props){
-      const id = el.dataset.id;
-      const note = notes.find(n=>n.id===id);
-      if (!note) return;
-      Object.assign(note, props);
-      saveNotes();
-    }
+            // --- Note Interactions ---
+            function addNote(content) {
+                const color = noteColors[Math.floor(Math.random() * noteColors.length)];
+                const note = {
+                    id: Date.now().toString(),
+                    content: content,
+                    x: (wrapper.scrollLeft + wrapper.clientWidth / 2) / scale - 100,
+                    y: (wrapper.scrollTop + wrapper.clientHeight / 2) / scale - 75,
+                    width: 200,
+                    height: 150,
+                    color: color,
+                    zIndex: 1
+                };
+                notes.push(note);
+                saveNotes();
+                renderNote(note, true);
+                filterNotes();
+            }
 
-    function deleteNote(id, el){
-      if (!confirm('本当に削除しますか？')) return;
-      notes = notes.filter(n=>n.id!==id);
-      saveNotes();
-      board.removeChild(el);
-    }
+            function makeDraggable(el) {
+                let ox, oy, sx, sy;
+                el.addEventListener('mousedown', e => {
+                    if (e.target.closest('.note-content')) return;
+                    e.stopPropagation();
+                    isPanning = false;
 
-    function arrangeNotes(){
-      const margin = 20;
-      const cellW = 250, cellH = 200;
-      const wrapW = wrapper.clientWidth;
-      const cols  = Math.max(1, Math.floor(wrapW / cellW));
-      notes.forEach((n,i)=>{
-        n.x = margin + (i % cols) * cellW;
-        n.y = margin + Math.floor(i/cols) * cellH;
-      });
-      saveNotes();
-      renderAll();
-    }
+                    const currentNote = notes.find(n => n.id === el.dataset.id);
+                    if (!currentNote) return;
 
-    function filterNotes(){
-      const term = searchInput.value.trim().toLowerCase();
-      board.querySelectorAll('.note').forEach(el=>{
-        const note = notes.find(n=>n.id===el.dataset.id);
-        el.style.display = note.content.toLowerCase().includes(term) ? '' : 'none';
-      });
-    }
+                    notes.forEach(n => {
+                        if (n.id === el.dataset.id) n.zIndex = ++n.zIndex;
+                    });
+                    el.style.zIndex = currentNote.zIndex;
+                    saveNotes();
 
-    function exportNotes(){
-      const data = JSON.stringify(notes, null, 2);
-      const blob = new Blob([data], { type:'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href       = url;
-      a.download   = `stickynotes_${currentBoard}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+                    ox = e.clientX / scale;
+                    oy = e.clientY / scale;
+                    sx = parseInt(el.style.left);
+                    sy = parseInt(el.style.top);
 
-    function importNotes(e){
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        try {
-          const arr = JSON.parse(ev.target.result);
-          if (!Array.isArray(arr)) throw '';
-          notes = arr;
-          saveNotes();
-          renderAll();
-        } catch {
-          alert('JSON形式が不正です');
-        }
-      };
-      reader.readAsText(file);
-      impFile.value = '';
-    }
+                    document.addEventListener('mousemove', move);
+                    document.addEventListener('mouseup', drop, { once: true });
+                });
 
-    function startPan(e){
-      if(e.target !== wrapper) return;
-      isPanning = true;
-      panStartX = e.clientX; panStartY = e.clientY;
-      panInitX  = translateX; panInitY  = translateY;
-      wrapper.style.cursor = 'grabbing';
-    }
-    function doPan(e){
-      if (!isPanning) return;
-      translateX = panInitX + (e.clientX - panStartX);
-      translateY = panInitY + (e.clientY - panStartY);
-      updateTransform();
-    }
-    function endPan(){
-      if (!isPanning) return;
-      isPanning = false;
-      wrapper.style.cursor = 'grab';
-    }
-    function doZoom(e){
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      const factor = e.deltaY > 0 ? 0.9 : 1.1;
-      scale = Math.min(3, Math.max(0.3, scale * factor));
-      updateTransform();
-    }
-    function updateTransform(){
-      board.style.transform =
-        `translate(${translateX}px,${translateY}px) scale(${scale})`;
-    }
+                function move(e) {
+                    el.style.left = sx + (e.clientX / scale - ox) + 'px';
+                    el.style.top = sy + (e.clientY / scale - oy) + 'px';
+                }
 
-    init();
-  })();
-  </script>
+                function drop() {
+                    document.removeEventListener('mousemove', move);
+                    updateNote(el, {
+                        x: parseInt(el.style.left),
+                        y: parseInt(el.style.top)
+                    });
+                }
+            }
+
+            function makeEditable(el, contentDiv) {
+                contentDiv.addEventListener('input', () => {
+                    updateNote(el, { content: contentDiv.innerText });
+                });
+                contentDiv.addEventListener('blur', () => {
+                    filterNotes();
+                });
+            }
+
+            function observeResize(el) {
+                new ResizeObserver(entries => {
+                    entries.forEach(entry => {
+                        updateNote(el, {
+                            width: Math.round(entry.contentRect.width),
+                            height: Math.round(entry.contentRect.height)
+                        });
+                    });
+                }).observe(el);
+            }
+
+            function updateNote(el, props) {
+                const id = el.dataset.id;
+                const note = notes.find(n => n.id === id);
+                if (!note) return;
+                Object.assign(note, props);
+                saveNotes();
+            }
+
+            function deleteNote(id, el) {
+                if (!confirm('本当にこの付箋を削除しますか？')) return;
+                notes = notes.filter(n => n.id !== id);
+                saveNotes();
+                board.removeChild(el);
+            }
+
+            // --- Board Layout & Search ---
+            function arrangeNotes() {
+                const margin = 30;
+                const cellW = 250, cellH = 200;
+                const wrapW = wrapper.clientWidth;
+                const cols = Math.max(1, Math.floor(wrapW / cellW));
+                
+                let visibleNotes = notes.filter(n => {
+                    const term = searchInput.value.trim().toLowerCase();
+                    return n.content.toLowerCase().includes(term);
+                });
+                
+                visibleNotes.forEach((n, i) => {
+                    n.x = margin + (i % cols) * cellW;
+                    n.y = margin + Math.floor(i / cols) * cellH;
+                });
+                
+                saveNotes();
+                renderAll();
+            }
+
+            function filterNotes() {
+                const term = searchInput.value.trim().toLowerCase();
+                board.querySelectorAll('.note').forEach(el => {
+                    const note = notes.find(n => n.id === el.dataset.id);
+                    el.style.display = note.content.toLowerCase().includes(term) ? '' : 'none';
+                });
+            }
+
+            // --- Data Import/Export ---
+            function exportNotes() {
+                const data = JSON.stringify(notes, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `stickynotes_${currentBoard}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function importNotes(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try {
+                        const importedNotes = JSON.parse(ev.target.result);
+                        if (!Array.isArray(importedNotes)) throw new Error('Invalid JSON format');
+                        notes = importedNotes;
+                        saveNotes();
+                        renderAll();
+                        alert(`ボード「${currentBoard}」に付箋をインポートしました。`);
+                    } catch (error) {
+                        alert('JSON形式が不正です。付箋データのインポートに失敗しました。');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = ''; // Reset file input
+            }
+
+            // --- Pan & Zoom ---
+            function startPan(e) {
+                if (e.target !== wrapper && !e.target.closest('#board')) return;
+                if (e.target.closest('.note')) return;
+                isPanning = true;
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                wrapper.style.cursor = 'grabbing';
+            }
+
+            function doPan(e) {
+                if (!isPanning) return;
+                translateX += (e.clientX - panStartX);
+                translateY += (e.clientY - panStartY);
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                updateTransform();
+            }
+
+            function endPan() {
+                isPanning = false;
+                wrapper.style.cursor = 'grab';
+            }
+
+            function doZoom(e) {
+                if (!e.ctrlKey) return;
+                e.preventDefault();
+                const oldScale = scale;
+                const factor = e.deltaY > 0 ? 0.9 : 1.1;
+                scale = Math.min(3, Math.max(0.3, scale * factor));
+                
+                const mouseX = e.clientX - wrapper.offsetLeft;
+                const mouseY = e.clientY - wrapper.offsetTop;
+
+                translateX = mouseX - (mouseX - translateX) * (scale / oldScale);
+                translateY = mouseY - (mouseY - translateY) * (scale / oldScale);
+                
+                updateTransform();
+            }
+
+            function updateTransform() {
+                board.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            }
+
+            init();
+        })();
+    </script>
 </body>
 </html>
