@@ -3,410 +3,1604 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>日本語タイピングゲーム</title>
+  <title>TypeScript版日本語タイピングゲーム</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+    
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --success: #4ade80;
+      --error: #f87171;
+      --warning: #fbbf24;
+      --dark: #1f2937;
+      --light: #f8fafc;
+      --glass: rgba(255, 255, 255, 0.1);
+      --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
 
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f5f7fa;
-      margin: 0;
-      padding: 0;
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--primary);
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
     }
 
-    header {
+    /* 動的背景 */
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
-      background: #3f51b5;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.1;
+    }
+
+    .floating-char {
+      position: absolute;
       color: white;
-      padding: 20px 0;
-      text-align: center;
-      font-size: 24px;
+      font-size: 2rem;
+      opacity: 0.3;
+      animation: float 15s infinite linear;
+      pointer-events: none;
     }
 
-    .info-bar {
-      display: flex;
-      justify-content: space-around;
-      width: 100%;
-      max-width: 600px;
-      margin: 20px auto;
-      font-size: 18px;
+    @keyframes float {
+      0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+      }
+      10% {
+        opacity: 0.3;
+      }
+      90% {
+        opacity: 0.3;
+      }
+      100% {
+        transform: translateY(-100px) rotate(360deg);
+        opacity: 0;
+      }
     }
 
+    /* メインコンテナ */
     .game-container {
-      text-align: center;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: var(--shadow);
+      padding: 2rem;
       width: 90%;
-      max-width: 700px;
-      margin-top: 30px;
+      max-width: 900px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--secondary);
+      animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* ヘッダー */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(45deg, #fff, #e2e8f0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+    }
+
+    .subtitle {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1rem;
+      font-style: italic;
+    }
+
+    /* 難易度選択 */
+    .difficulty-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .difficulty-btn {
+      padding: 0.75rem 1.5rem;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: transparent;
+      color: white;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .difficulty-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .difficulty-btn:hover::before {
+      left: 100%;
+    }
+
+    .difficulty-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .difficulty-btn.active {
+      background: var(--secondary);
+      border-color: transparent;
+      box-shadow: 0 0 20px rgba(245, 87, 108, 0.4);
+    }
+
+    /* ステータスバー */
+    .stats-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 1rem;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: transform 0.3s ease;
+      position: relative;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+      border-radius: 16px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: scale(1.05);
+    }
+
+    .stat-card:hover::before {
+      opacity: 1;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: white;
+      display: block;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 0.25rem;
+    }
+
+    /* プログレスバー */
+    .progress-container {
+      margin-bottom: 2rem;
+      position: relative;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--secondary);
+      transition: width 0.5s ease;
+      box-shadow: 0 0 15px rgba(245, 87, 108, 0.6);
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      animation: progress-shine 2s infinite;
+    }
+
+    @keyframes progress-shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* 問題表示 */
+    .question-container {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      min-height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+
+    .question-container::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      right: -1px;
+      bottom: -1px;
+      background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), transparent, rgba(255, 255, 255, 0.1));
+      border-radius: 20px;
+      z-index: -1;
     }
 
     #question {
-      font-size: 28px;
-      margin: 20px auto;
-      padding: 10px;
-      min-height: 60px;
+      font-size: 2.8rem;
+      font-weight: 500;
+      color: white;
+      letter-spacing: 0.1em;
+      line-height: 1.3;
+      word-break: break-all;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .char {
+      display: inline-block;
+      transition: all 0.4s ease;
+      position: relative;
+      padding: 2px 4px;
+      margin: 0 1px;
+      border-radius: 6px;
+    }
+
+    .char.correct {
+      color: var(--success);
+      background: rgba(74, 222, 128, 0.25);
+      transform: scale(1.15);
+      animation: bounce 0.4s ease;
+      box-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+    }
+
+    .char.incorrect {
+      color: var(--error);
+      background: rgba(248, 113, 113, 0.25);
+      animation: shake 0.6s ease;
+      box-shadow: 0 0 15px rgba(248, 113, 113, 0.4);
+    }
+
+    .char.current {
+      background: rgba(251, 191, 36, 0.4);
+      animation: pulse 1.2s infinite;
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+    }
+
+    @keyframes bounce {
+      0%, 20%, 60%, 100% { transform: scale(1.15) translateY(0); }
+      40% { transform: scale(1.15) translateY(-12px); }
+      80% { transform: scale(1.15) translateY(-6px); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+      }
+      50% { 
+        opacity: 0.6; 
+        transform: scale(1.1);
+      }
+    }
+
+    /* 入力エリア */
+    .input-container {
+      position: relative;
+      margin-bottom: 2rem;
     }
 
     #inputArea {
       width: 100%;
-      max-width: 600px;
-      height: 40px;
-      font-size: 24px;
-      padding: 10px;
-      margin: 10px auto;
-    }
-
-    .highlight {
-      color: green;
-    }
-
-    .mistake {
-      color: red;
-    }
-
-    #startBtn, #retryBtn, #clearBtn {
-      padding: 10px 20px;
-      font-size: 18px;
-      margin: 10px;
-      border: none;
-      background-color: #3f51b5;
+      padding: 1.25rem 1.75rem;
+      font-size: 1.6rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 18px;
       color: white;
+      font-family: inherit;
+      backdrop-filter: blur(15px);
+      transition: all 0.4s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    #inputArea:focus {
+      outline: none;
+      border-color: rgba(245, 87, 108, 0.6);
+      box-shadow: 0 0 25px rgba(245, 87, 108, 0.4);
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    #inputArea::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* コントロールボタン */
+    .controls {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+
+    .btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 18px;
+      font-size: 1.1rem;
+      font-weight: 600;
       cursor: pointer;
-      border-radius: 4px;
+      transition: all 0.4s ease;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
-    #startBtn:hover, #retryBtn:hover, #clearBtn:hover {
-      background-color: #303f9f;
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+      transition: left 0.6s;
     }
 
-    #result {
-      margin-top: 30px;
-      font-size: 20px;
+    .btn:hover::before {
+      left: 100%;
     }
 
-    @media (max-width: 600px) {
+    .btn-primary {
+      background: var(--secondary);
+      color: white;
+      box-shadow: 0 8px 25px rgba(245, 87, 108, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 40px rgba(245, 87, 108, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 30px rgba(255, 255, 255, 0.1);
+    }
+
+    /* 結果表示 */
+    .result-container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 2.5rem;
+      text-align: center;
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      margin-bottom: 1rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .result-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(45deg, #4ade80, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .result-stat {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1.5rem;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .result-stat:hover {
+      transform: scale(1.05);
+    }
+
+    .result-stat-value {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--success);
+      display: block;
+      text-shadow: 0 2px 10px rgba(74, 222, 128, 0.3);
+    }
+
+    .result-stat-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      font-weight: 500;
+    }
+
+    /* アニメーション効果 */
+    .level-up {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--secondary);
+      color: white;
+      padding: 2.5rem;
+      border-radius: 24px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      z-index: 1000;
+      animation: levelUpAnimation 2.5s ease-out forwards;
+      box-shadow: 0 0 60px rgba(245, 87, 108, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    @keyframes levelUpAnimation {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.3) rotate(-10deg);
+      }
+      30% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.3) rotate(5deg);
+      }
+      70% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+      }
+    }
+
+    .combo-display {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      background: rgba(74, 222, 128, 0.25);
+      border: 3px solid var(--success);
+      color: var(--success);
+      padding: 1.25rem 1.75rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 1.4rem;
+      backdrop-filter: blur(15px);
+      animation: comboAnimation 0.6s ease;
+      z-index: 100;
+      box-shadow: 0 0 30px rgba(74, 222, 128, 0.4);
+    }
+
+    @keyframes comboAnimation {
+      0% { transform: scale(0.6) rotate(-5deg); opacity: 0; }
+      60% { transform: scale(1.3) rotate(2deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    /* レスポンシブデザイン */
+    @media (max-width: 768px) {
+      .game-container {
+        margin: 0.5rem;
+        padding: 1.5rem;
+      }
+      
+      .title {
+        font-size: 2rem;
+      }
+      
       #question {
-        font-size: 22px;
+        font-size: 2rem;
       }
-
+      
       #inputArea {
-        font-size: 20px;
+        font-size: 1.4rem;
+        padding: 1rem 1.5rem;
       }
+      
+      .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+      
+      .result-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+    }
 
-      .info-bar {
-        flex-direction: column;
-        align-items: center;
+    @media (max-width: 480px) {
+      .difficulty-selector {
+        grid-template-columns: repeat(2, 1fr);
       }
+      
+      .stats-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .result-stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ダークモード切り替え */
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 1.8rem;
+      cursor: pointer;
+      backdrop-filter: blur(15px);
+      transition: all 0.4s ease;
+      z-index: 1000;
+      color: white;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1) rotate(10deg);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    /* パーティクル効果 */
+    .particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particle 1.5s ease-out forwards;
+    }
+
+    @keyframes particle {
+      0% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0) rotate(360deg) translateY(-150px);
+      }
+    }
+
+    /* アクセシビリティ */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* 統計表示 */
+    .detailed-stats {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .detailed-stats h3 {
+      color: white;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-size: 1.3rem;
+    }
+
+    .session-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .session-stat {
+      text-align: center;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      transition: transform 0.3s ease;
+    }
+
+    .session-stat:hover {
+      transform: scale(1.05);
+    }
+
+    .session-stat-value {
+      color: #4ade80;
+      font-size: 1.8rem;
+      font-weight: bold;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .session-stat-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.95rem;
     }
   </style>
 </head>
 <body>
-
-  <header>日本語タイピングゲーム</header>
-
-  <div class="info-bar">
-    <div>残り時間: <span id="time">60</span> 秒</div>
-    <div>スコア: <span id="score">0</span></div>
-  </div>
-
+  <button class="theme-toggle" id="themeToggle">🌙</button>
+  
+  <div class="background-animation" id="backgroundAnimation"></div>
+  
   <div class="game-container">
-    <button id="startBtn">ゲーム開始</button>
-    <div id="question"></div>
-    <input type="text" id="inputArea" disabled autocomplete="off" autocorrect="off" autocapitalize="off" />
-    <div>
-      <button id="clearBtn">クリア</button>
+    <div class="header">
+      <h1 class="title">TypeScript タイピング</h1>
+      <p class="subtitle">Type-Safe Japanese Typing Experience</p>
     </div>
-    <div id="result"></div>
-    <button id="retryBtn" style="display:none;">もう一度プレイ</button>
+
+    <div class="difficulty-selector" id="difficultySelector">
+      <button class="difficulty-btn active" data-difficulty="easy">初級 (Easy)</button>
+      <button class="difficulty-btn" data-difficulty="medium">中級 (Medium)</button>
+      <button class="difficulty-btn" data-difficulty="hard">上級 (Hard)</button>
+      <button class="difficulty-btn" data-difficulty="expert">エキスパート (Expert)</button>
+    </div>
+
+    <div class="stats-container">
+      <div class="stat-card">
+        <span class="stat-value" id="timeDisplay">60</span>
+        <div class="stat-label">残り時間</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="scoreDisplay">0</span>
+        <div class="stat-label">スコア</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="wpmDisplay">0</span>
+        <div class="stat-label">WPM</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="accuracyDisplay">100</span>
+        <div class="stat-label">正確度 %</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="comboDisplay">0</span>
+        <div class="stat-label">コンボ</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="levelDisplay">1</span>
+        <div class="stat-label">レベル</div>
+      </div>
+    </div>
+
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="question-container">
+      <div id="questionDisplay">難易度を選択してゲームを開始してください</div>
+    </div>
+
+    <div class="input-container">
+      <input 
+        type="text" 
+        id="inputArea" 
+        disabled 
+        placeholder="ここに入力してください..." 
+        autocomplete="off" 
+        autocorrect="off" 
+        autocapitalize="off" 
+        spellcheck="false"
+      />
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="startBtn">🚀 ゲーム開始</button>
+      <button class="btn btn-secondary" id="clearBtn">🗑️ クリア</button>
+      <button class="btn btn-primary" id="retryBtn" style="display:none;">🔄 再挑戦</button>
+    </div>
+
+    <div id="resultContainer" style="display:none;"></div>
   </div>
 
-  <script>
-    const questions = [
-      "こんにちは",
-      "おはようございます",
-      "さようなら",
-      "いただきます",
-      "ありがとうございます",
-      "すみません",
-      "よろしくお願いします",
-      "がんばってください",
-      "おめでとうございます",
-      "いってきます",
-      "ただいま",
-      "おかえりなさい",
-      "おやすみなさい",
-      "大丈夫です",
-      "お世話になります",
-      "失礼します",
-      "お元気ですか",
-      "気をつけて",
-      "また明日",
-      "行ってらっしゃい","空", "風", "夢", "愛", "光", "時", "心", "言葉", "世界", "未来", "希望", "感謝",
-        "自然", "平和", "挑戦", "努力", "成功", "失敗", "経験", "学習", "友情", "家族",
-        "健康", "仕事", "趣味", "旅行", "音楽", "映画", "読書", "芸術", "桜", "富士山",
-        "寿司", "侍", "忍者", "アニメ", "漫画", "東京", "京都", "大阪", "北海道", "沖縄",
-        "宇宙", "星", "銀河", "地球", "太陽", "月", "季節", "夏", "秋", "冬", "春",
-        "海", "川", "山", "森", "花", "鳥", "魚", "犬", "猫", "象", "熊", "虎",
-        "人間", "自分", "他人", "歴史", "文化", "科学", "技術", "情報", "数学", "物理",
-        "化学", "生物", "社会", "経済", "政治", "法律", "教育", "学校", "先生", "生徒",
-        "教科書", "宿題", "試験", "卒業", "入学", "運動会", "文化祭", "祭り", "花火",
-        "浴衣", "神社", "寺", "城", "公園", "美術館", "博物館", "図書館", "駅", "空港",
-        "道路", "電車", "バス", "自転車", "自動車", "歩行者", "信号", "警察", "消防",
-        "病院", "薬局", "郵便局", "銀行", "コンビニ", "スーパー", "デパート", "レストラン",
-        "カフェ", "パン屋", "八百屋", "魚屋", "肉屋", "お菓子", "ジュース", "牛乳",
-        "ご飯", "味噌汁", "お茶", "水", "おにぎり", "卵", "野菜", "果物", "肉", "魚介類",
-        "醤油", "味噌", "砂糖", "塩", "米", "小麦粉", "豆腐", "納豆", "梅干し", "漬物",
-        "弁当", "朝食", "昼食", "夕食", "おやつ", "夜食", "食器", "箸", "スプーン", "フォーク",
-        "コップ", "皿", "鍋", "フライパン", "包丁", "まな板", "掃除", "洗濯", "料理", "買い物",
-        "電話", "手紙", "メール", "パソコン", "スマホ", "カメラ", "テレビ", "ラジオ", "新聞",
-        "雑誌", "本棚", "机", "椅子", "ベッド", "布団", "枕", "カーテン", "絨毯", "電灯",
-        "電気", "ガス", "水道", "暖房", "冷房", "扇風機", "冷蔵庫", "電子レンジ", "掃除機",
-        "洗濯機", "お風呂", "シャワー", "洗面所", "トイレ", "鏡", "歯ブラシ", "石鹸", "タオル",
-        "服", "靴", "帽子", "鞄", "財布", "鍵", "腕時計", "眼鏡", "傘", "雨具",
-        "絵", "彫刻", "写真", "小説", "詩", "物語", "劇", "ダンス", "歌", "楽器",
-        "ピアノ", "ギター", "ドラム", "バイオリン", "フルート", "コンサート", "ライブ",
-        "スポーツ", "野球", "サッカー", "バスケットボール", "テニス", "卓球", "水泳",
-        "陸上", "マラソン", "体操", "柔道", "剣道", "空手", "相撲", "ゴルフ",
-        "スキー", "スノーボード", "登山", "ハイキング", "キャンプ", "釣り", "散歩",
-        "ジョギング", "筋トレ", "ヨガ", "瞑想", "神社", "仏閣", "お守り", "おみくじ",
-        "絵馬", "お祭り", "盆踊り", "七夕", "お正月", "年末", "年始", "クリスマス",
-        "バレンタイン", "ハロウィン", "誕生日", "記念日", "卒業式", "入学式", "成人式",
-        "結婚式", "葬式", "冠婚葬祭", "季節", "台風", "地震", "津波", "火山", "噴火",
-        "豪雨", "大雪", "雷", "竜巻", "気象", "天気予報", "雲", "虹", "霧", "霞",
-        "霜", "露", "氷", "雪", "雨", "風", "雷雨", "晴れ", "曇り", "星空",
-        "星座", "銀河系", "天体観測", "宇宙飛行士", "人工衛星", "ロケット", "火星", "木星",
-        "土星", "彗星", "流星", "天文台", "探査機", "ロボット", "人工知能", "ビッグデータ",
-        "プログラミング", "インターネット", "ウェブサイト", "ブログ", "SNS", "メール",
-        "チャット", "ビデオ会議", "オンライン", "オフライン", "仮想現実", "拡張現実",
-        "電気自動車", "ドローン", "再生可能エネルギー", "太陽光発電", "風力発電", "水力発電",
-        "地熱発電", "原子力発電", "環境問題", "温暖化", "ゴミ", "リサイクル", "プラスチック",
-        "食料問題", "飢餓", "貧困", "医療", "看護師", "医者", "介護士", "福祉",
-        "ボランティア", "慈善事業", "人権", "平和", "戦争", "紛争", "国連", "外交",
-        "交渉", "政治家", "選挙", "民主主義", "共産主義", "資本主義", "社会主義",
-        "国家", "法律", "裁判", "警察官", "消防士", "自衛官", "公務員", "会社員",
-        "自営業", "学生", "主婦", "フリーター", "ニート", "失業者", "労働者", "経営者",
-        "起業家", "投資家", "株", "債券", "為替", "仮想通貨", "経済", "金融",
-        "税金", "給料", "ボーナス", "貯金", "借金", "ローン", "年金", "保険",
-        "健康診断", "病気", "怪我", "手術", "入院", "退院", "リハビリ", "栄養",
-        "睡眠", "運動", "ストレス", "癒し", "趣味", "特技", "才能", "個性", "性格",
-        "長所", "短所", "夢中", "情熱", "好奇心", "探究心", "創造力", "集中力",
-        "決断力", "行動力", "忍耐力", "協力", "競争", "対立", "友情", "信頼",
-        "裏切り", "感謝", "後悔", "反省", "成長", "変化", "習慣", "努力", "成果",
-        "目標", "計画", "実行", "達成", "失敗", "成功", "挫折", "再挑戦", "困難",
-        "逆境", "希望", "絶望", "人生", "幸福", "不幸", "喜び", "悲しみ", "怒り",
-        "笑い", "涙", "感動", "興奮", "不安", "恐怖", "安心", "安全", "危険",
-        "平和", "混乱", "秩序", "自由", "平等", "公平", "正義", "不正", "犯罪",
-        "警察", "検察", "弁護士", "裁判官", "証人", "容疑者", "被害者", "加害者",
-        "責任", "義務", "権利", "道徳", "倫理", "宗教", "哲学", "歴史", "未来",
-        "過去", "現在", "時間", "永遠", "無限", "有限", "始まり", "終わり", "生",
-        "死", "真実", "嘘", "現実", "非現実", "夢", "幻", "幻想", "想像力",
-        "思考", "感情", "感覚", "知覚", "記憶", "意識", "無意識", "自我", "心",
-        "魂", "精神", "肉体", "健康", "病気", "傷", "痛み", "癒し", "安らぎ",
-        "喜び", "幸福", "悲しみ", "苦しみ", "愛", "憎しみ", "友情", "愛情", "尊敬",
-        "信頼", "裏切り", "嫉妬", "羨望", "孤独", "繋がり", "絆", "家族", "仲間",
-        "友人", "恋人", "夫婦", "親子", "兄弟", "姉妹", "祖父", "祖母", "孫",
-        "家", "故郷", "地球", "宇宙", "自然", "人工", "人間", "動物", "植物",
-        "生き物", "生命", "進化", "創造", "破壊", "再生", "循環", "成長", "老化",
-        "誕生", "死", "時間", "空間", "次元", "宇宙", "太陽系", "惑星", "衛星",
-        "銀河", "恒星", "ブラックホール", "ダークマター", "ダークエネルギー", "宇宙論",
-        "物理学", "量子力学", "相対性理論", "素粒子", "化学", "生物学", "地学",
-        "天文学", "統計学", "経済学", "社会学", "心理学", "哲学", "倫理学",
-        "歴史学", "考古学", "言語学", "文学", "芸術", "音楽", "美術", "演劇",
-        "映画", "写真", "建築", "デザイン", "工学", "医学", "農学", "漁業", "畜産",
-        "林業", "製造業", "建設業", "サービス業", "情報通信", "運輸業", "小売業",
-        "卸売業", "金融業", "保険業", "不動産業", "専門職", "技術者", "研究者",
-        "教育者", "医師", "弁護士", "会計士", "公認会計士", "税理士", "司法書士",
-        "行政書士", "社会保険労務士", "中小企業診断士", "技術士", "薬剤師", "看護師",
-        "理学療法士", "作業療法士", "栄養士", "管理栄養士", "美容師", "理容師",
-        "調理師", "パティシエ", "パン職人", "大工", "左官", "鳶職", "庭師", "農家",
-        "漁師", "牧場主", "動物園", "水族館", "美術館", "博物館", "図書館", "学校",
-        "会社", "工場", "店舗", "病院", "銀行", "役所", "公園", "駅", "空港",
-        "港", "橋", "トンネル", "道路", "線路", "電車", "新幹線", "飛行機", "船",
-        "自動車", "バイク", "自転車", "バス", "タクシー", "歩行者", "信号", "交差点",
-        "横断歩道", "標識", "地図", "ナビ", "携帯電話", "スマートフォン", "パソコン",
-        "タブレット", "テレビ", "ラジオ", "カメラ", "マイク", "スピーカー", "ヘッドホン",
-        "キーボード", "マウス", "プリンター", "スキャナー", "モニター", "ルーター",
-        "サーバー", "クラウド", "プログラミング言語", "ソフトウェア", "ハードウェア",
-        "ファイル", "フォルダ", "アイコン", "ウィンドウ", "デスクトップ", "スタートメニュー",
-        "インターネット", "ウェブブラウザ", "検索エンジン", "ホームページ", "ブログ",
-        "SNS", "メール", "チャット", "動画サイト", "オンラインゲーム", "電子書籍",
-        "仮想通貨", "ブロックチェーン", "人工知能", "機械学習", "深層学習", "ビッグデータ",
-        "ロボット", "ドローン", "自動運転", "量子コンピューター", "５G", "IOT",
-        "再生可能エネルギー", "SDGs", "環境問題", "地球温暖化", "プラスチックゴミ",
-        "持続可能性", "フードロス", "貧困", "格差", "人権", "平和", "民主主義",
-        "社会貢献", "ボランティア", "寄付", "チャリティー", "NPO", "NGO", "政府",
-        "自治体", "国会", "内閣", "裁判所", "警察", "自衛隊", "消防", "医療",
-        "介護", "福祉", "教育", "子育て", "高齢化", "少子化", "男女平等", "多様性",
-        "共生", "国際協力", "異文化理解", "旅行", "観光", "宿泊", "ホテル", "旅館",
-        "民宿", "お土産", "郷土料理", "名物", "名所", "遺跡", "城跡", "神社仏閣",
-        "温泉", "スキー場", "海水浴場", "山岳", "高原", "湖", "川", "海", "島",
-        "半島", "列島", "大陸", "世界遺産", "無形文化財", "伝統工芸", "祭り", "イベント",
-        "コンサート", "ライブ", "舞台", "演劇", "ミュージカル", "オペラ", "映画",
-        "ドラマ", "アニメ", "漫画", "小説", "詩", "音楽", "美術", "彫刻", "書道",
-        "華道", "茶道", "武道", "空手", "柔道", "剣道", "合気道", "相撲", "野球",
-        "サッカー", "バスケット", "テニス", "卓球", "バドミントン", "水泳", "陸上",
-        "マラソン", "体操", "ゴルフ", "スキー", "スケート", "スノーボード", "サーフィン",
-        "ダイビング", "釣り", "登山", "ハイキング", "キャンプ", "バーベキュー",
-        "アウトドア", "インドア", "ゲーム", "ボードゲーム", "カードゲーム", "eスポーツ",
-        "料理", "食事", "レシピ", "調味料", "食材", "調理器具", "台所", "食堂",
-        "朝食", "昼食", "夕食", "間食", "お菓子", "スイーツ", "ドリンク", "コーヒー",
-        "紅茶", "緑茶", "日本酒", "焼酎", "ビール", "ワイン", "カクテル", "ソフトドリンク",
-        "水", "牛乳", "ジュース", "炭酸飲料", "健康", "ダイエット", "運動", "睡眠",
-        "ストレス", "リラックス", "ヨガ", "瞑想", "香り", "アロマ", "マッサージ",
-        "温泉", "サウナ", "お風呂", "入浴剤", "美容", "化粧品", "スキンケア", "ヘアケア",
-        "メイク", "ファッション", "服", "靴", "鞄", "アクセサリー", "時計", "眼鏡",
-        "財布", "鍵", "手帳", "筆記用具", "本", "雑誌", "新聞", "漫画", "小説",
-        "絵本", "図鑑", "辞書", "参考書", "教科書", "ノート", "文房具", "紙", "ペン",
-        "鉛筆", "消しゴム", "定規", "はさみ", "のり", "テープ", "クリップ", "ホッチキス",
-        "ファイル", "カレンダー", "時計", "温度計", "湿度計", "天気予報", "季節", "月",
-        "太陽", "星", "空", "海", "山", "川", "森", "花", "木", "草", "鳥", "虫",
-        "動物", "魚", "犬", "猫", "象", "ライオン", "パンダ", "キリン", "猿", "ウサギ",
-        "リス", "カエル", "ヘビ", "恐竜", "化石", "火山", "地震", "台風", "津波",
-        "雷", "雨", "雪", "風", "雲", "虹", "霞", "霜", "露", "氷", "水", "空気",
-        "光", "闇", "音", "香り", "味", "感触", "色", "形", "大きさ", "重さ", "数",
-        "時間", "空間", "未来", "過去", "現在", "希望", "絶望", "幸福", "不幸",
-        "喜び", "悲しみ", "怒り", "笑い", "涙", "感動", "愛情", "友情", "信頼",
-        "勇気", "挑戦", "努力", "成功", "失敗", "経験", "学習", "成長", "変化",
-        "夢", "目標", "計画", "実行", "達成", "継続", "習慣", "反省", "感謝",
-        "後悔", "責任", "自由", "平等", "平和", "愛", "憎しみ", "正義", "不正",
-        "犯罪", "法律", "裁判", "警察", "検察", "弁護士", "裁判官", "政治", "経済",
-        "社会", "文化", "歴史", "科学", "技術", "芸術", "教育", "医療", "福祉"
-    ];
+  <script type="module">
+    // TypeScript型定義をJSDocで表現
+    
+    /**
+     * @typedef {'easy' | 'medium' | 'hard' | 'expert'} Difficulty
+     */
 
-    let currentWord = "";
-    let score = 0;
-    let time = 60;
-    let timer;
-    let isPlaying = false;
+    /**
+     * @typedef {Object} GameState
+     * @property {boolean} isPlaying
+     * @property {number} score
+     * @property {number} time
+     * @property {number} combo
+     * @property {number} maxCombo
+     * @property {number} level
+     * @property {number} correctCount
+     * @property {number} totalAttempts
+     * @property {number} typedCharacters
+     * @property {number} startTime
+     * @property {Difficulty} difficulty
+     * @property {string} currentWord
+     */
 
-    const startBtn = document.getElementById('startBtn');
-    const retryBtn = document.getElementById('retryBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const inputArea = document.getElementById('inputArea');
-    const questionDiv = document.getElementById('question');
-    const timeSpan = document.getElementById('time');
-    const scoreSpan = document.getElementById('score');
-    const resultDiv = document.getElementById('result');
+    /**
+     * @typedef {Object} WordSets
+     * @property {string[]} easy
+     * @property {string[]} medium
+     * @property {string[]} hard
+     * @property {string[]} expert
+     */
 
+    /**
+     * @typedef {Object} GameStats
+     * @property {number} totalGames
+     * @property {number} bestWpm
+     * @property {number} bestAccuracy
+     * @property {number} bestScore
+     * @property {number} totalScore
+     * @property {number} bestCombo
+     */
+
+    /**
+     * @typedef {Object} DOMElements
+     * @property {HTMLButtonElement} startBtn
+     * @property {HTMLButtonElement} retryBtn
+     * @property {HTMLButtonElement} clearBtn
+     * @property {HTMLButtonElement} themeToggle
+     * @property {HTMLInputElement} inputArea
+     * @property {HTMLDivElement} questionDisplay
+     * @property {HTMLSpanElement} timeDisplay
+     * @property {HTMLSpanElement} scoreDisplay
+     * @property {HTMLSpanElement} wpmDisplay
+     * @property {HTMLSpanElement} accuracyDisplay
+     * @property {HTMLSpanElement} comboDisplay
+     * @property {HTMLSpanElement} levelDisplay
+     * @property {HTMLDivElement} resultContainer
+     * @property {HTMLDivElement} progressFill
+     * @property {HTMLDivElement} backgroundAnimation
+     * @property {HTMLDivElement} difficultySelector
+     */
+
+    // ゲーム設定とデータ
+    /** @type {WordSets} */
+    const WORD_SETS = {
+      easy: [
+        "こんにちは", "ありがとう", "おはよう", "こんばんは", "さようなら",
+        "はじめまして", "よろしく", "すみません", "ごめんなさい", "いただきます",
+        "ごちそうさま", "おつかれさま", "がんばって", "おめでとう", "大丈夫",
+        "愛", "夢", "希望", "笑顔", "家族", "友達", "学校", "仕事", "趣味",
+        "音楽", "映画", "本", "花", "空", "海", "山", "川", "星", "月",
+        "猫", "犬", "鳥", "魚", "食事", "水", "火", "風", "雨", "雪"
+      ],
+      medium: [
+        "美しい朝", "素晴らしい一日", "頑張りましょう", "楽しい時間", "大切な思い出",
+        "新しい挑戦", "明るい未来", "温かい心", "優しい言葉", "深い感謝",
+        "春の桜", "夏の海", "秋の紅葉", "冬の雪", "青い空", "緑の森",
+        "科学技術", "人工知能", "持続可能", "国際協力", "文化交流", "創造性",
+        "プログラミング", "デザイン", "アート", "クリエイティブ", "イノベーション",
+        "TypeScript", "JavaScript", "React", "Node.js", "データベース"
+      ],
+      hard: [
+        "心温まるおもてなし", "創造的な発想力", "持続可能な発展", "多様性を受け入れる",
+        "グローバルな視点", "革新的なアプローチ", "協力的なチームワーク",
+        "効果的なコミュニケーション", "論理的な思考", "批判的な分析",
+        "包括的な理解", "体系的な学習", "戦略的な計画", "創造的な問題解決",
+        "建設的なフィードバック", "効率的なプロセス", "革命的な変化",
+        "フロントエンド開発", "バックエンド設計", "データベース最適化",
+        "ユーザーエクスペリエンス", "レスポンシブデザイン", "アクセシビリティ向上"
+      ],
+      expert: [
+        "人工知能技術の急速な発展により、私たちの生活は劇的に変化している",
+        "持続可能な社会を実現するために、環境問題への取り組みが重要である",
+        "グローバル化が進む中で、多文化共生の重要性がますます高まっている",
+        "デジタルトランスフォーメーションは企業の競争力向上に不可欠である",
+        "創造性とイノベーションは未来社会の発展に欠かせない要素である",
+        "効果的なコミュニケーションスキルは成功への鍵となる重要な能力である",
+        "TypeScriptは静的型付けによってJavaScriptの開発効率と品質を向上させる",
+        "モダンなフロントエンド開発では、コンポーネント指向の設計が重要である",
+        "マイクロサービスアーキテクチャは大規模システムの柔軟性を提供する",
+        "継続的インテグレーションとデプロイメントは現代的な開発フローの基盤である"
+      ]
+    };
+
+    /** @type {Record<Difficulty, number>} */
+    const TIME_SETTINGS = {
+      easy: 60,
+      medium: 90,
+      hard: 120,
+      expert: 180
+    };
+
+    /** @type {Record<Difficulty, number>} */
+    const LEVEL_UP_THRESHOLDS = {
+      easy: 8,
+      medium: 10,
+      hard: 12,
+      expert: 15
+    };
+
+    // ゲーム状態
+    /** @type {GameState} */
+    const gameState = {
+      isPlaying: false,
+      score: 0,
+      time: 60,
+      combo: 0,
+      maxCombo: 0,
+      level: 1,
+      correctCount: 0,
+      totalAttempts: 0,
+      typedCharacters: 0,
+      startTime: 0,
+      difficulty: 'easy',
+      currentWord: ''
+    };
+
+    /** @type {GameStats} */
+    const gameStats = {
+      totalGames: 0,
+      bestWpm: 0,
+      bestAccuracy: 0,
+      bestScore: 0,
+      totalScore: 0,
+      bestCombo: 0
+    };
+
+    /** @type {DOMElements} */
+    const elements = {
+      startBtn: /** @type {HTMLButtonElement} */ (document.getElementById('startBtn')),
+      retryBtn: /** @type {HTMLButtonElement} */ (document.getElementById('retryBtn')),
+      clearBtn: /** @type {HTMLButtonElement} */ (document.getElementById('clearBtn')),
+      themeToggle: /** @type {HTMLButtonElement} */ (document.getElementById('themeToggle')),
+      inputArea: /** @type {HTMLInputElement} */ (document.getElementById('inputArea')),
+      questionDisplay: /** @type {HTMLDivElement} */ (document.getElementById('questionDisplay')),
+      timeDisplay: /** @type {HTMLSpanElement} */ (document.getElementById('timeDisplay')),
+      scoreDisplay: /** @type {HTMLSpanElement} */ (document.getElementById('scoreDisplay')),
+      wpmDisplay: /** @type {HTMLSpanElement} */ (document.getElementById('wpmDisplay')),
+      accuracyDisplay: /** @type {HTMLSpanElement} */ (document.getElementById('accuracyDisplay')),
+      comboDisplay: /** @type {HTMLSpanElement} */ (document.getElementById('comboDisplay')),
+      levelDisplay: /** @type {HTMLSpanElement} */ (document.getElementById('levelDisplay')),
+      resultContainer: /** @type {HTMLDivElement} */ (document.getElementById('resultContainer')),
+      progressFill: /** @type {HTMLDivElement} */ (document.getElementById('progressFill')),
+      backgroundAnimation: /** @type {HTMLDivElement} */ (document.getElementById('backgroundAnimation')),
+      difficultySelector: /** @type {HTMLDivElement} */ (document.getElementById('difficultySelector'))
+    };
+
+    // タイマー管理
+    let gameTimer = null;
+    let animationFrameId = null;
+
+    /**
+     * ランダムな問題を取得
+     * @returns {string}
+     */
     function getRandomQuestion() {
-      return questions[Math.floor(Math.random() * questions.length)];
+      const words = WORD_SETS[gameState.difficulty];
+      return words[Math.floor(Math.random() * words.length)];
     }
 
+    /**
+     * 問題を表示
+     */
     function displayQuestion() {
-      questionDiv.innerHTML = '';
-      for (let char of currentWord) {
+      elements.questionDisplay.innerHTML = '';
+      
+      for (let i = 0; i < gameState.currentWord.length; i++) {
         const span = document.createElement('span');
-        span.textContent = char;
-        questionDiv.appendChild(span);
+        span.className = 'char';
+        span.textContent = gameState.currentWord[i];
+        span.setAttribute('data-index', i.toString());
+        elements.questionDisplay.appendChild(span);
       }
+      
+      updateQuestionHighlight();
     }
 
+    /**
+     * 文字のハイライト更新
+     */
     function updateQuestionHighlight() {
-      const input = inputArea.value;
-      const spans = questionDiv.querySelectorAll('span');
-      spans.forEach((span, i) => {
-        if (i < input.length) {
-          if (input[i] === currentWord[i]) {
-            span.className = 'highlight';
+      const input = elements.inputArea.value;
+      const chars = elements.questionDisplay.querySelectorAll('.char');
+      
+      chars.forEach((char, index) => {
+        char.className = 'char';
+        
+        if (index < input.length) {
+          if (input[index] === gameState.currentWord[index]) {
+            char.classList.add('correct');
           } else {
-            span.className = 'mistake';
+            char.classList.add('incorrect');
           }
-        } else {
-          span.className = '';
+        } else if (index === input.length) {
+          char.classList.add('current');
         }
       });
     }
 
+    /**
+     * パーティクルエフェクト作成
+     * @param {number} x
+     * @param {number} y
+     * @param {string} color
+     */
+    function createParticleEffect(x, y, color = '#4ade80') {
+      const particleCount = 12;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.background = color;
+        
+        const angle = (i / particleCount) * Math.PI * 2;
+        const velocity = 60 + Math.random() * 40;
+        const deltaX = Math.cos(angle) * velocity;
+        const deltaY = Math.sin(angle) * velocity;
+        
+        particle.style.setProperty('--dx', `${deltaX}px`);
+        particle.style.setProperty('--dy', `${deltaY}px`);
+        
+        document.body.appendChild(particle);
+        
+        setTimeout(() => {
+          if (particle.parentNode) {
+            particle.parentNode.removeChild(particle);
+          }
+        }, 1500);
+      }
+    }
+
+    /**
+     * レベルアップ表示
+     */
+    function showLevelUp() {
+      const levelUpDiv = document.createElement('div');
+      levelUpDiv.className = 'level-up';
+      levelUpDiv.innerHTML = `
+        <div>🎉 LEVEL ${gameState.level} UP! 🎉</div>
+        <div style="font-size: 1rem; margin-top: 0.5rem; opacity: 0.8;">
+          素晴らしい成長です！
+        </div>
+      `;
+      
+      document.body.appendChild(levelUpDiv);
+      
+      // サウンド効果
+      playLevelUpSound();
+      
+      setTimeout(() => {
+        if (levelUpDiv.parentNode) {
+          levelUpDiv.parentNode.removeChild(levelUpDiv);
+        }
+      }, 2500);
+    }
+
+    /**
+     * コンボ表示
+     */
+    function showCombo() {
+      if (gameState.combo >= 5) {
+        // 既存のコンボ表示を削除
+        const existingCombo = document.querySelector('.combo-display');
+        if (existingCombo) {
+          existingCombo.remove();
+        }
+        
+        const comboDiv = document.createElement('div');
+        comboDiv.className = 'combo-display';
+        comboDiv.innerHTML = `
+          <div>🔥 ${gameState.combo} COMBO! 🔥</div>
+        `;
+        
+        document.body.appendChild(comboDiv);
+        
+        setTimeout(() => {
+          if (comboDiv.parentNode) {
+            comboDiv.parentNode.removeChild(comboDiv);
+          }
+        }, 2000);
+      }
+    }
+
+    /**
+     * 統計更新
+     */
+    function updateStats() {
+      const elapsed = gameState.startTime > 0 
+        ? (Date.now() - gameState.startTime) / 1000 / 60 
+        : 0;
+      
+      const wpm = elapsed > 0 ? Math.round(gameState.typedCharacters / elapsed) : 0;
+      const accuracy = gameState.totalAttempts > 0 
+        ? Math.round((gameState.correctCount / gameState.totalAttempts) * 100) 
+        : 100;
+      
+      elements.wpmDisplay.textContent = wpm.toString();
+      elements.accuracyDisplay.textContent = accuracy.toString();
+      elements.comboDisplay.textContent = gameState.combo.toString();
+      elements.levelDisplay.textContent = gameState.level.toString();
+      
+      // プログレスバー更新
+      const totalTime = TIME_SETTINGS[gameState.difficulty];
+      const progress = ((totalTime - gameState.time) / totalTime) * 100;
+      elements.progressFill.style.width = `${Math.min(progress, 100)}%`;
+    }
+
+    /**
+     * ゲーム開始
+     */
     function startGame() {
-      score = 0;
-      time = 60;
-      isPlaying = true;
-      inputArea.value = '';
-      inputArea.disabled = false;
-      inputArea.focus();
-      resultDiv.innerHTML = '';
-      retryBtn.style.display = 'none';
-      scoreSpan.textContent = score;
-      timeSpan.textContent = time;
-
-      currentWord = getRandomQuestion();
+      // 状態リセット
+      gameState.score = 0;
+      gameState.combo = 0;
+      gameState.maxCombo = 0;
+      gameState.level = 1;
+      gameState.correctCount = 0;
+      gameState.totalAttempts = 0;
+      gameState.typedCharacters = 0;
+      gameState.time = TIME_SETTINGS[gameState.difficulty];
+      gameState.startTime = Date.now();
+      gameState.isPlaying = true;
+      
+      // UI更新
+      elements.inputArea.value = '';
+      elements.inputArea.disabled = false;
+      elements.inputArea.focus();
+      elements.resultContainer.style.display = 'none';
+      elements.retryBtn.style.display = 'none';
+      
+      updateStats();
+      elements.scoreDisplay.textContent = '0';
+      elements.timeDisplay.textContent = gameState.time.toString();
+      
+      // 最初の問題設定
+      gameState.currentWord = getRandomQuestion();
       displayQuestion();
-
-      timer = setInterval(() => {
-        time--;
-        timeSpan.textContent = time;
-        if (time <= 0) {
+      
+      // タイマー開始
+      gameTimer = setInterval(() => {
+        gameState.time--;
+        elements.timeDisplay.textContent = gameState.time.toString();
+        updateStats();
+        
+        if (gameState.time <= 0) {
           endGame();
         }
       }, 1000);
+      
+      // 背景アニメーション開始
+      startBackgroundAnimation();
+      
+      // スムーズな更新開始
+      smoothUpdate();
     }
 
+    /**
+     * ゲーム終了
+     */
     function endGame() {
-      clearInterval(timer);
-      isPlaying = false;
-      inputArea.disabled = true;
-      const typed = score;
-      const wpm = typed;
-      const accuracy = calculateAccuracy();
-      resultDiv.innerHTML = `ゲーム終了！<br>WPM: ${wpm}<br>正解率: ${accuracy}%`;
-      retryBtn.style.display = 'inline-block';
+      if (gameTimer) {
+        clearInterval(gameTimer);
+        gameTimer = null;
+      }
+      
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      
+      gameState.isPlaying = false;
+      elements.inputArea.disabled = true;
+      
+      const elapsed = (Date.now() - gameState.startTime) / 1000 / 60;
+      const finalWpm = elapsed > 0 ? Math.round(gameState.typedCharacters / elapsed) : 0;
+      const finalAccuracy = gameState.totalAttempts > 0 
+        ? Math.round((gameState.correctCount / gameState.totalAttempts) * 100) 
+        : 100;
+      
+      // パフォーマンス評価
+      const performance = getPerformanceRating(finalWpm, finalAccuracy);
+      
+      showResults(finalWpm, finalAccuracy, performance);
     }
 
-    function calculateAccuracy() {
-      const totalTyped = inputHistory.join('').length;
-      const totalCorrect = correctHistory.join('').length;
-      return totalTyped > 0 ? Math.floor((totalCorrect / totalTyped) * 100) : 0;
+    /**
+     * パフォーマンス評価取得
+     * @param {number} wpm
+     * @param {number} accuracy
+     * @returns {string}
+     */
+    function getPerformanceRating(wpm, accuracy) {
+      if (wpm >= 120 && accuracy >= 98) return 'TypeScript Master 🏆';
+      if (wpm >= 100 && accuracy >= 95) return 'Code Ninja 🥷';
+      if (wpm >= 80 && accuracy >= 92) return 'Senior Developer 👨‍💻';
+      if (wpm >= 60 && accuracy >= 88) return 'Developer 💻';
+      if (wpm >= 40 && accuracy >= 80) return 'Junior Developer 📝';
+      if (wpm >= 25 && accuracy >= 70) return 'Beginner Coder 🌱';
+      return 'Learning Journey 📚';
     }
 
-    let inputHistory = [];
-    let correctHistory = [];
+    /**
+     * 結果表示
+     * @param {number} wpm
+     * @param {number} accuracy
+     * @param {string} performance
+     */
+    function showResults(wpm, accuracy, performance) {
+      updateGameStats(wpm, accuracy, gameState.score);
+      
+      elements.resultContainer.innerHTML = `
+        <div class="result-container">
+          <h2 class="result-title">🎉 ゲーム完了！ 🎉</h2>
+          <div class="result-stats">
+            <div class="result-stat">
+              <span class="result-stat-value">${gameState.score}</span>
+              <div class="result-stat-label">スコア</div>
+            </div>
+            <div class="result-stat">
+              <span class="result-stat-value">${wpm}</span>
+              <div class="result-stat-label">WPM</div>
+            </div>
+            <div class="result-stat">
+              <span class="result-stat-value">${accuracy}%</span>
+              <div class="result-stat-label">正確度</div>
+            </div>
+            <div class="result-stat">
+              <span class="result-stat-value">${gameState.maxCombo}</span>
+              <div class="result-stat-label">最大コンボ</div>
+            </div>
+            <div class="result-stat">
+              <span class="result-stat-value">${gameState.level}</span>
+              <div class="result-stat-label">到達レベル</div>
+            </div>
+            <div class="result-stat">
+              <span class="result-stat-value">${performance}</span>
+              <div class="result-stat-label">評価</div>
+            </div>
+          </div>
+          ${getDetailedStatsHTML()}
+        </div>
+      `;
+      
+      elements.resultContainer.style.display = 'block';
+      elements.retryBtn.style.display = 'inline-block';
+    }
 
-    inputArea.addEventListener('input', () => {
-      if (!isPlaying) return;
-      updateQuestionHighlight();
-    });
+    /**
+     * 統計データ更新
+     * @param {number} wpm
+     * @param {number} accuracy
+     * @param {number} gameScore
+     */
+    function updateGameStats(wpm, accuracy, gameScore) {
+      gameStats.totalGames++;
+      gameStats.totalScore += gameScore;
+      
+      if (wpm > gameStats.bestWpm) gameStats.bestWpm = wpm;
+      if (accuracy > gameStats.bestAccuracy) gameStats.bestAccuracy = accuracy;
+      if (gameScore > gameStats.bestScore) gameStats.bestScore = gameScore;
+      if (gameState.maxCombo > gameStats.bestCombo) gameStats.bestCombo = gameState.maxCombo;
+    }
 
-    inputArea.addEventListener('keydown', (e) => {
-      if (!isPlaying) return;
+    /**
+     * 詳細統計HTML取得
+     * @returns {string}
+     */
+    function getDetailedStatsHTML() {
+      const avgScore = gameStats.totalGames > 0 
+        ? Math.round(gameStats.totalScore / gameStats.totalGames) 
+        : 0;
+      
+      return `
+        <div class="detailed-stats">
+          <h3>📊 セッション統計</h3>
+          <div class="session-stats">
+            <div class="session-stat">
+              <span class="session-stat-value">${gameStats.totalGames}</span>
+              <div class="session-stat-label">総ゲーム数</div>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-value">${avgScore}</span>
+              <div class="session-stat-label">平均スコア</div>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-value">${gameStats.bestWpm}</span>
+              <div class="session-stat-label">最高 WPM</div>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-value">${gameStats.bestScore}</span>
+              <div class="session-stat-label">最高スコア</div>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-value">${gameStats.bestAccuracy}%</span>
+              <div class="session-stat-label">最高正確度</div>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-value">${gameStats.bestCombo}</span>
+              <div class="session-stat-label">最高コンボ</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        const input = inputArea.value;
-        inputHistory.push(input);
-        if (input === currentWord) {
-          correctHistory.push(currentWord);
-          score++;
-          scoreSpan.textContent = score;
-          inputArea.value = '';
-          currentWord = getRandomQuestion();
-          displayQuestion();
+    /**
+     * スムーズな更新
+     */
+    function smoothUpdate() {
+      if (gameState.isPlaying) {
+        updateStats();
+        animationFrameId = requestAnimationFrame(smoothUpdate);
+      }
+    }
+
+    /**
+     * 浮遊文字作成
+     */
+    function createFloatingChar() {
+      const chars = ['T', 'S', 'あ', 'か', 'さ', 'た', 'な', 'は', '愛', '夢', '希', '光', '♦', '★', '❤'];
+      const char = document.createElement('div');
+      char.className = 'floating-char';
+      char.textContent = chars[Math.floor(Math.random() * chars.length)];
+      char.style.left = Math.random() * 100 + '%';
+      char.style.color = `hsl(${Math.random() * 360}, 70%, 80%)`;
+      char.style.animationDuration = (Math.random() * 10 + 10) + 's';
+      
+      elements.backgroundAnimation.appendChild(char);
+      
+      setTimeout(() => {
+        if (char.parentNode) {
+          char.parentNode.removeChild(char);
+        }
+      }, 20000);
+    }
+
+    /**
+     * 背景アニメーション開始
+     */
+    function startBackgroundAnimation() {
+      const interval = setInterval(() => {
+        if (gameState.isPlaying) {
+          createFloatingChar();
+        } else {
+          clearInterval(interval);
+        }
+      }, 1500);
+    }
+
+    // サウンド効果
+    let audioContext = null;
+
+    /**
+     * サウンド再生
+     * @param {number} frequency
+     * @param {number} duration
+     * @param {OscillatorType} type
+     */
+    function playSound(frequency, duration, type = 'sine') {
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+      } catch (error) {
+        console.log('Audio not supported:', error);
+      }
+    }
+
+    /**
+     * 正解サウンド
+     */
+    function playCorrectSound() {
+      playSound(800, 0.1);
+      setTimeout(() => playSound(1000, 0.1), 50);
+    }
+
+    /**
+     * エラーサウンド
+     */
+    function playErrorSound() {
+      playSound(200, 0.3, 'square');
+    }
+
+    /**
+     * レベルアップサウンド
+     */
+    function playLevelUpSound() {
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((note, index) => {
+        setTimeout(() => playSound(note, 0.2), index * 100);
+      });
+    }
+
+    // イベントリスナー設定
+
+    // 難易度選択
+    elements.difficultySelector.addEventListener('click', (event) => {
+      const target = /** @type {HTMLButtonElement} */ (event.target);
+      if (target.classList.contains('difficulty-btn')) {
+        // アクティブ状態更新
+        document.querySelectorAll('.difficulty-btn').forEach(btn => 
+          btn.classList.remove('active')
+        );
+        target.classList.add('active');
+        
+        // 難易度設定
+        const difficulty = /** @type {Difficulty} */ (target.dataset.difficulty);
+        gameState.difficulty = difficulty;
+        gameState.time = TIME_SETTINGS[difficulty];
+        elements.timeDisplay.textContent = gameState.time.toString();
+        
+        // 問題プレビュー更新
+        if (!gameState.isPlaying) {
+          elements.questionDisplay.innerHTML = 
+            `<span style="color: rgba(255,255,255,0.6);">
+              ${difficulty.toUpperCase()}モード - ゲームを開始してください
+            </span>`;
         }
       }
     });
 
-    clearBtn.addEventListener('click', () => {
-      inputArea.value = '';
+    // 入力処理
+    elements.inputArea.addEventListener('input', () => {
+      if (!gameState.isPlaying) return;
+      
       updateQuestionHighlight();
+      
+      // リアルタイム統計更新
+      const input = elements.inputArea.value;
+      if (input.length > 0) {
+        const lastCharIndex = input.length - 1;
+        const lastChar = input[lastCharIndex];
+        const targetChar = gameState.currentWord[lastCharIndex];
+        
+        if (lastCharIndex < gameState.currentWord.length) {
+          if (lastChar === targetChar) {
+            gameState.typedCharacters++;
+            gameState.correctCount++;
+          }
+          gameState.totalAttempts++;
+        }
+      }
     });
 
-    startBtn.addEventListener('click', () => {
-      inputHistory = [];
-      correctHistory = [];
-      startGame();
+    // キーボード処理
+    elements.inputArea.addEventListener('keydown', (event) => {
+      if (!gameState.isPlaying) return;
+
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        const input = elements.inputArea.value.trim();
+        
+        if (input === gameState.currentWord) {
+          // 正解処理
+          gameState.score++;
+          gameState.combo++;
+          
+          if (gameState.combo > gameState.maxCombo) {
+            gameState.maxCombo = gameState.combo;
+          }
+          
+          // レベルアップチェック
+          const threshold = LEVEL_UP_THRESHOLDS[gameState.difficulty];
+          if (gameState.score % threshold === 0) {
+            gameState.level++;
+            showLevelUp();
+          }
+          
+          // エフェクト表示
+          showCombo();
+          playCorrectSound();
+          
+          const rect = elements.questionDisplay.getBoundingClientRect();
+          createParticleEffect(
+            rect.left + rect.width / 2, 
+            rect.top + rect.height / 2,
+            '#4ade80'
+          );
+          
+          // 次の問題へ
+          elements.scoreDisplay.textContent = gameState.score.toString();
+          elements.inputArea.value = '';
+          gameState.currentWord = getRandomQuestion();
+          displayQuestion();
+          
+        } else {
+          // 不正解処理
+          gameState.combo = 0;
+          playErrorSound();
+          
+          elements.inputArea.style.animation = 'shake 0.6s ease';
+          setTimeout(() => {
+            elements.inputArea.style.animation = '';
+          }, 600);
+          
+          const rect = elements.questionDisplay.getBoundingClientRect();
+          createParticleEffect(
+            rect.left + rect.width / 2, 
+            rect.top + rect.height / 2,
+            '#f87171'
+          );
+        }
+      }
+      
+      // バックスペース処理
+      if (event.key === 'Backspace') {
+        setTimeout(() => updateQuestionHighlight(), 10);
+      }
     });
 
-    retryBtn.addEventListener('click', () => {
-      inputHistory = [];
-      correctHistory = [];
-      startGame();
+    // ボタンイベント
+    elements.startBtn.addEventListener('click', startGame);
+    elements.retryBtn.addEventListener('click', startGame);
+    elements.clearBtn.addEventListener('click', () => {
+      elements.inputArea.value = '';
+      if (gameState.isPlaying) {
+        updateQuestionHighlight();
+      }
     });
+
+    // テーマ切り替え
+    let isDarkMode = false;
+    elements.themeToggle.addEventListener('click', () => {
+      isDarkMode = !isDarkMode;
+      elements.themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+      document.body.style.filter = isDarkMode ? 'invert(1) hue-rotate(180deg)' : 'none';
+    });
+
+    // キーボードショートカット
+    document.addEventListener('keydown', (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          if (!gameState.isPlaying) startGame();
+        } else if (event.key === 'r') {
+          event.preventDefault();
+          if (!gameState.isPlaying) startGame();
+        }
+      }
+      
+      if (event.key === 'Escape') {
+        elements.inputArea.value = '';
+        if (gameState.isPlaying) {
+          updateQuestionHighlight();
+        }
+      }
+    });
+
+    // タッチデバイス対応
+    if ('ontouchstart' in window) {
+      elements.inputArea.addEventListener('touchstart', () => {
+        elements.inputArea.focus();
+      });
+    }
+
+    // 初期化
+    function initialize() {
+      createFloatingChar();
+      setInterval(createFloatingChar, 3000);
+      
+      elements.questionDisplay.innerHTML = 
+        '<span style="color: rgba(255,255,255,0.6);">難易度を選択してゲームを開始してください</span>';
+      
+      console.log('🚀 TypeScript版日本語タイピングゲーム - 準備完了!');
+      console.log('📝 機能: 型安全性、4段階難易度、リアルタイム統計、エフェクト');
+      console.log('⌨️ ショートカット: Ctrl+Enter (開始), Ctrl+R (リセット), Esc (クリア)');
+    }
+
+    // 初期化実行
+    initialize();
   </script>
-
 </body>
 </html>
