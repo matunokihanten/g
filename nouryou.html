@@ -2,92 +2,149 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>脳梁ブースタープロ：究極モード</title>
   <style>
-    /* 全体レイアウト */
+    /* ページ全体 */
     html, body {
       height: 100%; margin: 0; padding: 0; overflow: hidden;
     }
     body {
-      font-family: sans-serif; background: #f4f4f4; display: flex; flex-direction: column;
+      font-family: sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
     }
     header {
-      height: 50px; background: #2c3e50; color: #ecf0f1;
-      display: flex; align-items: center; justify-content: center;
+      height: 50px;
+      background: #2c3e50;
+      color: #ecf0f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
     }
+    header h1 {
+      font-size: 1rem; margin: 0;
+    }
     main {
-      flex: 1; display: flex; flex-direction: column;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
-    /* 各セクション */
-    #welcome-screen,
-    #game-screen,
-    #history {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 0 10px; box-sizing: border-box;
+    section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      box-sizing: border-box;
     }
-    /* 共通ボタン */
+    /* ボタン */
     .btn {
-      padding: .6rem 1.2rem; margin: .5rem;
-      font-size: 1rem; color: #fff; background: #2980b9;
-      border: none; border-radius: 4px; cursor: pointer;
+      padding: .6rem 1.2rem;
+      margin: .5rem;
+      font-size: 1rem;
+      color: #fff;
+      background: #2980b9;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
     }
     .btn:hover { background: #1c5980; }
     .hidden { display: none; }
-    /* ゲーム情報バー */
+    /* ステージ・スコア・タイマー */
     #info-bar {
-      width: 100%; display: flex;
-      justify-content: space-between; align-items: center;
-      flex-shrink: 0; margin-bottom: .5rem;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      margin-bottom: .5rem;
     }
     #stage-display, #score-display {
       font-size: 1rem; font-weight: bold;
     }
     #timer-bar-container {
-      flex-shrink: 0; width: 30%;
-      height: 12px; background: #bdc3c7;
-      border-radius: 6px; overflow: hidden;
+      flex-shrink: 0;
+      width: 30%;
+      height: 12px;
+      background: #bdc3c7;
+      border-radius: 6px;
+      overflow: hidden;
     }
     #timer-bar {
-      width: 100%; height: 100%; background: #27ae60;
+      width: 100%;
+      height: 100%;
+      background: #27ae60;
       transition: width .1s linear;
     }
     /* ルール表示 */
     .rule-box {
-      width: 100%; flex-shrink: 0;
-      display: flex; justify-content: center;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      flex-shrink: 0;
+      margin: .5rem 0;
     }
     .rule {
-      padding: .5rem; background: #ecf0f1;
-      border: 2px solid #2980b9; border-radius: 6px;
-      font-size: .9rem; text-align: center;
-      width: 80%; box-sizing: border-box;
+      width: 45%;
+      padding: .5rem;
+      background: #ecf0f1;
+      border: 2px solid #2980b9;
+      border-radius: 6px;
+      font-size: .9rem;
+      text-align: center;
       transition: opacity .3s;
+      opacity: 1;
     }
-    /* ターゲット配置 */
-    .target-box {
-      flex: 1; display: flex; flex-wrap: wrap;
-      justify-content: center; align-items: center;
-      gap: 4px; width: 100%; box-sizing: border-box;
+    /* ターゲットエリアを左右分割 */
+    .target-container {
+      flex: 1;
+      display: flex;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .left-targets, .right-targets {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      box-sizing: border-box;
+    }
+    .left-targets {
+      border-right: 2px solid #ccc;
+    }
+    .right-targets {
+      /* 境界線は左側にあるので不要 */
     }
     .target {
-      width: 60px; height: 60px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem; color: #fff; border-radius: 8px;
+      width: 60px; height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
       transition: transform .1s, opacity .3s;
     }
     .target:active { transform: scale(0.9); }
     .red   { background: #e74c3c; }
     .blue  { background: #3498db; }
     .circle { border-radius: 50%; }
-    /* 履歴セクション */
+    /* 履歴 */
     #history {
-      justify-content: flex-start; overflow: hidden;
+      justify-content: flex-start;
+      overflow: hidden;
     }
     #chart {
-      width: 100% !important; height: 120px !important;
+      width: 100% !important;
+      height: 120px !important;
     }
     #history-table {
       width: 100%; font-size: .75rem;
@@ -96,8 +153,7 @@
       width: 100%; border-collapse: collapse;
     }
     #history-table th, #history-table td {
-      border: 1px solid #ccc; padding: 2px;
-      text-align: center;
+      border: 1px solid #ccc; padding: 2px; text-align: center;
     }
   </style>
 </head>
@@ -108,8 +164,9 @@
   <main>
     <!-- ウェルカム画面 -->
     <section id="welcome-screen">
-      <p style="font-size:.9rem; text-align:center; line-height:1.4;">
-        脳梁を極限まで鍛える究極モード！ステージが上がるごとに問題数増・時間短縮・メモリーチャレンジ。<br>
+      <p style="font-size:.9rem; text-align:center; line-height:1.4; margin:0 0 1rem;">
+        脳梁を極限まで鍛える究極モード！<br>
+        ステージが上がるごとに問題数増・時間短縮・メモリーチャレンジ。<br>
         ルールを覚えて正確＆高速にクリックしよう！
       </p>
       <button id="start-btn" class="btn">今すぐ挑戦</button>
@@ -122,16 +179,23 @@
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
         <div id="score-display">Score: 0 | Combo: 0</div>
       </div>
+
       <div class="rule-box">
-        <div class="rule" id="rule-text">ルールを確認中…</div>
+        <div class="rule" id="left-rule-text">左のルール</div>
+        <div class="rule" id="right-rule-text">右のルール</div>
       </div>
-      <div class="target-box" id="target-box"></div>
+
+      <div class="target-container">
+        <div class="left-targets"></div>
+        <div class="right-targets"></div>
+      </div>
+
       <button id="next-stage-btn" class="btn hidden">次のステージへ</button>
     </section>
 
     <!-- 履歴セクション -->
     <section id="history" class="hidden">
-      <h2 style="font-size:1rem; margin: .5rem 0;">スコア履歴</h2>
+      <h2 style="font-size:1rem; margin:.5rem 0;">スコア履歴</h2>
       <canvas id="chart"></canvas>
       <div id="history-table"></div>
     </section>
@@ -148,13 +212,22 @@
     const stageDisp     = document.getElementById('stage-display');
     const scoreDisp     = document.getElementById('score-display');
     const timerBar      = document.getElementById('timer-bar');
-    const ruleTextBox   = document.getElementById('rule-text');
-    const targetBox     = document.getElementById('target-box');
+    const leftRuleText  = document.getElementById('left-rule-text');
+    const rightRuleText = document.getElementById('right-rule-text');
+    const leftTargets   = document.querySelector('.left-targets');
+    const rightTargets  = document.querySelector('.right-targets');
     const nextBtn       = document.getElementById('next-stage-btn');
     const chartCtx      = document.getElementById('chart').getContext('2d');
     const historyTable  = document.getElementById('history-table');
 
-    let stage = 1, score = 0, combo = 0, timeLeft = 0, timerId = null, currentRule = null, chart = null;
+    let stage = 1,
+        score = 0,
+        combo = 0,
+        timeLeft = 0,
+        timerId = null,
+        currentRuleLeft = null,
+        currentRuleRight = null,
+        chart = null;
 
     startBtn.addEventListener('click', () => {
       welcomeScreen.classList.add('hidden');
@@ -162,57 +235,97 @@
       historySec.classList.remove('hidden');
       beginStage();
     });
-    nextBtn.addEventListener('click', () => { stage++; beginStage(); });
+
+    nextBtn.addEventListener('click', () => {
+      stage++;
+      beginStage();
+    });
 
     function beginStage() {
-      // 難易度調整
-      const numTargets = Math.min(8, 2 + stage);
+      const numPerSide = 4;
       timeLeft = Math.max(4, 15 - stage * 1.5);
       combo = 0;
       stageDisp.textContent = `ステージ ${stage}`;
       scoreDisp.textContent = `Score: ${score} | Combo: ${combo}`;
       nextBtn.classList.add('hidden');
-      generateRule();
+
+      generateRules();
       showRuleThenHide();
-      generateTargets(numTargets);
+      generateTargets(numPerSide);
       startTimer();
     }
 
-    function generateRule() {
+    function generateRules() {
       const colors = ['赤','青'], shapes = ['丸','四角'];
-      const color = colors[Math.floor(Math.random()*2)];
-      const shape = shapes[Math.floor(Math.random()*2)];
-      const action = Math.random()<0.5 ? '押せ' : '避けろ';
-      currentRule = { color, shape, action };
-      ruleTextBox.textContent = `★ ${color}い${shape}を${action} ★`;
+      currentRuleLeft = {
+        color: colors[Math.floor(Math.random()*2)],
+        shape: shapes[Math.floor(Math.random()*2)],
+        action: Math.random()<0.5 ? '押せ' : '避けろ'
+      };
+      currentRuleRight = {
+        color: colors[Math.floor(Math.random()*2)],
+        shape: shapes[Math.floor(Math.random()*2)],
+        action: Math.random()<0.5 ? '押せ' : '避けろ'
+      };
+      leftRuleText.textContent  = `左: ${currentRuleLeft.color}い${currentRuleLeft.shape}を${currentRuleLeft.action}`;
+      rightRuleText.textContent = `右: ${currentRuleRight.color}い${currentRuleRight.shape}を${currentRuleRight.action}`;
     }
 
     function showRuleThenHide() {
-      ruleTextBox.style.opacity = '1';
-      setTimeout(() => { ruleTextBox.style.opacity = '0'; }, 3000);
+      leftRuleText.style.opacity = '1';
+      rightRuleText.style.opacity = '1';
+      setTimeout(()=>{
+        leftRuleText.style.opacity = '0';
+        rightRuleText.style.opacity = '0';
+      }, 3000);
     }
 
     function generateTargets(n) {
       clearInterval(timerId);
-      targetBox.innerHTML = '';
-      for (let i=0; i<n; i++) {
-        const div = document.createElement('div');
-        const isMatch = Math.random()<0.4;
-        const color = isMatch ? currentRule.color : (currentRule.color==='赤'?'青':'赤');
-        const shape = isMatch ? currentRule.shape : (currentRule.shape==='丸'?'四角':'丸');
-        div.className = `target ${color==='赤'? 'red':'blue'} ${shape==='丸'? 'circle':''}`;
-        div.textContent = shape==='丸'? '●':'■';
-        div.dataset.match = isMatch;
-        div.addEventListener('click', () => handleClick(div));
-        targetBox.appendChild(div);
+      leftTargets.innerHTML = '';
+      rightTargets.innerHTML = '';
+
+      for (let i = 0; i < n; i++) {
+        // 左
+        const divL = document.createElement('div');
+        const matchL = Math.random() < 0.4;
+        const colorL = matchL ? currentRuleLeft.color : (currentRuleLeft.color==='赤'?'青':'赤');
+        const shapeL = matchL ? currentRuleLeft.shape : (currentRuleLeft.shape==='丸'?'四角':'丸');
+        divL.className = `target ${colorL==='赤'?'red':'blue'} ${shapeL==='丸'?'circle':''}`;
+        divL.textContent = shapeL==='丸' ? '●' : '■';
+        divL.dataset.side  = 'left';
+        divL.dataset.match = matchL;
+        divL.addEventListener('click', ()=> handleClick(divL));
+        leftTargets.appendChild(divL);
+
+        // 右
+        const divR = document.createElement('div');
+        const matchR = Math.random() < 0.4;
+        const colorR = matchR ? currentRuleRight.color : (currentRuleRight.color==='赤'?'青':'赤');
+        const shapeR = matchR ? currentRuleRight.shape : (currentRuleRight.shape==='丸'?'四角':'丸');
+        divR.className = `target ${colorR==='赤'?'red':'blue'} ${shapeR==='丸'?'circle':''}`;
+        divR.textContent = shapeR==='丸' ? '●' : '■';
+        divR.dataset.side  = 'right';
+        divR.dataset.match = matchR;
+        divR.addEventListener('click', ()=> handleClick(divR));
+        rightTargets.appendChild(divR);
       }
     }
 
     function handleClick(el) {
-      const shouldMatch = currentRule.action === '押せ';
-      const correct = (el.dataset.match === 'true') === shouldMatch;
-      if (correct) { score += 10 + combo * 2; combo++; }
-      else { score -= 8; combo = 0; }
+      const side = el.dataset.side;
+      const rule = side==='left' ? currentRuleLeft : currentRuleRight;
+      const isMatch = el.dataset.match === 'true';
+      const shouldMatch = rule.action === '押せ';
+      const correct = (isMatch === shouldMatch);
+
+      if (correct) {
+        score += 10 + combo * 2;
+        combo++;
+      } else {
+        score -= 8;
+        combo = 0;
+      }
       scoreDisp.textContent = `Score: ${score} | Combo: ${combo}`;
       el.style.opacity = '0.5';
       el.style.pointerEvents = 'none';
@@ -222,10 +335,14 @@
       clearInterval(timerId);
       const total = timeLeft;
       timerBar.style.width = '100%';
-      timerId = setInterval(() => {
+      timerId = setInterval(()=>{
         timeLeft -= 0.1;
-        if (timeLeft <= 0) { clearInterval(timerId); finishStage(); }
-        else { timerBar.style.width = ((timeLeft / total)*100) + '%'; }
+        if (timeLeft <= 0) {
+          clearInterval(timerId);
+          finishStage();
+        } else {
+          timerBar.style.width = ((timeLeft/total)*100) + '%';
+        }
       }, 100);
     }
 
@@ -237,18 +354,20 @@
 
     function saveRecord() {
       const key = 'brain_pro_records';
-      const recs = JSON.parse(localStorage.getItem(key)||'[]');
+      const recs = JSON.parse(localStorage.getItem(key) || '[]');
       recs.push({ stage, score, combo, time: new Date().toISOString() });
       localStorage.setItem(key, JSON.stringify(recs));
     }
 
     function updateHistory() {
       const key = 'brain_pro_records';
-      const recs = JSON.parse(localStorage.getItem(key)||'[]');
+      const recs = JSON.parse(localStorage.getItem(key) || '[]');
       let html = '<table><tr><th>ステージ</th><th>Score</th><th>Combo</th><th>日時</th></tr>';
-      recs.forEach(r => {
+      recs.forEach(r=>{
         html += `<tr>
-          <td>${r.stage}</td><td>${r.score}</td><td>${r.combo}</td>
+          <td>${r.stage}</td>
+          <td>${r.score}</td>
+          <td>${r.combo}</td>
           <td>${r.time.replace('T',' ').slice(0,19)}</td>
         </tr>`;
       });
@@ -256,23 +375,32 @@
       historyTable.innerHTML = html;
 
       const labels = recs.map(r => `S${r.stage}`);
-      const data = recs.map(r => r.score);
+      const data   = recs.map(r => r.score);
       if (chart) chart.destroy();
       chart = new Chart(chartCtx, {
         type: 'line',
-        data: { labels, datasets: [{ label:'Score 推移', data, borderColor:'#27ae60',
-          backgroundColor:'rgba(39,174,96,0.2)', fill:true, tension:0.4 }] },
+        data: {
+          labels,
+          datasets: [{
+            label: 'Score 推移',
+            data,
+            borderColor: '#27ae60',
+            backgroundColor: 'rgba(39,174,96,0.2)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
         options: {
           scales: {
-            x: { title:{ display:true, text:'ステージ' } },
-            y: { title:{ display:true, text:'Score' } }
+            x: { title: { display: true, text: 'ステージ' } },
+            y: { title: { display: true, text: 'Score' } }
           },
           maintainAspectRatio: false
         }
       });
     }
 
-    window.addEventListener('load', () => {
+    window.addEventListener('load', ()=>{
       if (localStorage.getItem('brain_pro_records')) {
         historySec.classList.remove('hidden');
         updateHistory();
