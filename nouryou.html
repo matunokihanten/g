@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>脳梁ブースタープロ：究極モード</title>
+  <style>
+    /* 全体レイアウト */
+    html, body {
+      height: 100%; margin: 0; padding: 0; overflow: hidden;
+    }
+    body {
+      font-family: sans-serif; background: #f4f4f4; display: flex; flex-direction: column;
+    }
+    header {
+      height: 50px; background: #2c3e50; color: #ecf0f1;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    main {
+      flex: 1; display: flex; flex-direction: column;
+    }
+    /* 各セクション */
+    #welcome-screen,
+    #game-screen,
+    #history {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 0 10px; box-sizing: border-box;
+    }
+    /* 共通ボタン */
+    .btn {
+      padding: .6rem 1.2rem; margin: .5rem;
+      font-size: 1rem; color: #fff; background: #2980b9;
+      border: none; border-radius: 4px; cursor: pointer;
+    }
+    .btn:hover { background: #1c5980; }
+    .hidden { display: none; }
+    /* ゲーム情報バー */
+    #info-bar {
+      width: 100%; display: flex;
+      justify-content: space-between; align-items: center;
+      flex-shrink: 0; margin-bottom: .5rem;
+    }
+    #stage-display, #score-display {
+      font-size: 1rem; font-weight: bold;
+    }
+    #timer-bar-container {
+      flex-shrink: 0; width: 30%;
+      height: 12px; background: #bdc3c7;
+      border-radius: 6px; overflow: hidden;
+    }
+    #timer-bar {
+      width: 100%; height: 100%; background: #27ae60;
+      transition: width .1s linear;
+    }
+    /* ルール表示 */
+    .rule-box {
+      width: 100%; flex-shrink: 0;
+      display: flex; justify-content: center;
+    }
+    .rule {
+      padding: .5rem; background: #ecf0f1;
+      border: 2px solid #2980b9; border-radius: 6px;
+      font-size: .9rem; text-align: center;
+      width: 80%; box-sizing: border-box;
+      transition: opacity .3s;
+    }
+    /* ターゲット配置 */
+    .target-box {
+      flex: 1; display: flex; flex-wrap: wrap;
+      justify-content: center; align-items: center;
+      gap: 4px; width: 100%; box-sizing: border-box;
+    }
+    .target {
+      width: 60px; height: 60px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; color: #fff; border-radius: 8px;
+      transition: transform .1s, opacity .3s;
+    }
+    .target:active { transform: scale(0.9); }
+    .red   { background: #e74c3c; }
+    .blue  { background: #3498db; }
+    .circle { border-radius: 50%; }
+    /* 履歴セクション */
+    #history {
+      justify-content: flex-start; overflow: hidden;
+    }
+    #chart {
+      width: 100% !important; height: 120px !important;
+    }
+    #history-table {
+      width: 100%; font-size: .75rem;
+    }
+    #history-table table {
+      width: 100%; border-collapse: collapse;
+    }
+    #history-table th, #history-table td {
+      border: 1px solid #ccc; padding: 2px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>脳梁ブースタープロ：究極モード</h1>
+  </header>
+  <main>
+    <!-- ウェルカム画面 -->
+    <section id="welcome-screen">
+      <p style="font-size:.9rem; text-align:center; line-height:1.4;">
+        脳梁を極限まで鍛える究極モード！ステージが上がるごとに問題数増・時間短縮・メモリーチャレンジ。<br>
+        ルールを覚えて正確＆高速にクリックしよう！
+      </p>
+      <button id="start-btn" class="btn">今すぐ挑戦</button>
+    </section>
+
+    <!-- ゲーム画面 -->
+    <section id="game-screen" class="hidden">
+      <div id="info-bar">
+        <div id="stage-display">ステージ 1</div>
+        <div id="timer-bar-container"><div id="timer-bar"></div></div>
+        <div id="score-display">Score: 0 | Combo: 0</div>
+      </div>
+      <div class="rule-box">
+        <div class="rule" id="rule-text">ルールを確認中…</div>
+      </div>
+      <div class="target-box" id="target-box"></div>
+      <button id="next-stage-btn" class="btn hidden">次のステージへ</button>
+    </section>
+
+    <!-- 履歴セクション -->
+    <section id="history" class="hidden">
+      <h2 style="font-size:1rem; margin: .5rem 0;">スコア履歴</h2>
+      <canvas id="chart"></canvas>
+      <div id="history-table"></div>
+    </section>
+  </main>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+  (function(){
+    const startBtn      = document.getElementById('start-btn');
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const gameScreen    = document.getElementById('game-screen');
+    const historySec    = document.getElementById('history');
+    const stageDisp     = document.getElementById('stage-display');
+    const scoreDisp     = document.getElementById('score-display');
+    const timerBar      = document.getElementById('timer-bar');
+    const ruleTextBox   = document.getElementById('rule-text');
+    const targetBox     = document.getElementById('target-box');
+    const nextBtn       = document.getElementById('next-stage-btn');
+    const chartCtx      = document.getElementById('chart').getContext('2d');
+    const historyTable  = document.getElementById('history-table');
+
+    let stage = 1, score = 0, combo = 0, timeLeft = 0, timerId = null, currentRule = null, chart = null;
+
+    startBtn.addEventListener('click', () => {
+      welcomeScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      historySec.classList.remove('hidden');
+      beginStage();
+    });
+    nextBtn.addEventListener('click', () => { stage++; beginStage(); });
+
+    function beginStage() {
+      // 難易度調整
+      const numTargets = Math.min(8, 2 + stage);
+      timeLeft = Math.max(4, 15 - stage * 1.5);
+      combo = 0;
+      stageDisp.textContent = `ステージ ${stage}`;
+      scoreDisp.textContent = `Score: ${score} | Combo: ${combo}`;
+      nextBtn.classList.add('hidden');
+      generateRule();
+      showRuleThenHide();
+      generateTargets(numTargets);
+      startTimer();
+    }
+
+    function generateRule() {
+      const colors = ['赤','青'], shapes = ['丸','四角'];
+      const color = colors[Math.floor(Math.random()*2)];
+      const shape = shapes[Math.floor(Math.random()*2)];
+      const action = Math.random()<0.5 ? '押せ' : '避けろ';
+      currentRule = { color, shape, action };
+      ruleTextBox.textContent = `★ ${color}い${shape}を${action} ★`;
+    }
+
+    function showRuleThenHide() {
+      ruleTextBox.style.opacity = '1';
+      setTimeout(() => { ruleTextBox.style.opacity = '0'; }, 3000);
+    }
+
+    function generateTargets(n) {
+      clearInterval(timerId);
+      targetBox.innerHTML = '';
+      for (let i=0; i<n; i++) {
+        const div = document.createElement('div');
+        const isMatch = Math.random()<0.4;
+        const color = isMatch ? currentRule.color : (currentRule.color==='赤'?'青':'赤');
+        const shape = isMatch ? currentRule.shape : (currentRule.shape==='丸'?'四角':'丸');
+        div.className = `target ${color==='赤'? 'red':'blue'} ${shape==='丸'? 'circle':''}`;
+        div.textContent = shape==='丸'? '●':'■';
+        div.dataset.match = isMatch;
+        div.addEventListener('click', () => handleClick(div));
+        targetBox.appendChild(div);
+      }
+    }
+
+    function handleClick(el) {
+      const shouldMatch = currentRule.action === '押せ';
+      const correct = (el.dataset.match === 'true') === shouldMatch;
+      if (correct) { score += 10 + combo * 2; combo++; }
+      else { score -= 8; combo = 0; }
+      scoreDisp.textContent = `Score: ${score} | Combo: ${combo}`;
+      el.style.opacity = '0.5';
+      el.style.pointerEvents = 'none';
+    }
+
+    function startTimer() {
+      clearInterval(timerId);
+      const total = timeLeft;
+      timerBar.style.width = '100%';
+      timerId = setInterval(() => {
+        timeLeft -= 0.1;
+        if (timeLeft <= 0) { clearInterval(timerId); finishStage(); }
+        else { timerBar.style.width = ((timeLeft / total)*100) + '%'; }
+      }, 100);
+    }
+
+    function finishStage() {
+      saveRecord();
+      updateHistory();
+      nextBtn.classList.remove('hidden');
+    }
+
+    function saveRecord() {
+      const key = 'brain_pro_records';
+      const recs = JSON.parse(localStorage.getItem(key)||'[]');
+      recs.push({ stage, score, combo, time: new Date().toISOString() });
+      localStorage.setItem(key, JSON.stringify(recs));
+    }
+
+    function updateHistory() {
+      const key = 'brain_pro_records';
+      const recs = JSON.parse(localStorage.getItem(key)||'[]');
+      let html = '<table><tr><th>ステージ</th><th>Score</th><th>Combo</th><th>日時</th></tr>';
+      recs.forEach(r => {
+        html += `<tr>
+          <td>${r.stage}</td><td>${r.score}</td><td>${r.combo}</td>
+          <td>${r.time.replace('T',' ').slice(0,19)}</td>
+        </tr>`;
+      });
+      html += '</table>';
+      historyTable.innerHTML = html;
+
+      const labels = recs.map(r => `S${r.stage}`);
+      const data = recs.map(r => r.score);
+      if (chart) chart.destroy();
+      chart = new Chart(chartCtx, {
+        type: 'line',
+        data: { labels, datasets: [{ label:'Score 推移', data, borderColor:'#27ae60',
+          backgroundColor:'rgba(39,174,96,0.2)', fill:true, tension:0.4 }] },
+        options: {
+          scales: {
+            x: { title:{ display:true, text:'ステージ' } },
+            y: { title:{ display:true, text:'Score' } }
+          },
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    window.addEventListener('load', () => {
+      if (localStorage.getItem('brain_pro_records')) {
+        historySec.classList.remove('hidden');
+        updateHistory();
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
