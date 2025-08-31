@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高機能 日本語単語タイピングゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Google FontsからInterを読み込み */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            touch-action: manipulation; /* スマホでのダブルタップズームを無効化 */
+        }
+
+        /* カーソルの点滅アニメーション */
+        .cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+            font-weight: 100;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* 文字スパンのスタイル */
+        .char-span {
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .correct {
+            color: #4ade80; /* Tailwind green-400 */
+        }
+
+        .incorrect {
+            color: #f87171; /* Tailwind red-400 */
+            background-color: rgba(248, 113, 113, 0.1);
+            border-bottom: 2px solid #ef4444; /* Tailwind red-500 */
+        }
+        
+        .current {
+            border-bottom: 2px solid #60a5fa; /* Tailwind blue-400 */
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 flex items-center justify-center min-h-screen">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl text-center">
+        <header class="mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400 mb-2">日本語単語タイピング</h1>
+            <p class="text-slate-400">変換中の単語を正しく入力しよう！</p>
+        </header>
+
+        <main id="game-container" class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl">
+                        <div id="game-ui" class="hidden">
+                <div class="flex justify-between items-center mb-6 text-xl md:text-2xl">
+                    <div class="flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sky-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <span>残り時間: <span id="timer" class="font-bold w-12 inline-block">60</span>秒</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><path d="M15.5 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>スコア: <span id="score" class="font-bold w-16 inline-block">0</span></span>
+                    </div>
+                </div>
+
+                                <div id="question" class="text-4xl md:text-5xl font-bold tracking-widest p-4 bg-slate-900/50 rounded-lg mb-4 h-28 md:h-32 flex items-center justify-center"></div>
+
+                                <div id="input-display" class="text-lg md:text-xl p-3 bg-slate-700 rounded-lg text-left cursor-text min-h-[3rem]">
+                    <span id="typed-text-display"></span>
+                    <span class="cursor"></span>
+                </div>
+
+                                <input type="text" id="hidden-input" class="opacity-0 absolute w-0 h-0 p-0 m-0 border-0" autofocus>
+            </div>
+
+                        <div id="start-screen" class="flex flex-col items-center justify-center">
+                <h2 id="result-title" class="text-3xl font-bold mb-4">タイピングスキルを試そう！</h2>
+                <p id="result-message" class="text-slate-300 mb-6 text-lg">下のボタンを押してゲームを開始してください。</p>
+                <div id="final-stats" class="text-xl mb-6 space-y-2 hidden">
+                    <p>最終スコア: <span id="final-score" class="font-bold text-sky-400"></span></p>
+                    <p>WPM: <span id="wpm" class="font-bold text-emerald-400"></span></p>
+                    <p>正解率: <span id="accuracy" class="font-bold text-amber-400"></span></p>
+                </div>
+                <button id="start-button" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-8 rounded-lg text-xl transition-all duration-300 transform hover:scale-105 shadow-lg">
+                    ゲーム開始
+                </button>
+            </div>
+        </main>
+        
+        <footer class="mt-8 text-sm text-slate-500">
+            <p>&copy; 2024 高機能タイピングゲーム. All Rights Reserved.</p>
+        </footer>
+    </div>
+
+<script>
+    const words = [
+        "空", "風", "夢", "愛", "光", "時", "心", "言葉", "世界", "未来", "希望", "感謝",
+        "自然", "平和", "挑戦", "努力", "成功", "失敗", "経験", "学習", "友情", "家族",
+        "健康", "仕事", "趣味", "旅行", "音楽", "映画", "読書", "芸術", "桜", "富士山",
+        "寿司", "侍", "忍者", "アニメ", "漫画", "東京", "京都", "大阪", "北海道", "沖縄",
+        "宇宙", "星", "銀河", "地球", "太陽", "月", "季節", "夏", "秋", "冬", "春",
+        "海", "川", "山", "森", "花", "鳥", "魚", "犬", "猫", "象", "熊", "虎",
+        "人間", "自分", "他人", "歴史", "文化", "科学", "技術", "情報", "数学", "物理",
+        "化学", "生物", "社会", "経済", "政治", "法律", "教育", "学校", "先生", "生徒",
+        "教科書", "宿題", "試験", "卒業", "入学", "運動会", "文化祭", "祭り", "花火",
+        "浴衣", "神社", "寺", "城", "公園", "美術館", "博物館", "図書館", "駅", "空港",
+        "道路", "電車", "バス", "自転車", "自動車", "歩行者", "信号", "警察", "消防",
+        "病院", "薬局", "郵便局", "銀行", "コンビニ", "スーパー", "デパート", "レストラン",
+        "カフェ", "パン屋", "八百屋", "魚屋", "肉屋", "お菓子", "ジュース", "牛乳",
+        "ご飯", "味噌汁", "お茶", "水", "おにぎり", "卵", "野菜", "果物", "肉", "魚介類",
+        "醤油", "味噌", "砂糖", "塩", "米", "小麦粉", "豆腐", "納豆", "梅干し", "漬物",
+        "弁当", "朝食", "昼食", "夕食", "おやつ", "夜食", "食器", "箸", "スプーン", "フォーク",
+        "コップ", "皿", "鍋", "フライパン", "包丁", "まな板", "掃除", "洗濯", "料理", "買い物",
+        "電話", "手紙", "メール", "パソコン", "スマホ", "カメラ", "テレビ", "ラジオ", "新聞",
+        "雑誌", "本棚", "机", "椅子", "ベッド", "布団", "枕", "カーテン", "絨毯", "電灯",
+        "電気", "ガス", "水道", "暖房", "冷房", "扇風機", "冷蔵庫", "電子レンジ", "掃除機",
+        "洗濯機", "お風呂", "シャワー", "洗面所", "トイレ", "鏡", "歯ブラシ", "石鹸", "タオル",
+        "服", "靴", "帽子", "鞄", "財布", "鍵", "腕時計", "眼鏡", "傘", "雨具",
+        "絵", "彫刻", "写真", "小説", "詩", "物語", "劇", "ダンス", "歌", "楽器",
+        "ピアノ", "ギター", "ドラム", "バイオリン", "フルート", "コンサート", "ライブ",
+        "スポーツ", "野球", "サッカー", "バスケットボール", "テニス", "卓球", "水泳",
+        "陸上", "マラソン", "体操", "柔道", "剣道", "空手", "相撲", "ゴルフ",
+        "スキー", "スノーボード", "登山", "ハイキング", "キャンプ", "釣り", "散歩",
+        "ジョギング", "筋トレ", "ヨガ", "瞑想", "神社", "仏閣", "お守り", "おみくじ",
+        "絵馬", "お祭り", "盆踊り", "七夕", "お正月", "年末", "年始", "クリスマス",
+        "バレンタイン", "ハロウィン", "誕生日", "記念日", "卒業式", "入学式", "成人式",
+        "結婚式", "葬式", "冠婚葬祭", "季節", "台風", "地震", "津波", "火山", "噴火",
+        "豪雨", "大雪", "雷", "竜巻", "気象", "天気予報", "雲", "虹", "霧", "霞",
+        "霜", "露", "氷", "雪", "雨", "風", "雷雨", "晴れ", "曇り", "星空",
+        "星座", "銀河系", "天体観測", "宇宙飛行士", "人工衛星", "ロケット", "火星", "木星",
+        "土星", "彗星", "流星", "天文台", "探査機", "ロボット", "人工知能", "ビッグデータ",
+        "プログラミング", "インターネット", "ウェブサイト", "ブログ", "SNS", "メール",
+        "チャット", "ビデオ会議", "オンライン", "オフライン", "仮想現実", "拡張現実",
+        "電気自動車", "ドローン", "再生可能エネルギー", "太陽光発電", "風力発電", "水力発電",
+        "地熱発電", "原子力発電", "環境問題", "温暖化", "ゴミ", "リサイクル", "プラスチック",
+        "食料問題", "飢餓", "貧困", "医療", "看護師", "医者", "介護士", "福祉",
+        "ボランティア", "慈善事業", "人権", "平和", "戦争", "紛争", "国連", "外交",
+        "交渉", "政治家", "選挙", "民主主義", "共産主義", "資本主義", "社会主義",
+        "国家", "法律", "裁判", "警察官", "消防士", "自衛官", "公務員", "会社員",
+        "自営業", "学生", "主婦", "フリーター", "ニート", "失業者", "労働者", "経営者",
+        "起業家", "投資家", "株", "債券", "為替", "仮想通貨", "経済", "金融",
+        "税金", "給料", "ボーナス", "貯金", "借金", "ローン", "年金", "保険",
+        "健康診断", "病気", "怪我", "手術", "入院", "退院", "リハビリ", "栄養",
+        "睡眠", "運動", "ストレス", "癒し", "趣味", "特技", "才能", "個性", "性格",
+        "長所", "短所", "夢中", "情熱", "好奇心", "探究心", "創造力", "集中力",
+        "決断力", "行動力", "忍耐力", "協力", "競争", "対立", "友情", "信頼",
+        "裏切り", "感謝", "後悔", "反省", "成長", "変化", "習慣", "努力", "成果",
+        "目標", "計画", "実行", "達成", "失敗", "成功", "挫折", "再挑戦", "困難",
+        "逆境", "希望", "絶望", "人生", "幸福", "不幸", "喜び", "悲しみ", "怒り",
+        "笑い", "涙", "感動", "興奮", "不安", "恐怖", "安心", "安全", "危険",
+        "平和", "混乱", "秩序", "自由", "平等", "公平", "正義", "不正", "犯罪",
+        "警察", "検察", "弁護士", "裁判官", "証人", "容疑者", "被害者", "加害者",
+        "責任", "義務", "権利", "道徳", "倫理", "宗教", "哲学", "歴史", "未来",
+        "過去", "現在", "時間", "永遠", "無限", "有限", "始まり", "終わり", "生",
+        "死", "真実", "嘘", "現実", "非現実", "夢", "幻", "幻想", "想像力",
+        "思考", "感情", "感覚", "知覚", "記憶", "意識", "無意識", "自我", "心",
+        "魂", "精神", "肉体", "健康", "病気", "傷", "痛み", "癒し", "安らぎ",
+        "喜び", "幸福", "悲しみ", "苦しみ", "愛", "憎しみ", "友情", "愛情", "尊敬",
+        "信頼", "裏切り", "嫉妬", "羨望", "孤独", "繋がり", "絆", "家族", "仲間",
+        "友人", "恋人", "夫婦", "親子", "兄弟", "姉妹", "祖父", "祖母", "孫",
+        "家", "故郷", "地球", "宇宙", "自然", "人工", "人間", "動物", "植物",
+        "生き物", "生命", "進化", "創造", "破壊", "再生", "循環", "成長", "老化",
+        "誕生", "死", "時間", "空間", "次元", "宇宙", "太陽系", "惑星", "衛星",
+        "銀河", "恒星", "ブラックホール", "ダークマター", "ダークエネルギー", "宇宙論",
+        "物理学", "量子力学", "相対性理論", "素粒子", "化学", "生物学", "地学",
+        "天文学", "数学", "統計学", "経済学", "社会学", "心理学", "哲学", "倫理学",
+        "歴史学", "考古学", "言語学", "文学", "芸術", "音楽", "美術", "演劇",
+        "映画", "写真", "建築", "デザイン", "工学", "医学", "農学", "漁業", "畜産",
+        "林業", "製造業", "建設業", "サービス業", "情報通信", "運輸業", "小売業",
+        "卸売業", "金融業", "保険業", "不動産業", "専門職", "技術者", "研究者",
+        "教育者", "医師", "弁護士", "会計士", "公認会計士", "税理士", "司法書士",
+        "行政書士", "社会保険労務士", "中小企業診断士", "技術士", "薬剤師", "看護師",
+        "理学療法士", "作業療法士", "栄養士", "管理栄養士", "美容師", "理容師",
+        "調理師", "パティシエ", "パン職人", "大工", "左官", "鳶職", "庭師", "農家",
+        "漁師", "牧場主", "動物園", "水族館", "美術館", "博物館", "図書館", "学校",
+        "会社", "工場", "店舗", "病院", "銀行", "役所", "公園", "駅", "空港",
+        "港", "橋", "トンネル", "道路", "線路", "電車", "新幹線", "飛行機", "船",
+        "自動車", "バイク", "自転車", "バス", "タクシー", "歩行者", "信号", "交差点",
+        "横断歩道", "標識", "地図", "ナビ", "携帯電話", "スマートフォン", "パソコン",
+        "タブレット", "テレビ", "ラジオ", "カメラ", "マイク", "スピーカー", "ヘッドホン",
+        "キーボード", "マウス", "プリンター", "スキャナー", "モニター", "ルーター",
+        "サーバー", "クラウド", "プログラミング言語", "ソフトウェア", "ハードウェア",
+        "ファイル", "フォルダ", "アイコン", "ウィンドウ", "デスクトップ", "スタートメニュー",
+        "インターネット", "ウェブブラウザ", "検索エンジン", "ホームページ", "ブログ",
+        "SNS", "メール", "チャット", "動画サイト", "オンラインゲーム", "電子書籍",
+        "仮想通貨", "ブロックチェーン", "人工知能", "機械学習", "深層学習", "ビッグデータ",
+        "ロボット", "ドローン", "自動運転", "量子コンピューター", "５G", "IOT",
+        "再生可能エネルギー", "SDGs", "環境問題", "地球温暖化", "プラスチックゴミ",
+        "持続可能性", "フードロス", "貧困", "格差", "人権", "平和", "民主主義",
+        "社会貢献", "ボランティア", "寄付", "チャリティー", "NPO", "NGO", "政府",
+        "自治体", "国会", "内閣", "裁判所", "警察", "自衛隊", "消防", "医療",
+        "介護", "福祉", "教育", "子育て", "高齢化", "少子化", "男女平等", "多様性",
+        "共生", "国際協力", "異文化理解", "旅行", "観光", "宿泊", "ホテル", "旅館",
+        "民宿", "お土産", "郷土料理", "名物", "名所", "遺跡", "城跡", "神社仏閣",
+        "温泉", "スキー場", "海水浴場", "山岳", "高原", "湖", "川", "海", "島",
+        "半島", "列島", "大陸", "世界遺産", "無形文化財", "伝統工芸", "祭り", "イベント",
+        "コンサート", "ライブ", "舞台", "演劇", "ミュージカル", "オペラ", "映画",
+        "ドラマ", "アニメ", "漫画", "小説", "詩", "音楽", "美術", "彫刻", "書道",
+        "華道", "茶道", "武道", "空手", "柔道", "剣道", "合気道", "相撲", "野球",
+        "サッカー", "バスケット", "テニス", "卓球", "バドミントン", "水泳", "陸上",
+        "マラソン", "体操", "ゴルフ", "スキー", "スケート", "スノーボード", "サーフィン",
+        "ダイビング", "釣り", "登山", "ハイキング", "キャンプ", "バーベキュー",
+        "アウトドア", "インドア", "ゲーム", "ボードゲーム", "カードゲーム", "eスポーツ",
+        "料理", "食事", "レシピ", "調味料", "食材", "調理器具", "台所", "食堂",
+        "朝食", "昼食", "夕食", "間食", "お菓子", "スイーツ", "ドリンク", "コーヒー",
+        "紅茶", "緑茶", "日本酒", "焼酎", "ビール", "ワイン", "カクテル", "ソフトドリンク",
+        "水", "牛乳", "ジュース", "炭酸飲料", "健康", "ダイエット", "運動", "睡眠",
+        "ストレス", "リラックス", "ヨガ", "瞑想", "香り", "アロマ", "マッサージ",
+        "温泉", "サウナ", "お風呂", "入浴剤", "美容", "化粧品", "スキンケア", "ヘアケア",
+        "メイク", "ファッション", "服", "靴", "鞄", "アクセサリー", "時計", "眼鏡",
+        "財布", "鍵", "手帳", "筆記用具", "本", "雑誌", "新聞", "漫画", "小説",
+        "絵本", "図鑑", "辞書", "参考書", "教科書", "ノート", "文房具", "紙", "ペン",
+        "鉛筆", "消しゴム", "定規", "はさみ", "のり", "テープ", "クリップ", "ホッチキス",
+        "ファイル", "カレンダー", "時計", "温度計", "湿度計", "天気予報", "季節", "月",
+        "太陽", "星", "空", "海", "山", "川", "森", "花", "木", "草", "鳥", "虫",
+        "動物", "魚", "犬", "猫", "象", "ライオン", "パンダ", "キリン", "猿", "ウサギ",
+        "リス", "カエル", "ヘビ", "恐竜", "化石", "火山", "地震", "台風", "津波",
+        "雷", "雨", "雪", "風", "雲", "虹", "霞", "霜", "露", "氷", "水", "空気",
+        "光", "闇", "音", "香り", "味", "感触", "色", "形", "大きさ", "重さ", "数",
+        "時間", "空間", "未来", "過去", "現在", "希望", "絶望", "幸福", "不幸",
+        "喜び", "悲しみ", "怒り", "笑い", "涙", "感動", "愛情", "友情", "信頼",
+        "勇気", "挑戦", "努力", "成功", "失敗", "経験", "学習", "成長", "変化",
+        "夢", "目標", "計画", "実行", "達成", "継続", "習慣", "反省", "感謝",
+        "後悔", "責任", "自由", "平等", "平和", "愛", "憎しみ", "正義", "不正",
+        "犯罪", "法律", "裁判", "警察", "検察", "弁護士", "裁判官", "政治", "経済",
+        "社会", "文化", "歴史", "科学", "技術", "芸術", "教育", "医療", "福祉"
+    ];
+
+    // DOM要素の取得
+    const timerEl = document.getElementById('timer');
+    const scoreEl = document.getElementById('score');
+    const questionEl = document.getElementById('question');
+    const hiddenInput = document.getElementById('hidden-input');
+    const typedTextDisplay = document.getElementById('typed-text-display');
+    
+    const gameUI = document.getElementById('game-ui');
+    const startScreen = document.getElementById('start-screen');
+    const startButton = document.getElementById('start-button');
+    const resultTitle = document.getElementById('result-title');
+    const resultMessage = document.getElementById('result-message');
+    const finalStats = document.getElementById('final-stats');
+    const finalScoreEl = document.getElementById('final-score');
+    const wpmEl = document.getElementById('wpm');
+    const accuracyEl = document.getElementById('accuracy');
+
+    // ゲームの状態変数
+    let currentWord = '';
+    let totalCorrectChars = 0;
+    let totalTyped = 0;
+    let score = 0;
+    let timeLeft = 60;
+    let timerId = null;
+    let isGameActive = false;
+    let isComposing = false;
+
+    // イベントリスナーの設定
+    startButton.addEventListener('click', startGame);
+    hiddenInput.addEventListener('input', handleInput);
+    hiddenInput.addEventListener('compositionstart', handleCompositionStart);
+    hiddenInput.addEventListener('compositionend', handleCompositionEnd);
+    
+    // 画面のどこをクリックしても入力が再開できるようにする
+    gameUI.addEventListener('click', () => {
+        if(isGameActive) hiddenInput.focus();
+    });
+
+    // compositionイベントのハンドラ
+    function handleCompositionStart() {
+        isComposing = true;
+    }
+    
+    function handleCompositionEnd() {
+        isComposing = false;
+        handleInput();
+    }
+
+    // 入力イベントハンドラ
+    function handleInput(e) {
+        if (!isGameActive) return;
+
+        const inputValue = hiddenInput.value;
+
+        // IME変換中ではない、かつ入力値が正解単語と一致したら次の単語へ
+        if (!isComposing && inputValue === currentWord && inputValue.length > 0) {
+            score++;
+            totalCorrectChars += currentWord.length;
+            scoreEl.textContent = score;
+            setNewWord();
+            return;
+        }
+        
+        typedTextDisplay.textContent = inputValue;
+        
+        updateCharacterHighlighting(e);
+    }
+
+    function startGame() {
+        isGameActive = true;
+        startScreen.classList.add('hidden');
+        gameUI.classList.remove('hidden');
+
+        score = 0;
+        timeLeft = 60;
+        totalCorrectChars = 0;
+        totalTyped = 0;
+        isComposing = false;
+        
+        scoreEl.textContent = score;
+        timerEl.textContent = timeLeft;
+        typedTextDisplay.textContent = '';
+        
+        setNewWord();
+        hiddenInput.value = '';
+        hiddenInput.focus();
+
+        if (timerId) clearInterval(timerId);
+        
+        timerId = setInterval(() => {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+    }
+
+    function setNewWord() {
+        // 同じ単語が連続しないようにする
+        let newWord = currentWord;
+        while(newWord === currentWord) {
+            const randomIndex = Math.floor(Math.random() * words.length);
+            newWord = words[randomIndex];
+        }
+        currentWord = newWord;
+        
+        questionEl.innerHTML = ''; 
+        
+        currentWord.split('').forEach(char => {
+            const charSpan = document.createElement('span');
+            charSpan.textContent = char;
+            charSpan.classList.add('char-span');
+            questionEl.appendChild(charSpan);
+        });
+
+        hiddenInput.value = ''; 
+        typedTextDisplay.textContent = '';
+        updateCharacterHighlighting();
+    }
+
+    function updateCharacterHighlighting(e) {
+        const inputValue = hiddenInput.value;
+        const charSpans = questionEl.querySelectorAll('span');
+
+        charSpans.forEach((span, index) => {
+            span.classList.remove('correct', 'incorrect', 'current');
+            
+            if (index < inputValue.length) {
+                if (inputValue[index] === span.textContent) {
+                    span.classList.add('correct');
+                    if (e && e.inputType !== 'deleteContentBackward') {
+                        totalTyped++;
+                    }
+                } else {
+                    span.classList.add('incorrect');
+                    if (e && e.inputType !== 'deleteContentBackward') {
+                        totalTyped++;
+                    }
+                }
+            } else if (index === inputValue.length) {
+                span.classList.add('current');
+            }
+        });
+    }
+
+    function endGame() {
+        clearInterval(timerId);
+        isGameActive = false;
+        
+        gameUI.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+        
+        resultTitle.textContent = "タイムアップ！";
+        resultMessage.textContent = "お疲れ様でした。あなたの結果は以下の通りです。";
+        
+        const wpm = score; 
+        const accuracy = totalTyped > 0 ? Math.round((totalCorrectChars / totalTyped) * 100) : 0;
+        
+        finalScoreEl.textContent = score;
+        wpmEl.textContent = `${wpm} WPM`;
+        accuracyEl.textContent = `${accuracy}%`;
+        
+        finalStats.classList.remove('hidden');
+        startButton.textContent = "もう一度プレイ";
+    }
+
+    // 初期化時に非表示のinputにフォーカスを当てる
+    hiddenInput.focus();
+
+</script>
+
+</body>
+</html>
