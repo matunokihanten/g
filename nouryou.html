@@ -80,6 +80,13 @@
       background: #27ae60;
       transition: width .1s linear;
     }
+    /* フィードバック */
+    #feedback {
+      height: 1.2rem;
+      font-size: .9rem;
+      margin-top: .2rem;
+      text-align: center;
+    }
     /* ルール表示 */
     .rule-box {
       width: 100%;
@@ -98,6 +105,15 @@
       text-align: center;
       transition: opacity .3s;
       opacity: 1;
+    }
+    /* 難易度設定 */
+    #difficulty {
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    #difficulty label {
+      margin: 0 .3rem;
+      cursor: pointer;
     }
     /* ターゲットエリアを左右分割 */
     .target-container {
@@ -118,9 +134,6 @@
     }
     .left-targets {
       border-right: 2px solid #ccc;
-    }
-    .right-targets {
-      /* 境界線は左側にあるので不要 */
     }
     .target {
       width: 60px; height: 60px;
@@ -155,6 +168,11 @@
     #history-table th, #history-table td {
       border: 1px solid #ccc; padding: 2px; text-align: center;
     }
+    #clear-btn {
+      font-size: .75rem; padding: .3rem .6rem;
+      background: #c0392b; margin-bottom: .5rem;
+    }
+    #clear-btn:hover { background: #922b21; }
   </style>
 </head>
 <body>
@@ -169,6 +187,14 @@
         ステージが上がるごとに問題数増・時間短縮・メモリーチャレンジ。<br>
         ルールを覚えて正確＆高速にクリックしよう！
       </p>
+      <div id="difficulty">
+        難易度：
+        <label><input type="radio" name="difficulty" value="1">1</label>
+        <label><input type="radio" name="difficulty" value="2">2</label>
+        <label><input type="radio" name="difficulty" value="3" checked>3</label>
+        <label><input type="radio" name="difficulty" value="4">4</label>
+        <label><input type="radio" name="difficulty" value="5">5</label>
+      </div>
       <button id="start-btn" class="btn">今すぐ挑戦</button>
     </section>
 
@@ -179,23 +205,21 @@
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
         <div id="score-display">Score: 0 | Combo: 0</div>
       </div>
-
+      <div id="feedback"></div>
       <div class="rule-box">
         <div class="rule" id="left-rule-text">左のルール</div>
         <div class="rule" id="right-rule-text">右のルール</div>
       </div>
-
       <div class="target-container">
         <div class="left-targets"></div>
         <div class="right-targets"></div>
       </div>
-
-      <button id="next-stage-btn" class="btn hidden">次のステージへ</button>
     </section>
 
     <!-- 履歴セクション -->
     <section id="history" class="hidden">
       <h2 style="font-size:1rem; margin:.5rem 0;">スコア履歴</h2>
+      <button id="clear-btn" class="btn">履歴クリア</button>
       <canvas id="chart"></canvas>
       <div id="history-table"></div>
     </section>
@@ -212,11 +236,12 @@
     const stageDisp     = document.getElementById('stage-display');
     const scoreDisp     = document.getElementById('score-display');
     const timerBar      = document.getElementById('timer-bar');
+    const feedbackDiv   = document.getElementById('feedback');
     const leftRuleText  = document.getElementById('left-rule-text');
     const rightRuleText = document.getElementById('right-rule-text');
     const leftTargets   = document.querySelector('.left-targets');
     const rightTargets  = document.querySelector('.right-targets');
-    const nextBtn       = document.getElementById('next-stage-btn');
+    const clearBtn      = document.getElementById('clear-btn');
     const chartCtx      = document.getElementById('chart').getContext('2d');
     const historyTable  = document.getElementById('history-table');
 
@@ -225,6 +250,8 @@
         combo = 0,
         timeLeft = 0,
         timerId = null,
+        answeredCount = 0,
+        totalTargets = 0,
         currentRuleLeft = null,
         currentRuleRight = null,
         chart = null;
@@ -236,19 +263,22 @@
       beginStage();
     });
 
-    nextBtn.addEventListener('click', () => {
-      stage++;
-      beginStage();
+    clearBtn.addEventListener('click', () => {
+      localStorage.removeItem('brain_pro_records');
+      if (chart) chart.destroy();
+      historyTable.innerHTML = '';
     });
 
     function beginStage() {
-      const numPerSide = 4;
+      const difficulty = +document.querySelector('input[name="difficulty"]:checked').value;
+      const numPerSide = difficulty + 1; 
+      totalTargets = numPerSide * 2;
+      answeredCount = 0;
       timeLeft = Math.max(4, 15 - stage * 1.5);
       combo = 0;
       stageDisp.textContent = `ステージ ${stage}`;
       scoreDisp.textContent = `Score: ${score} | Combo: ${combo}`;
-      nextBtn.classList.add('hidden');
-
+      feedbackDiv.textContent = '';
       generateRules();
       showRuleThenHide();
       generateTargets(numPerSide);
@@ -284,32 +314,25 @@
       clearInterval(timerId);
       leftTargets.innerHTML = '';
       rightTargets.innerHTML = '';
-
       for (let i = 0; i < n; i++) {
-        // 左
-        const divL = document.createElement('div');
-        const matchL = Math.random() < 0.4;
-        const colorL = matchL ? currentRuleLeft.color : (currentRuleLeft.color==='赤'?'青':'赤');
-        const shapeL = matchL ? currentRuleLeft.shape : (currentRuleLeft.shape==='丸'?'四角':'丸');
-        divL.className = `target ${colorL==='赤'?'red':'blue'} ${shapeL==='丸'?'circle':''}`;
-        divL.textContent = shapeL==='丸' ? '●' : '■';
-        divL.dataset.side  = 'left';
-        divL.dataset.match = matchL;
-        divL.addEventListener('click', ()=> handleClick(divL));
-        leftTargets.appendChild(divL);
-
-        // 右
-        const divR = document.createElement('div');
-        const matchR = Math.random() < 0.4;
-        const colorR = matchR ? currentRuleRight.color : (currentRuleRight.color==='赤'?'青':'赤');
-        const shapeR = matchR ? currentRuleRight.shape : (currentRuleRight.shape==='丸'?'四角':'丸');
-        divR.className = `target ${colorR==='赤'?'red':'blue'} ${shapeR==='丸'?'circle':''}`;
-        divR.textContent = shapeR==='丸' ? '●' : '■';
-        divR.dataset.side  = 'right';
-        divR.dataset.match = matchR;
-        divR.addEventListener('click', ()=> handleClick(divR));
-        rightTargets.appendChild(divR);
+        // 左側
+        createTarget(leftTargets, 'left', currentRuleLeft);
+        // 右側
+        createTarget(rightTargets, 'right', currentRuleRight);
       }
+    }
+
+    function createTarget(container, side, rule) {
+      const div = document.createElement('div');
+      const match = Math.random() < 0.4;
+      const color = match ? rule.color : (rule.color==='赤'?'青':'赤');
+      const shape = match ? rule.shape : (rule.shape==='丸'?'四角':'丸');
+      div.className = `target ${color==='赤'?'red':'blue'} ${shape==='丸'?'circle':''}`;
+      div.textContent = shape==='丸' ? '●' : '■';
+      div.dataset.side  = side;
+      div.dataset.match = match;
+      div.addEventListener('click', ()=> handleClick(div));
+      container.appendChild(div);
     }
 
     function handleClick(el) {
@@ -317,24 +340,33 @@
       const rule = side==='left' ? currentRuleLeft : currentRuleRight;
       const isMatch = el.dataset.match === 'true';
       const shouldMatch = rule.action === '押せ';
-      const correct = (isMatch === shouldMatch);
+      const correct = isMatch === shouldMatch;
 
       if (correct) {
         score += 10 + combo * 2;
         combo++;
+        feedbackDiv.style.color = '#27ae60';
+        feedbackDiv.textContent = '正解！';
       } else {
         score -= 8;
         combo = 0;
+        feedbackDiv.style.color = '#c0392b';
+        feedbackDiv.textContent = '不正解…';
       }
       scoreDisp.textContent = `Score: ${score} | Combo: ${combo}`;
+
       el.style.opacity = '0.5';
       el.style.pointerEvents = 'none';
+      answeredCount++;
+      if (answeredCount >= totalTargets) {
+        finishStage();
+      }
     }
 
     function startTimer() {
-      clearInterval(timerId);
       const total = timeLeft;
       timerBar.style.width = '100%';
+      clearInterval(timerId);
       timerId = setInterval(()=>{
         timeLeft -= 0.1;
         if (timeLeft <= 0) {
@@ -347,9 +379,11 @@
     }
 
     function finishStage() {
+      clearInterval(timerId);
       saveRecord();
       updateHistory();
-      nextBtn.classList.remove('hidden');
+      stage++;
+      setTimeout(beginStage, 800);
     }
 
     function saveRecord() {
@@ -362,34 +396,28 @@
     function updateHistory() {
       const key = 'brain_pro_records';
       const recs = JSON.parse(localStorage.getItem(key) || '[]');
+      // テーブル
       let html = '<table><tr><th>ステージ</th><th>Score</th><th>Combo</th><th>日時</th></tr>';
       recs.forEach(r=>{
         html += `<tr>
-          <td>${r.stage}</td>
-          <td>${r.score}</td>
-          <td>${r.combo}</td>
+          <td>${r.stage}</td><td>${r.score}</td><td>${r.combo}</td>
           <td>${r.time.replace('T',' ').slice(0,19)}</td>
         </tr>`;
       });
       html += '</table>';
       historyTable.innerHTML = html;
-
+      // グラフ
       const labels = recs.map(r => `S${r.stage}`);
       const data   = recs.map(r => r.score);
       if (chart) chart.destroy();
       chart = new Chart(chartCtx, {
         type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Score 推移',
-            data,
-            borderColor: '#27ae60',
-            backgroundColor: 'rgba(39,174,96,0.2)',
-            fill: true,
-            tension: 0.4
-          }]
-        },
+        data: { labels, datasets: [{
+          label: 'Score 推移', data,
+          borderColor: '#27ae60',
+          backgroundColor: 'rgba(39,174,96,0.2)',
+          fill: true, tension: 0.4
+        }]},
         options: {
           scales: {
             x: { title: { display: true, text: 'ステージ' } },
