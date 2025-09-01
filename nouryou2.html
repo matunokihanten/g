@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>図形判定ゲーム</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+            min-height: 90vh;
+        }
+        .screen {
+            display: none;
+            padding: 20px;
+        }
+        .screen.active {
+            display: block;
+        }
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .settings-grid {
+            display: grid;
+            gap: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .setting-group label {
+            font-weight: bold;
+            color: #555;
+        }
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        select {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #1976D2;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .game-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .timebar-container {
+            width: 100%;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .timebar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #FFC107, #f44336);
+            transition: width 0.1s linear;
+        }
+        .feedback {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            min-height: 25px;
+        }
+        .correct {
+            color: #4CAF50;
+        }
+        .incorrect {
+            color: #f44336;
+        }
+        .rules-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .rule-box {
+            flex: 1;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .shapes-container {
+            display: flex;
+            gap: 20px;
+            height: 300px;
+        }
+        .shapes-side {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            border: 2px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .shape {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 5px;
+        }
+        .shape:hover {
+            background: #f0f0f0;
+            transform: scale(1.05);
+        }
+        .shape svg {
+            width: 60px;
+            height: 60px;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .history-content {
+            display: grid;
+            gap: 20px;
+        }
+        .chart-container {
+            height: 300px;
+            background: white;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .history-table {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            .container {
+                min-height: 100vh;
+                border-radius: 0;
+            }
+            .screen {
+                padding: 15px;
+            }
+            .game-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .game-info {
+                justify-content: space-between;
+            }
+            .rules-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .shapes-container {
+                flex-direction: column;
+                height: auto;
+                gap: 10px;
+            }
+            .shapes-side {
+                height: 200px;
+            }
+            .shape svg {
+                width: 40px;
+                height: 40px;
+            }
+            .radio-group {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 480px) {
+            .radio-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .game-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .nav-buttons {
+                flex-direction: column;
+            }
+        }px;
+        }
+        .history-content {
+            display: grid;
+            gap: 20px;
+        }
+        .chart-container {
+            height: 300px;
+            background: white;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .history-table {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            .container {
+                min-height: 100vh;
+                border-radius: 0;
+            }
+            .screen {
+                padding: 15px;
+            }
+            .game-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .game-info {
+                justify-content: space-between;
+            }
+            .rules-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .shapes-container {
+                flex-direction: column;
+                height: auto;
+                gap: 10px;
+            }
+            .shapes-side {
+                height: 200px;
+            }
+            .shape svg {
+                width: 40px;
+                height: 40px;
+            }
+            .radio-group {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 480px) {
+            .radio-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .game-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .nav-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="settingsScreen" class="screen active">
+            <h1>図形判定ゲーム</h1>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label>レベル選択:</label>
+                    <div class="radio-group">
+                        <div class="radio-item"><input type="radio" name="level" value="1" id="level1" checked><label for="level1">1</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="2" id="level2"><label for="level2">2</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="3" id="level3"><label for="level3">3</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="4" id="level4"><label for="level4">4</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="5" id="level5"><label for="level5">5</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="6" id="level6"><label for="level6">6</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="7" id="level7"><label for="level7">7</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="8" id="level8"><label for="level8">8</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="9" id="level9"><label for="level9">9</label></div>
+                        <div class="radio-item"><input type="radio" name="level" value="10" id="level10"><label for="level10">10</label></div>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <label for="ruleTime">ルール表示時間:</label>
+                    <select id="ruleTime">
+                        <option value="1">1秒</option>
+                        <option value="2">2秒</option>
+                        <option value="3" selected>3秒</option>
+                        <option value="4">4秒</option>
+                        <option value="5">5秒</option>
+                        <option value="6">6秒</option>
+                        <option value="7">7秒</option>
+                        <option value="8">8秒</option>
+                        <option value="9">9秒</option>
+                        <option value="10">10秒</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="startGame()">今すぐ挑戦</button>
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-secondary" onclick="showHistory()">履歴を見る</button>
+            </div>
+        </div>
+
+        <div id="gameScreen" class="screen">
+            <div class="game-header">
+                <button class="btn-secondary" onclick="showSettings()">設定に戻る</button>
+                <div class="game-info">
+                    <div>ステージ: <span id="stage">1</span></div>
+                    <div>Score: <span id="score">0</span></div>
+                    <div>Combo: <span id="combo">0</span></div>
+                </div>
+            </div>
+            <div class="timebar-container">
+                <div class="timebar" id="timebar"></div>
+            </div>
+            <div class="feedback" id="feedback"></div>
+            <div class="rules-container">
+                <div class="rule-box" id="leftRule">左のルール</div>
+                <div class="rule-box" id="rightRule">右のルール</div>
+            </div>
+            <div class="shapes-container">
+                <div class="shapes-side" id="leftShapes">
+                    <div class="shape" onclick="selectShape('left', 0)"></div>
+                    <div class="shape" onclick="selectShape('left', 1)"></div>
+                    <div class="shape" onclick="selectShape('left', 2)"></div>
+                    <div class="shape" onclick="selectShape('left', 3)"></div>
+                </div>
+                <div class="shapes-side" id="rightShapes">
+                    <div class="shape" onclick="selectShape('right', 0)"></div>
+                    <div class="shape" onclick="selectShape('right', 1)"></div>
+                    <div class="shape" onclick="selectShape('right', 2)"></div>
+                    <div class="shape" onclick="selectShape('right', 3)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="historyScreen" class="screen">
+            <h2>履歴</h2>
+            <div class="nav-buttons">
+                <button class="btn-danger" onclick="clearHistory()">履歴クリア</button>
+                <button class="btn-secondary" onclick="showSettings()">設定に戻る</button>
+            </div>
+            <div class="history-content">
+                <div class="chart-container">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+                <div class="history-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ステージ</th>
+                                <th>Score</th>
+                                <th>Combo</th>
+                                <th>日時</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameState = {
+            level: 1,
+            ruleTime: 3,
+            stage: 1,
+            score: 0,
+            combo: 0,
+            timeLeft: 10,
+            currentRule: '',
+            gameActive: false,
+            timer: null,
+            timebarTimer: null
+        };
+
+        const shapes = ['circle', 'square', 'triangle', 'star'];
+        const colors = ['red', 'blue', 'green', 'yellow'];
+        const rules = [
+            'red', 'blue', 'green', 'yellow',
+            'circle', 'square', 'triangle', 'star',
+            'left', 'right',
+            'same color', 'same shape',
+            'different color', 'different shape'
+        ];
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showSettings() {
+            showScreen('settingsScreen');
+        }
+
+        function showHistory() {
+            showScreen('historyScreen');
+            loadHistory();
+            updateChart();
+        }
+
+        function startGame() {
+            gameState.level = parseInt(document.querySelector('input[name="level"]:checked').value);
+            gameState.ruleTime = parseInt(document.getElementById('ruleTime').value);
+            gameState.stage = 1;
+            gameState.score = 0;
+            gameState.combo = 0;
+            showScreen('gameScreen');
+            startStage();
+        }
+
+        function startStage() {
+            gameState.timeLeft = Math.max(15 - gameState.level, 5);
+            gameState.gameActive = true;
+            
+            updateDisplay();
+            generateShapes();
+            generateRule();
+            
+            showRule();
+            
+            setTimeout(() => {
+                hideRule();
+                startTimer();
+            }, gameState.ruleTime * 1000);
+        }
+
+        function updateDisplay() {
+            document.getElementById('stage').textContent = gameState.stage;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('combo').textContent = gameState.combo;
+        }
+
+        function generateShapes() {
+            const leftContainer = document.getElementById('leftShapes');
+            const rightContainer = document.getElementById('rightShapes');
+            
+            leftContainer.innerHTML = '';
+            rightContainer.innerHTML = '';
+            
+            for (let i = 0; i < 4; i++) {
+                const leftShape = document.createElement('div');
+                leftShape.className = 'shape';
+                leftShape.onclick = () => selectShape('left', i);
+                leftShape.appendChild(createShapeSVG(shapes[Math.floor(Math.random() * shapes.length)], colors[Math.floor(Math.random() * colors.length)]));
+                leftContainer.appendChild(leftShape);
+                
+                const rightShape = document.createElement('div');
+                rightShape.className = 'shape';
+                rightShape.onclick = () => selectShape('right', i);
+                rightShape.appendChild(createShapeSVG(shapes[Math.floor(Math.random() * shapes.length)], colors[Math.floor(Math.random() * colors.length)]));
+                rightContainer.appendChild(rightShape);
+            }
+        }
+
+        function createShapeSVG(shape, color) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 100 100');
+            
+            let element;
+            switch (shape) {
+                case 'circle':
+                    element = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    element.setAttribute('cx', '50');
+                    element.setAttribute('cy', '50');
+                    element.setAttribute('r', '30');
+                    break;
+                case 'square':
+                    element = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    element.setAttribute('x', '20');
+                    element.setAttribute('y', '20');
+                    element.setAttribute('width', '60');
+                    element.setAttribute('height', '60');
+                    break;
+                case 'triangle':
+                    element = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    element.setAttribute('points', '50,20 80,70 20,70');
+                    break;
+                case 'star':
+                    element = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    element.setAttribute('points', '50,15 55,35 75,35 60,50 65,70 50,60 35,70 40,50 25,35 45,35');
+                    break;
+            }
+            
+            element.setAttribute('fill', color);
+            element.setAttribute('stroke', '#333');
+            element.setAttribute('stroke-width', '2');
+            svg.appendChild(element);
+            
+            return svg;
+        }
+
+        function generateRule() {
+            const ruleIndex = Math.floor(Math.random() * Math.min(rules.length, 4 + gameState.level));
+            gameState.currentRule = rules[ruleIndex];
+        }
+
+        function showRule() {
+            document.getElementById('leftRule').textContent = gameState.currentRule + 'をクリック';
+            document.getElementById('rightRule').textContent = gameState.currentRule + 'をクリック';
+        }
+
+        function hideRule() {
+            document.getElementById('leftRule').textContent = '?';
+            document.getElementById('rightRule').textContent = '?';
+        }
+
+        function startTimer() {
+            const timebar = document.getElementById('timebar');
+            timebar.style.width = '100%';
+            
+            gameState.timebarTimer = setInterval(() => {
+                gameState.timeLeft -= 0.1;
+                const percentage = (gameState.timeLeft / (Math.max(15 - gameState.level, 5))) * 100;
+                timebar.style.width = Math.max(0, percentage) + '%';
+                
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timebarTimer);
+                    showFeedback('時間切れ！', false);
+                    endGame();
+                }
+            }, 100);
+        }
+
+        function selectShape(side, index) {
+            if (!gameState.gameActive) return;
+            
+            clearInterval(gameState.timebarTimer);
+            gameState.gameActive = false;
+            
+            const container = side === 'left' ? document.getElementById('leftShapes') : document.getElementById('rightShapes');
+            const selectedShape = container.children[index];
+            const svg = selectedShape.querySelector('svg');
+            const shape = getShapeFromSVG(svg);
+            const color = getColorFromSVG(svg);
+            
+            const isCorrect = checkAnswer(side, shape, color);
+            
+            if (isCorrect) {
+                gameState.combo++;
+                const points = 100 + (gameState.combo * 10);
+                gameState.score += points;
+                showFeedback(`正解！+${points}点`, true);
+            } else {
+                gameState.combo = 0;
+                showFeedback('不正解！', false);
+            }
+            
+            updateDisplay();
+            
+            setTimeout(() => {
+                gameState.stage++;
+                if (gameState.stage <= 10) {
+                    startStage();
+                } else {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function getShapeFromSVG(svg) {
+            const element = svg.children[0];
+            if (element.tagName === 'circle') return 'circle';
+            if (element.tagName === 'rect') return 'square';
+            if (element.tagName === 'polygon') {
+                const points = element.getAttribute('points');
+                if (points.includes('50,15')) return 'star';
+                return 'triangle';
+            }
+            return 'circle';
+        }
+
+        function getColorFromSVG(svg) {
+            return svg.children[0].getAttribute('fill');
+        }
+
+        function checkAnswer(side, shape, color) {
+            switch (gameState.currentRule) {
+                case 'red':
+                case 'blue':
+                case 'green':
+                case 'yellow':
+                    return color === gameState.currentRule;
+                case 'circle':
+                case 'square':
+                case 'triangle':
+                case 'star':
+                    return shape === gameState.currentRule;
+                case 'left':
+                    return side === 'left';
+                case 'right':
+                    return side === 'right';
+                default:
+                    return Math.random() > 0.5;
+            }
+        }
+
+        function showFeedback(message, isCorrect) {
+            const feedback = document.getElementById('feedback');
+            feedback.textContent = message;
+            feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+        }
+
+        function endGame() {
+            const gameData = {
+                stage: gameState.stage - 1,
+                score: gameState.score,
+                combo: gameState.combo,
+                date: new Date().toLocaleString('ja-JP')
+            };
+            
+            saveGameData(gameData);
+            showFeedback(`ゲーム終了！最終スコア: ${gameState.score}`, true);
+            
+            setTimeout(() => {
+                showSettings();
+            }, 3000);
+        }
+
+        function saveGameData(data) {
+            let history = JSON.parse(localStorage.getItem('gameHistory') || '[]');
+            history.push(data);
+            if (history.length > 50) history = history.slice(-50);
+            localStorage.setItem('gameHistory', JSON.stringify(history));
+        }
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('gameHistory') || '[]');
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            
+            history.slice(-20).reverse().forEach(game => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${game.stage}</td>
+                    <td>${game.score}</td>
+                    <td>${game.combo}</td>
+                    <td>${game.date}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateChart() {
+            const history = JSON.parse(localStorage.getItem('gameHistory') || '[]');
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            
+            if (window.scoreChart) {
+                window.scoreChart.destroy();
+            }
+            
+            window.scoreChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: history.slice(-10).map((_, i) => `${i + 1}`),
+                    datasets: [{
+                        label: 'スコア',
+                        data: history.slice(-10).map(game => game.score),
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'スコア推移'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function clearHistory() {
+            if (confirm('履歴をすべて削除しますか？')) {
+                localStorage.removeItem('gameHistory');
+                loadHistory();
+                updateChart();
+            }
+        }
+    </script>
+</body>
+</html>
