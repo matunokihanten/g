@@ -11,335 +11,385 @@
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            overflow: hidden;
-            min-height: 90vh;
-        }
-        .screen {
-            display: none;
-            padding: 20px;
-        }
-        .screen.active {
-            display: block;
-        }
-        h1, h2 {
-            text-align: center;
-            margin-bottom: 20px;
             color: #333;
         }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen {
+            display: none;
+            padding: 30px;
+            flex-grow: 1;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #333;
+            font-weight: 700;
+        }
+
         .settings-grid {
             display: grid;
-            gap: 20px;
-            max-width: 400px;
+            gap: 25px;
+            max-width: 500px;
             margin: 0 auto;
+            align-items: center;
         }
+
         .setting-group {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
+
         .setting-group label {
             font-weight: bold;
             color: #555;
+            font-size: 1.1em;
         }
+
         .radio-group {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 10px;
         }
+
         .radio-item {
             display: flex;
             align-items: center;
             gap: 5px;
+            cursor: pointer;
         }
+
+        .radio-item input {
+            accent-color: #4CAF50;
+        }
+
         select {
-            padding: 10px;
+            padding: 12px;
             border: 2px solid #ddd;
-            border-radius: 5px;
+            border-radius: 8px;
             font-size: 16px;
+            background: #f9f9f9;
+            transition: border-color 0.3s;
         }
+
+        select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
         button {
             padding: 15px 30px;
-            font-size: 16px;
+            font-size: 17px;
+            font-weight: bold;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
+
         .btn-primary {
             background: #4CAF50;
             color: white;
         }
+
         .btn-primary:hover {
             background: #45a049;
+            transform: translateY(-2px);
         }
+
         .btn-secondary {
             background: #2196F3;
             color: white;
         }
+
         .btn-secondary:hover {
             background: #1976D2;
+            transform: translateY(-2px);
         }
+
         .btn-danger {
             background: #f44336;
             color: white;
         }
+
         .btn-danger:hover {
             background: #da190b;
+            transform: translateY(-2px);
         }
+
         .game-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 15px;
         }
+
         .game-info {
             display: flex;
-            gap: 20px;
+            gap: 25px;
             align-items: center;
             flex-wrap: wrap;
+            font-size: 1.1em;
+            font-weight: bold;
         }
+
         .timebar-container {
             width: 100%;
-            height: 20px;
+            height: 25px;
             background: #eee;
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
         }
+
         .timebar {
             height: 100%;
             background: linear-gradient(90deg, #4CAF50, #FFC107, #f44336);
             transition: width 0.1s linear;
         }
+
         .feedback {
             text-align: center;
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 22px;
+            font-weight: 700;
             margin-bottom: 20px;
-            min-height: 25px;
+            min-height: 30px;
         }
+
         .correct {
             color: #4CAF50;
         }
+
         .incorrect {
             color: #f44336;
         }
+
         .rules-container {
             display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .rule-box {
-            flex: 1;
-            padding: 15px;
-            background: #f5f5f5;
-            border-radius: 5px;
+            justify-content: space-around;
+            gap: 15px;
+            margin-bottom: 25px;
             text-align: center;
+        }
+
+        .rule-side {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1;
+            align-items: center;
+        }
+
+        .rule-side h3 {
+            font-size: 1.3em;
+        }
+
+        .rule-display {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #f0f4f8;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            font-size: 1.2em;
             font-weight: bold;
         }
+
         .shapes-container {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
-            height: 300px;
+            flex-grow: 1;
+            position: relative;
         }
+
+        .shapes-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 2px;
+            background-color: #ddd;
+            transform: translateX(-50%);
+        }
+
         .shapes-side {
-            flex: 1;
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
-            gap: 10px;
-            border: 2px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
+            gap: 15px;
+            padding: 15px;
         }
+
         .shape {
             display: flex;
             justify-content: center;
             align-items: center;
-            border: 1px solid #ccc;
+            border: 2px solid #ccc;
             cursor: pointer;
             transition: all 0.2s;
-            border-radius: 5px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
+
         .shape:hover {
-            background: #f0f0f0;
             transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+
         .shape svg {
-            width: 60px;
-            height: 60px;
+            width: 80%;
+            height: 80%;
         }
+
+        .correct-border {
+            border: 5px solid #4CAF50 !important;
+        }
+
         .nav-buttons {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             justify-content: center;
-            margin-top: 20px;
+            margin-top: 25px;
         }
+
         .history-content {
             display: grid;
-            gap: 20px;
+            gap: 25px;
         }
+
         .chart-container {
-            height: 300px;
+            height: 350px;
             background: white;
-            border-radius: 5px;
-            padding: 10px;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+
         .history-table {
             overflow-x: auto;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             background: white;
-            border-radius: 5px;
+            border-radius: 10px;
             overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+
         th, td {
-            padding: 10px;
+            padding: 15px;
             text-align: center;
             border-bottom: 1px solid #ddd;
         }
+
         th {
-            background: #f5f5f5;
+            background: #e9e9e9;
             font-weight: bold;
+            color: #555;
         }
+
         @media (max-width: 768px) {
             .container {
                 min-height: 100vh;
                 border-radius: 0;
             }
+
             .screen {
-                padding: 15px;
+                padding: 20px;
             }
+
             .game-header {
                 flex-direction: column;
                 align-items: stretch;
             }
+
             .game-info {
                 justify-content: space-between;
+                font-size: 1em;
             }
+
             .rules-container {
                 flex-direction: column;
                 gap: 10px;
             }
-            .shapes-container {
+
+            .rule-display {
                 flex-direction: column;
-                height: auto;
+                padding: 10px;
+                gap: 5px;
+                font-size: 1em;
+            }
+
+            .shapes-container {
+                grid-template-columns: 1fr;
                 gap: 10px;
             }
+
+            .shapes-container::after {
+                display: none;
+            }
+
             .shapes-side {
-                height: 200px;
+                padding: 10px;
+                height: 250px;
             }
+
             .shape svg {
-                width: 40px;
-                height: 40px;
+                width: 70%;
+                height: 70%;
             }
+
             .radio-group {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
+
         @media (max-width: 480px) {
             .radio-group {
                 grid-template-columns: repeat(2, 1fr);
             }
+
             .game-info {
                 flex-direction: column;
                 gap: 10px;
             }
-            .nav-buttons {
-                flex-direction: column;
-            }
-        }px;
-        }
-        .history-content {
-            display: grid;
-            gap: 20px;
-        }
-        .chart-container {
-            height: 300px;
-            background: white;
-            border-radius: 5px;
-            padding: 10px;
-        }
-        .history-table {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        th, td {
-            padding: 10px;
-            text-align: center;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background: #f5f5f5;
-            font-weight: bold;
-        }
-        @media (max-width: 768px) {
-            .container {
-                min-height: 100vh;
-                border-radius: 0;
-            }
-            .screen {
-                padding: 15px;
-            }
-            .game-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .game-info {
-                justify-content: space-between;
-            }
-            .rules-container {
-                flex-direction: column;
-                gap: 10px;
-            }
-            .shapes-container {
-                flex-direction: column;
-                height: auto;
-                gap: 10px;
-            }
-            .shapes-side {
-                height: 200px;
-            }
-            .shape svg {
-                width: 40px;
-                height: 40px;
-            }
-            .radio-group {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-        @media (max-width: 480px) {
-            .radio-group {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .game-info {
-                flex-direction: column;
-                gap: 10px;
-            }
+
             .nav-buttons {
                 flex-direction: column;
             }
@@ -349,7 +399,7 @@
 <body>
     <div class="container">
         <div id="settingsScreen" class="screen active">
-            <h1>図形判定ゲーム</h1>
+            <h1>🧠 図形判定ゲーム 🚀</h1>
             <div class="settings-grid">
                 <div class="setting-group">
                     <label>レベル選択:</label>
@@ -367,34 +417,28 @@
                     </div>
                 </div>
                 <div class="setting-group">
-                    <label for="ruleTime">ルール表示時間:</label>
+                    <label for="ruleTime">ルール表示時間 (秒):</label>
                     <select id="ruleTime">
                         <option value="1">1秒</option>
                         <option value="2">2秒</option>
                         <option value="3" selected>3秒</option>
                         <option value="4">4秒</option>
                         <option value="5">5秒</option>
-                        <option value="6">6秒</option>
-                        <option value="7">7秒</option>
-                        <option value="8">8秒</option>
-                        <option value="9">9秒</option>
-                        <option value="10">10秒</option>
                     </select>
                 </div>
-                <button class="btn-primary" onclick="startGame()">今すぐ挑戦</button>
+                <button class="btn-primary" onclick="startGame()">ゲーム開始！</button>
             </div>
             <div class="nav-buttons">
-                <button class="btn-secondary" onclick="showHistory()">履歴を見る</button>
+                <button class="btn-secondary" onclick="showHistory()">過去の成績を見る</button>
             </div>
         </div>
-
         <div id="gameScreen" class="screen">
             <div class="game-header">
-                <button class="btn-secondary" onclick="showSettings()">設定に戻る</button>
+                <button class="btn-secondary" onclick="showSettings()">ホームに戻る</button>
                 <div class="game-info">
                     <div>ステージ: <span id="stage">1</span></div>
-                    <div>Score: <span id="score">0</span></div>
-                    <div>Combo: <span id="combo">0</span></div>
+                    <div>スコア: <span id="score">0</span></div>
+                    <div>コンボ: <span id="combo">0</span></div>
                 </div>
             </div>
             <div class="timebar-container">
@@ -402,30 +446,25 @@
             </div>
             <div class="feedback" id="feedback"></div>
             <div class="rules-container">
-                <div class="rule-box" id="leftRule">左のルール</div>
-                <div class="rule-box" id="rightRule">右のルール</div>
+                <div class="rule-side">
+                    <h3>左側のルール</h3>
+                    <div class="rule-display" id="ruleDisplayLeft"></div>
+                </div>
+                <div class="rule-side">
+                    <h3>右側のルール</h3>
+                    <div class="rule-display" id="ruleDisplayRight"></div>
+                </div>
             </div>
             <div class="shapes-container">
-                <div class="shapes-side" id="leftShapes">
-                    <div class="shape" onclick="selectShape('left', 0)"></div>
-                    <div class="shape" onclick="selectShape('left', 1)"></div>
-                    <div class="shape" onclick="selectShape('left', 2)"></div>
-                    <div class="shape" onclick="selectShape('left', 3)"></div>
-                </div>
-                <div class="shapes-side" id="rightShapes">
-                    <div class="shape" onclick="selectShape('right', 0)"></div>
-                    <div class="shape" onclick="selectShape('right', 1)"></div>
-                    <div class="shape" onclick="selectShape('right', 2)"></div>
-                    <div class="shape" onclick="selectShape('right', 3)"></div>
-                </div>
+                <div class="shapes-side" id="leftShapes"></div>
+                <div class="shapes-side" id="rightShapes"></div>
             </div>
         </div>
-
         <div id="historyScreen" class="screen">
-            <h2>履歴</h2>
+            <h2>📜 過去の成績</h2>
             <div class="nav-buttons">
                 <button class="btn-danger" onclick="clearHistory()">履歴クリア</button>
-                <button class="btn-secondary" onclick="showSettings()">設定に戻る</button>
+                <button class="btn-secondary" onclick="showSettings()">ホームに戻る</button>
             </div>
             <div class="history-content">
                 <div class="chart-container">
@@ -436,8 +475,8 @@
                         <thead>
                             <tr>
                                 <th>ステージ</th>
-                                <th>Score</th>
-                                <th>Combo</th>
+                                <th>スコア</th>
+                                <th>コンボ</th>
                                 <th>日時</th>
                             </tr>
                         </thead>
@@ -448,7 +487,6 @@
             </div>
         </div>
     </div>
-
     <script>
         let gameState = {
             level: 1,
@@ -457,25 +495,52 @@
             score: 0,
             combo: 0,
             timeLeft: 10,
-            currentRule: '',
+            currentRuleLeft: null,
+            currentRuleRight: null,
+            allShapes: [],
+            correctShapesLeft: [],
+            correctShapesRight: [],
             gameActive: false,
             timer: null,
-            timebarTimer: null
+            timebarTimer: null,
+            endStageTimeout: null
         };
 
-        const shapes = ['circle', 'square', 'triangle', 'star'];
-        const colors = ['red', 'blue', 'green', 'yellow'];
-        const rules = [
-            'red', 'blue', 'green', 'yellow',
-            'circle', 'square', 'triangle', 'star',
-            'left', 'right',
-            'same color', 'same shape',
-            'different color', 'different shape'
+        const shapeData = {
+            circle: { name: '円', svg: `<circle cx="50" cy="50" r="30" />` },
+            square: { name: '四角', svg: `<rect x="20" y="20" width="60" height="60" />` },
+            triangle: { name: '三角', svg: `<polygon points="50,20 80,70 20,70" />` },
+            star: { name: '星', svg: `<polygon points="50,15 55,35 75,35 60,50 65,70 50,60 35,70 40,50 25,35 45,35" />` }
+        };
+        const colorData = {
+            red: { name: '赤', code: '#f44336' },
+            blue: { name: '青', code: '#2196F3' },
+            green: { name: '緑', code: '#4CAF50' },
+            yellow: { name: '黄', code: '#FFEB3B' }
+        };
+
+        const ruleData = [
+            { name: '色が「赤」', type: 'color', value: 'red' },
+            { name: '色が「青」', type: 'color', value: 'blue' },
+            { name: '色が「緑」', type: 'color', value: 'green' },
+            { name: '色が「黄」', type: 'color', value: 'yellow' },
+            { name: '形が「円」', type: 'shape', value: 'circle' },
+            { name: '形が「四角」', type: 'shape', value: 'square' },
+            { name: '形が「三角」', type: 'shape', value: 'triangle' },
+            { name: '形が「星」', type: 'shape', value: 'star' },
+            { name: 'どれか1つと同じ「色」', type: 'property', value: 'same-color' },
+            { name: 'どれか1つと同じ「形」', type: 'property', value: 'same-shape' },
+            { name: 'どれとも違う「色」', type: 'property', value: 'different-color' },
+            { name: 'どれとも違う「形」', type: 'property', value: 'different-shape' }
         ];
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
+            if (screenId === 'settingsScreen') {
+                clearInterval(gameState.timebarTimer);
+                clearTimeout(gameState.endStageTimeout);
+            }
         }
 
         function showSettings() {
@@ -499,18 +564,28 @@
         }
 
         function startStage() {
+            clearInterval(gameState.timebarTimer);
+            clearTimeout(gameState.endStageTimeout);
+
             gameState.timeLeft = Math.max(15 - gameState.level, 5);
-            gameState.gameActive = true;
+            gameState.gameActive = false;
+            gameState.correctShapesLeft = [];
+            gameState.correctShapesRight = [];
+            
+            // 既存の図形をリセット
+            document.querySelectorAll('.shape').forEach(el => {
+                el.classList.remove('correct-border');
+                el.setAttribute('data-clicked', 'false');
+            });
             
             updateDisplay();
-            generateShapes();
-            generateRule();
-            
-            showRule();
-            
-            setTimeout(() => {
-                hideRule();
+            generateRulesAndShapes();
+            showRules();
+
+            gameState.endStageTimeout = setTimeout(() => {
+                hideRules();
                 startTimer();
+                gameState.gameActive = true;
             }, gameState.ruleTime * 1000);
         }
 
@@ -518,169 +593,210 @@
             document.getElementById('stage').textContent = gameState.stage;
             document.getElementById('score').textContent = gameState.score;
             document.getElementById('combo').textContent = gameState.combo;
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('feedback').className = 'feedback';
         }
 
-        function generateShapes() {
-            const leftContainer = document.getElementById('leftShapes');
-            const rightContainer = document.getElementById('rightShapes');
-            
-            leftContainer.innerHTML = '';
-            rightContainer.innerHTML = '';
-            
+        function generateShapes(side) {
+            const container = document.getElementById(side + 'Shapes');
+            container.innerHTML = '';
+            const shapes = [];
             for (let i = 0; i < 4; i++) {
-                const leftShape = document.createElement('div');
-                leftShape.className = 'shape';
-                leftShape.onclick = () => selectShape('left', i);
-                leftShape.appendChild(createShapeSVG(shapes[Math.floor(Math.random() * shapes.length)], colors[Math.floor(Math.random() * colors.length)]));
-                leftContainer.appendChild(leftShape);
-                
-                const rightShape = document.createElement('div');
-                rightShape.className = 'shape';
-                rightShape.onclick = () => selectShape('right', i);
-                rightShape.appendChild(createShapeSVG(shapes[Math.floor(Math.random() * shapes.length)], colors[Math.floor(Math.random() * colors.length)]));
-                rightContainer.appendChild(rightShape);
+                const randomShape = Object.keys(shapeData)[Math.floor(Math.random() * Object.keys(shapeData).length)];
+                const randomColor = Object.keys(colorData)[Math.floor(Math.random() * Object.keys(colorData).length)];
+
+                const shapeElement = document.createElement('div');
+                shapeElement.className = 'shape';
+                shapeElement.onclick = () => selectShape(shapeElement);
+                shapeElement.setAttribute('data-shape', randomShape);
+                shapeElement.setAttribute('data-color', randomColor);
+                shapeElement.setAttribute('data-side', side);
+                shapeElement.setAttribute('data-clicked', 'false');
+                shapeElement.appendChild(createShapeSVG(randomShape, randomColor));
+                container.appendChild(shapeElement);
+                shapes.push(shapeElement);
             }
+            return shapes;
         }
 
-        function createShapeSVG(shape, color) {
+        function generateRulesAndShapes() {
+            const maxRuleIndex = Math.min(ruleData.length, 6 + gameState.level * 2);
+
+            let allShapes, correctShapesLeft, correctShapesRight;
+
+            // 左側の問題生成
+            while (true) {
+                const selectedRule = ruleData[Math.floor(Math.random() * maxRuleIndex)];
+                allShapes = generateShapes('left');
+                correctShapesLeft = allShapes.filter(s => checkAnswer(s, selectedRule, allShapes));
+                if (correctShapesLeft.length > 0) {
+                    gameState.currentRuleLeft = selectedRule;
+                    gameState.correctShapesLeft = correctShapesLeft;
+                    break;
+                }
+            }
+
+            // 右側の問題生成
+            while (true) {
+                const selectedRule = ruleData[Math.floor(Math.random() * maxRuleIndex)];
+                allShapes = generateShapes('right');
+                correctShapesRight = allShapes.filter(s => checkAnswer(s, selectedRule, allShapes));
+                if (correctShapesRight.length > 0) {
+                    gameState.currentRuleRight = selectedRule;
+                    gameState.correctShapesRight = correctShapesRight;
+                    break;
+                }
+            }
+
+            gameState.allShapes = Array.from(document.querySelectorAll('.shape'));
+        }
+
+        function createShapeSVG(shapeKey, colorKey) {
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('viewBox', '0 0 100 100');
-            
-            let element;
-            switch (shape) {
-                case 'circle':
-                    element = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    element.setAttribute('cx', '50');
-                    element.setAttribute('cy', '50');
-                    element.setAttribute('r', '30');
-                    break;
-                case 'square':
-                    element = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    element.setAttribute('x', '20');
-                    element.setAttribute('y', '20');
-                    element.setAttribute('width', '60');
-                    element.setAttribute('height', '60');
-                    break;
-                case 'triangle':
-                    element = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                    element.setAttribute('points', '50,20 80,70 20,70');
-                    break;
-                case 'star':
-                    element = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                    element.setAttribute('points', '50,15 55,35 75,35 60,50 65,70 50,60 35,70 40,50 25,35 45,35');
-                    break;
+            const element = document.createElementNS('http://www.w3.org/2000/svg', shapeData[shapeKey].svg.match(/<\w+/)[0].slice(1));
+            const attributes = shapeData[shapeKey].svg.match(/[\w-]+="[^"]+"/g);
+            if (attributes) {
+                attributes.forEach(attr => {
+                    const [key, value] = attr.split('=');
+                    element.setAttribute(key.trim(), value.trim().replace(/"/g, ''));
+                });
             }
-            
-            element.setAttribute('fill', color);
+            element.setAttribute('fill', colorData[colorKey].code);
             element.setAttribute('stroke', '#333');
             element.setAttribute('stroke-width', '2');
             svg.appendChild(element);
-            
             return svg;
         }
 
-        function generateRule() {
-            const ruleIndex = Math.floor(Math.random() * Math.min(rules.length, 4 + gameState.level));
-            gameState.currentRule = rules[ruleIndex];
+        function showRules() {
+            const ruleDisplayLeft = document.getElementById('ruleDisplayLeft');
+            const ruleDisplayRight = document.getElementById('ruleDisplayRight');
+            ruleDisplayLeft.innerHTML = '';
+            ruleDisplayRight.innerHTML = '';
+
+            addRuleToDisplay(ruleDisplayLeft, gameState.currentRuleLeft);
+            addRuleToDisplay(ruleDisplayRight, gameState.currentRuleRight);
         }
 
-        function showRule() {
-            document.getElementById('leftRule').textContent = gameState.currentRule + 'をクリック';
-            document.getElementById('rightRule').textContent = gameState.currentRule + 'をクリック';
+        function addRuleToDisplay(displayElement, rule) {
+            const ruleText = document.createElement('span');
+            ruleText.textContent = rule.name;
+            displayElement.appendChild(ruleText);
+
+            if (rule.type === 'color' || rule.type === 'shape') {
+                const exampleSVG = createShapeSVG(
+                    rule.type === 'shape' ? rule.value : 'circle',
+                    rule.type === 'color' ? rule.value : 'red'
+                );
+                exampleSVG.style.width = '50px';
+                exampleSVG.style.height = '50px';
+                displayElement.appendChild(exampleSVG);
+            }
         }
 
-        function hideRule() {
-            document.getElementById('leftRule').textContent = '?';
-            document.getElementById('rightRule').textContent = '?';
+        function hideRules() {
+            document.getElementById('ruleDisplayLeft').innerHTML = '❓ ルールは何だったかな？';
+            document.getElementById('ruleDisplayRight').innerHTML = '❓ ルールは何だったかな？';
         }
 
         function startTimer() {
             const timebar = document.getElementById('timebar');
             timebar.style.width = '100%';
-            
+
             gameState.timebarTimer = setInterval(() => {
                 gameState.timeLeft -= 0.1;
                 const percentage = (gameState.timeLeft / (Math.max(15 - gameState.level, 5))) * 100;
                 timebar.style.width = Math.max(0, percentage) + '%';
-                
+
                 if (gameState.timeLeft <= 0) {
                     clearInterval(gameState.timebarTimer);
                     showFeedback('時間切れ！', false);
-                    endGame();
+                    highlightCorrectAnswer();
+                    setTimeout(endStage, 1500);
                 }
             }, 100);
         }
 
-        function selectShape(side, index) {
-            if (!gameState.gameActive) return;
-            
-            clearInterval(gameState.timebarTimer);
-            gameState.gameActive = false;
-            
-            const container = side === 'left' ? document.getElementById('leftShapes') : document.getElementById('rightShapes');
-            const selectedShape = container.children[index];
-            const svg = selectedShape.querySelector('svg');
-            const shape = getShapeFromSVG(svg);
-            const color = getColorFromSVG(svg);
-            
-            const isCorrect = checkAnswer(side, shape, color);
-            
+        function selectShape(element) {
+            if (!gameState.gameActive || element.getAttribute('data-clicked') === 'true') {
+                return;
+            }
+
+            const side = element.getAttribute('data-side');
+            const rule = side === 'left' ? gameState.currentRuleLeft : gameState.currentRuleRight;
+            const isCorrect = checkAnswer(element, rule, gameState.allShapes);
+
             if (isCorrect) {
-                gameState.combo++;
-                const points = 100 + (gameState.combo * 10);
+                element.classList.add('correct-border');
+                element.setAttribute('data-clicked', 'true');
+                const points = 50 + (gameState.combo * 5);
                 gameState.score += points;
-                showFeedback(`正解！+${points}点`, true);
-            } else {
-                gameState.combo = 0;
-                showFeedback('不正解！', false);
-            }
-            
-            updateDisplay();
-            
-            setTimeout(() => {
-                gameState.stage++;
-                if (gameState.stage <= 10) {
-                    startStage();
-                } else {
-                    endGame();
+                showFeedback(`正解！+${points}点 🎯`, true);
+                gameState.combo++;
+
+                const totalCorrect = gameState.correctShapesLeft.length + gameState.correctShapesRight.length;
+                const clickedCorrect = document.querySelectorAll('.correct-border').length;
+
+                if (clickedCorrect === totalCorrect) {
+                    showFeedback('全部見つけた！', true);
+                    clearInterval(gameState.timebarTimer);
+                    gameState.endStageTimeout = setTimeout(endStage, 1500);
                 }
-            }, 1000);
-        }
 
-        function getShapeFromSVG(svg) {
-            const element = svg.children[0];
-            if (element.tagName === 'circle') return 'circle';
-            if (element.tagName === 'rect') return 'square';
-            if (element.tagName === 'polygon') {
-                const points = element.getAttribute('points');
-                if (points.includes('50,15')) return 'star';
-                return 'triangle';
+            } else {
+                showFeedback('不正解… ❌', false);
+                gameState.combo = 0;
+                highlightCorrectAnswer();
+                clearInterval(gameState.timebarTimer);
+                gameState.endStageTimeout = setTimeout(endStage, 1500);
             }
-            return 'circle';
+
+            updateDisplay();
         }
 
-        function getColorFromSVG(svg) {
-            return svg.children[0].getAttribute('fill');
+        function endStage() {
+            gameState.stage++;
+            if (gameState.stage <= 10) {
+                startStage();
+            } else {
+                endGame();
+            }
         }
 
-        function checkAnswer(side, shape, color) {
-            switch (gameState.currentRule) {
-                case 'red':
-                case 'blue':
-                case 'green':
-                case 'yellow':
-                    return color === gameState.currentRule;
-                case 'circle':
-                case 'square':
-                case 'triangle':
-                case 'star':
-                    return shape === gameState.currentRule;
-                case 'left':
-                    return side === 'left';
-                case 'right':
-                    return side === 'right';
-                default:
-                    return Math.random() > 0.5;
+        function highlightCorrectAnswer() {
+            const correctShapes = gameState.allShapes.filter(s =>
+                checkAnswer(s, s.getAttribute('data-side') === 'left' ? gameState.currentRuleLeft : gameState.currentRuleRight, gameState.allShapes)
+            );
+            correctShapes.forEach(s => s.classList.add('correct-border'));
+        }
+
+        function checkAnswer(element, rule, allShapes) {
+            const side = element.getAttribute('data-side');
+            const shape = element.getAttribute('data-shape');
+            const color = element.getAttribute('data-color');
+
+            const sideShapes = allShapes.filter(s => s.getAttribute('data-side') === side);
+
+            switch (rule.type) {
+                case 'color':
+                    return color === rule.value;
+                case 'shape':
+                    return shape === rule.value;
+                case 'property':
+                    if (rule.value === 'same-color') {
+                        return sideShapes.some(s => s.getAttribute('data-color') === color && s !== element);
+                    }
+                    if (rule.value === 'same-shape') {
+                        return sideShapes.some(s => s.getAttribute('data-shape') === shape && s !== element);
+                    }
+                    if (rule.value === 'different-color') {
+                        return !sideShapes.some(s => s.getAttribute('data-color') === color && s !== element);
+                    }
+                    if (rule.value === 'different-shape') {
+                        return !sideShapes.some(s => s.getAttribute('data-shape') === shape && s !== element);
+                    }
+                    return false;
             }
         }
 
@@ -695,12 +811,11 @@
                 stage: gameState.stage - 1,
                 score: gameState.score,
                 combo: gameState.combo,
-                date: new Date().toLocaleString('ja-JP')
+                date: new Date().toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
             };
-            
             saveGameData(gameData);
             showFeedback(`ゲーム終了！最終スコア: ${gameState.score}`, true);
-            
+
             setTimeout(() => {
                 showSettings();
             }, 3000);
@@ -717,7 +832,7 @@
             const history = JSON.parse(localStorage.getItem('gameHistory') || '[]');
             const tbody = document.getElementById('historyTableBody');
             tbody.innerHTML = '';
-            
+
             history.slice(-20).reverse().forEach(game => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -733,11 +848,11 @@
         function updateChart() {
             const history = JSON.parse(localStorage.getItem('gameHistory') || '[]');
             const ctx = document.getElementById('scoreChart').getContext('2d');
-            
+
             if (window.scoreChart) {
                 window.scoreChart.destroy();
             }
-            
+
             window.scoreChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -756,12 +871,25 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'スコア推移'
+                            text: '過去10回のスコア推移',
+                            font: { size: 16, weight: 'bold' }
+                        },
+                        legend: {
+                            display: false
                         }
                     },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grid: {
+                                color: '#eee'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'プレイ回数'
+                            }
                         }
                     }
                 }
