@@ -765,4 +765,294 @@
         const timeRange = maxTime - minTime || 1;
 
         ctx.fillStyle = getComputedStyle(document.body).color;
-        ctx.font
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(Math.round(maxTime), padding.left - 5, padding.top);
+        ctx.fillText(Math.round(minTime), padding.left - 5, padding.top + chartHeight);
+        
+        ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--border-dark').trim();
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + chartHeight);
+        ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.strokeStyle = 'var(--primary)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        gameState.reactionTimes.forEach((time, index) => {
+            const x = padding.left + (chartWidth / (Math.max(1, gameState.reactionTimes.length - 1))) * index;
+            const y = padding.top + chartHeight - ((time - minTime) / timeRange) * chartHeight;
+            if (index === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        
+        ctx.fillStyle = 'var(--primary)';
+        gameState.reactionTimes.forEach((time, index) => {
+            const x = padding.left + (chartWidth / (Math.max(1, gameState.reactionTimes.length - 1))) * index;
+            const y = padding.top + chartHeight - ((time - minTime) / timeRange) * chartHeight;
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    function showResult(isCorrect, isTimeout = false) {
+      elements.resultMessage.className = 'result-message';
+      
+      if (isTimeout) {
+        elements.resultMessage.textContent = '⏰ 時間切れ！';
+        elements.resultMessage.classList.add('timeout');
+      } else if (isCorrect) {
+        const messages = ['🎉 正解！', '✨ グッジョブ！', '🚀 素晴らしい！', '💎 パーフェクト！'];
+        elements.resultMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
+        elements.resultMessage.classList.add('correct', 'bounce');
+      } else {
+        const messages = ['😅 残念...', '💪 次は頑張ろう！', '🤔 惜しい！', '📚 練習あるのみ！'];
+        elements.resultMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
+        elements.resultMessage.classList.add('wrong');
+      }
+      
+      setTimeout(() => {
+        elements.resultMessage.textContent = '';
+        elements.resultMessage.className = 'result-message';
+      }, 1500);
+    }
+
+    function disableInputs() {
+      elements.sameButton.disabled = true;
+      elements.differentButton.disabled = true;
+      gameState.awaitingInput = false;
+    }
+
+    function enableInputs() {
+      elements.sameButton.disabled = false;
+      elements.differentButton.disabled = false;
+      gameState.awaitingInput = true;
+    }
+
+    function nextTurn() {
+      if (gameState.reactionTimes.length >= gameState.totalTurns) {
+        endGame();
+        return;
+      }
+      
+      gameState.currentTurn++;
+      let newItem;
+      
+      // 最初のn回（準備期間）はランダムに、それ以降は50%の確率で一致するように生成
+      if (gameState.currentTurn <= gameState.n) {
+          newItem = gameState.mode === 'shapes' ? generateShape() : generateNumber();
+      } else {
+          const shouldBeMatch = Math.random() < 0.5;
+          const compareItem = gameState.sequence[gameState.currentTurn - 1 - gameState.n];
+          if (shouldBeMatch) {
+              newItem = compareItem;
+          } else {
+              do {
+                  newItem = gameState.mode === 'shapes' ? generateShape() : generateNumber();
+              } while (newItem === compareItem);
+          }
+      }
+      gameState.sequence.push(newItem);
+      
+      elements.numberDisplay.textContent = newItem;
+      elements.numberDisplay.classList.add('fade-in');
+      setTimeout(() => elements.numberDisplay.classList.remove('fade-in'), 500);
+      
+      if (gameState.currentTurn > gameState.n) {
+        const turnNumber = gameState.currentTurn - gameState.n;
+        elements.turnInfo.textContent = `問題 ${turnNumber} / ${gameState.totalTurns}`;
+        
+        gameState.turnStartTime = Date.now();
+        enableInputs();
+        
+        gameState.timeoutId = setTimeout(() => {
+          if (gameState.awaitingInput) {
+            handleAnswer(null, true);
+          }
+        }, gameState.interval);
+      } else {
+        elements.turnInfo.textContent = `準備... (${gameState.currentTurn} / ${gameState.n})`;
+        setTimeout(nextTurn, gameState.interval);
+      }
+    }
+
+    function handleAnswer(userAnswer, isTimeout = false) {
+      if (!gameState.awaitingInput && !isTimeout) return;
+      
+      clearTimeout(gameState.timeoutId);
+      disableInputs();
+      
+      const currentIndex = gameState.currentTurn - 1;
+      const compareIndex = currentIndex - gameState.n;
+      const correctAnswer = gameState.sequence[currentIndex] === gameState.sequence[compareIndex];
+      
+      const reactionTime = Date.now() - gameState.turnStartTime;
+      const isCorrect = isTimeout ? false : (userAnswer === correctAnswer);
+      
+      gameState.reactionTimes.push(reactionTime);
+      updateScore(isCorrect, reactionTime);
+      showResult(isCorrect, isTimeout);
+      
+      if (elements.chartSection.style.display !== 'none') {
+        updateChart();
+      }
+      
+      setTimeout(nextTurn, 1000);
+    }
+
+    function startGame() {
+      gameState.mode = elements.modeSelect.value;
+      gameState.n = parseInt(elements.nSelect.value);
+      gameState.totalTurns = Math.max(5, Math.min(parseInt(elements.turnsInput.value), 100));
+      gameState.interval = parseFloat(elements.intervalInput.value) * 1000;
+      
+      Object.assign(gameState, {
+          sequence: [], currentTurn: 0, correctAnswers: 0, currentStreak: 0,
+          maxStreakValue: 0, score: 0, reactionTimes: [], gameActive: true, awaitingInput: false
+      });
+      
+      elements.settingsCard.style.display = 'none';
+      elements.gameArea.style.display = 'block';
+      elements.chartSection.style.display = 'block';
+      elements.finalResults.style.display = 'none';
+      elements.startButton.disabled = true;
+      elements.numberDisplay.textContent = '準備中...';
+      elements.resultMessage.textContent = '';
+      
+      updateScoreDisplay();
+      
+      let countdown = 3;
+      const countdownElement = document.createElement('div');
+      countdownElement.className = 'countdown';
+      elements.gameArea.appendChild(countdownElement);
+      
+      const countdownInterval = setInterval(() => {
+        if (countdown > 0) {
+          countdownElement.textContent = countdown--;
+        } else {
+          countdownElement.textContent = 'スタート！';
+          setTimeout(() => {
+            countdownElement.remove();
+            nextTurn();
+          }, 500);
+          clearInterval(countdownInterval);
+        }
+      }, 1000);
+    }
+
+    function endGame() {
+      gameState.gameActive = false;
+      disableInputs();
+      elements.startButton.disabled = false;
+      elements.settingsCard.style.display = 'block';
+      
+      const finalAccuracy = gameState.totalTurns > 0 ? 
+        Math.round((gameState.correctAnswers / gameState.totalTurns) * 100) : 0;
+      const avgReactionTime = gameState.reactionTimes.length > 0 ?
+        Math.round(gameState.reactionTimes.reduce((a, b) => a + b, 0) / gameState.reactionTimes.length) : 0;
+      
+      elements.finalScore.textContent = gameState.score.toLocaleString();
+      elements.finalAccuracy.textContent = `${finalAccuracy}%`;
+      elements.avgReaction.textContent = `${avgReactionTime}ms`;
+      elements.maxStreak.textContent = gameState.maxStreakValue;
+      
+      elements.finalResults.style.display = 'block';
+      elements.finalResults.classList.add('fade-in');
+      setTimeout(() => elements.finalResults.classList.remove('fade-in'), 500);
+      
+      let performance = '';
+      if (finalAccuracy >= 90) performance = '🏆 エクセレント！認知能力が非常に高いです！';
+      else if (finalAccuracy >= 75) performance = '🥇 とても良い成績です！';
+      else if (finalAccuracy >= 60) performance = '🥈 良い成績です。もう少し練習してみましょう！';
+      else if (finalAccuracy >= 40) performance = '🥉 まずまずの成績です。継続練習で向上できます！';
+      else performance = '💪 練習を重ねて認知能力を鍛えましょう！';
+      
+      const existingPerf = elements.finalResults.querySelector('.performance-message');
+      if(existingPerf) existingPerf.remove();
+      
+      setTimeout(() => {
+        const performanceDiv = document.createElement('div');
+        performanceDiv.className = 'performance-message';
+        performanceDiv.style.cssText = `background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 1.1em; font-weight: 600;`;
+        performanceDiv.textContent = performance;
+        elements.finalResults.appendChild(performanceDiv);
+      }, 1000);
+    }
+
+    elements.startButton.addEventListener('click', startGame);
+    elements.sameButton.addEventListener('click', () => handleAnswer(true));
+    elements.differentButton.addEventListener('click', () => handleAnswer(false));
+    
+    document.addEventListener('keydown', (e) => {
+      if (!gameState.awaitingInput) return;
+      if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        elements.sameButton.click();
+      } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        elements.differentButton.click();
+      }
+    });
+    
+    elements.themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      elements.themeToggle.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+      if (gameState.gameActive || gameState.reactionTimes.length > 0) {
+        setTimeout(updateChart, 100);
+      }
+    });
+
+    elements.turnsInput.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      if (value < 5) e.target.value = 5;
+      if (value > 100) e.target.value = 100;
+    });
+    
+    elements.intervalInput.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      if (value < 0.5) e.target.value = 0.5;
+      if (value > 5) e.target.value = 5;
+    });
+
+    function initializeGame() {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+        elements.themeToggle.textContent = '☀️';
+      }
+      
+      const canvas = elements.reactionChart;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      
+      ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--primary').trim();
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ゲーム開始後にグラフが表示されます', rect.width / 2, rect.height / 2);
+    }
+
+    window.addEventListener('resize', () => {
+      if (elements.chartSection.style.display !== 'none' && (gameState.gameActive || gameState.reactionTimes.length > 0)) {
+        setTimeout(updateChart, 100);
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', initializeGame);
+  </script>
+</body>
+</html>
