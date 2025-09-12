@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>注文記憶ゲーム - クリック回答型（５列表示・手動解除）</title>
+  <title>注文記憶ゲーム - 色分け＆グループ分け（行配置）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -10,7 +10,7 @@
       margin: 20px;
       font-size: 18px;
       line-height: 1.6;
-      background-color: #f4f7f6; /* 柔らかな背景色 */
+      background-color: #f4f7f6;
       color: #333;
     }
     h1 {
@@ -20,7 +20,6 @@
       margin-bottom: 25px;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }
-    /* 共通の hidden クラス */
     .hidden {
       display: none;
     }
@@ -32,9 +31,9 @@
       transform: translate(-50%, -50%);
       background-color: #fff;
       border: 1px solid #ccc;
-      border-radius: 12px; /* 角を丸く */
+      border-radius: 12px;
       padding: 30px;
-      box-shadow: 0 6px 30px rgba(0,0,0,0.25); /* より印象的な影 */
+      box-shadow: 0 6px 30px rgba(0,0,0,0.25);
       z-index: 100;
       width: 90%;
       max-width: 500px;
@@ -57,7 +56,7 @@
     #settingsModal input[type="checkbox"] {
       margin-right: 8px;
       cursor: pointer;
-      transform: scale(1.2); /* チェックボックスを少し大きく */
+      transform: scale(1.2);
     }
     #settingsModal input[type="file"] {
       width: calc(100% - 20px);
@@ -74,37 +73,34 @@
       font-size: 1.1em;
       margin: 15px 10px 0;
       border: none;
-      border-radius: 8px; /* ボタンの角を丸く */
+      border-radius: 8px;
       cursor: pointer;
       background-color: #007bff;
       color: white;
       transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* ボタンに影 */
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     #settingsModal button:hover, #gameOverModal button:hover {
       background-color: #0056b3;
-      transform: translateY(-2px); /* 少し浮き上がる */
+      transform: translateY(-2px);
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
     #settingsModal button:active, #gameOverModal button:active {
       transform: translateY(1px);
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    /* 設定モーダル用の閉じるボタン */
     #settingsModal #closeSettingsBtn, #gameOverModal #closeGameOverBtn {
-      background-color: #6c757d; /* 灰色系 */
+      background-color: #6c757d;
     }
     #settingsModal #closeSettingsBtn:hover, #gameOverModal #closeGameOverBtn:hover {
       background-color: #5a6268;
     }
-    /* 設定モーダル用の「メニューをJSONとして保存」ボタン */
     #saveMenuBtn {
-      background-color: #28a745; /* 緑色系 */
+      background-color: #28a745;
     }
     #saveMenuBtn:hover {
       background-color: #218838;
     }
-
     #modalOverlay {
       position: fixed;
       top: 0;
@@ -159,14 +155,12 @@
       cursor: not-allowed;
       box-shadow: none;
     }
-    /* 押されたボタンを光らせる */
     button.selected {
       background-color: #ffda6a;
       border-color: #ffc107;
-      box-shadow: 0 0 12px rgba(255, 193, 7, 0.7); /* より強調された影 */
+      box-shadow: 0 0 12px rgba(255, 193, 7, 0.7);
       transform: translateY(-2px);
     }
-    /* 正解・不正解時のボタン色 */
     button.correct-answer {
         background-color: #28a745;
         color: white;
@@ -182,16 +176,16 @@
 
     /* 出題（覚える注文）表示エリア */
     #orderDisplay {
-      font-size: 2.0em; /* 少し小さくして、多くの項目が表示されるように */
+      font-size: 2.0em;
       margin: 30px auto;
       padding: 20px;
-      background-color: #fff; /* 白背景 */
+      background-color: #fff;
       border-radius: 12px;
       width: 90%;
       max-width: 900px;
       min-height: 100px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* 可変グリッド */
+      display: flex; /* flexboxに変更 */
+      flex-wrap: wrap; /* 折り返しを有効に */
       gap: 20px;
       text-align: center;
       align-items: center;
@@ -199,24 +193,44 @@
       word-break: break-word;
       font-weight: bold;
       color: #222;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* より顕著な影 */
-      border: 1px solid #e0e0e0; /* 薄い境界線 */
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border: 1px solid #e0e0e0;
+    }
+    #orderDisplay .item-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    #orderDisplay .item-container.hidden {
+      display: none;
     }
     #orderDisplay div {
+        flex: 1 1 auto; /* flexアイテムのサイズ調整 */
         padding: 10px 8px;
         border: 1px solid #e9ecef;
         border-radius: 8px;
-        background-color: #f8f9fa; /* 少しグレーがかった背景 */
+        background-color: #f8f9fa;
         min-height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: background-color 0.2s ease;
+        min-width: 100px; /* 最小幅を確保 */
     }
-    #orderDisplay div:hover {
-        background-color: #e2e6ea;
-    }
-    /* 回答指示 */
+    /* 色分けモード用クラス */
+    .color-group-0 { background-color: #e1f5fe; } /* Light Blue */
+    .color-group-1 { background-color: #e8f5e9; } /* Light Green */
+    .color-group-2 { background-color: #fff3e0; } /* Light Orange */
+    .color-group-3 { background-color: #f3e5f5; } /* Light Purple */
+    .color-group-4 { background-color: #ffebee; } /* Light Red */
+    #menuButtons button.color-group-0 { background-color: #e1f5fe; }
+    #menuButtons button.color-group-1 { background-color: #e8f5e9; }
+    #menuButtons button.color-group-2 { background-color: #fff3e0; }
+    #menuButtons button.color-group-3 { background-color: #f3e5f5; }
+    #menuButtons button.color-group-4 { background-color: #ffebee; }
+    
     #instruction {
       text-align: center;
       font-size: 1.5em;
@@ -224,16 +238,14 @@
       font-weight: bold;
       color: #007bff;
     }
-    /* 回答状況の表示 */
     #answerProgress {
         text-align: center;
         font-size: 1.2em;
-        margin-top: -15px; /* instructionと被らないように調整 */
+        margin-top: -15px;
         margin-bottom: 10px;
         color: #666;
         font-style: italic;
     }
-    /* 回答用ボタン群 */
     #menuButtons {
       display: flex;
       flex-wrap: wrap;
@@ -245,9 +257,8 @@
       min-width: 130px;
       height: 60px;
       font-size: 1.05em;
-      margin: 8px; /* ボタン間の余白を調整 */
+      margin: 8px;
     }
-    /* 結果表示 */
     #result {
       text-align: center;
       font-size: 1.8em;
@@ -262,8 +273,6 @@
     #result.correct {
         color: #28a745;
     }
-
-    /* ゲームオーバー表示 */
     #gameOverText {
         font-size: 1.5em;
         margin-bottom: 20px;
@@ -275,7 +284,6 @@
         margin-bottom: 30px;
         color: #555;
     }
-
     /* スマートフォン向け調整 */
     @media (max-width: 768px) {
       body {
@@ -289,21 +297,26 @@
       button {
         font-size: 1em;
         padding: 10px 15px;
-        margin: 6px; /* ボタン間の余白をさらに調整 */
+        margin: 6px;
       }
       #levelIndicator {
         font-size: 1.1em;
       }
       #orderDisplay {
         font-size: 1.6em;
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        flex-direction: column; /* スマートフォンでは縦並び */
         gap: 12px;
         min-height: 80px;
         padding: 15px;
       }
+      #orderDisplay .item-container {
+        flex-direction: row; /* 行の中は横並び */
+        gap: 8px;
+      }
       #orderDisplay div {
           min-height: 35px;
           padding: 6px;
+          flex: 1 1 auto;
       }
       #instruction {
         font-size: 1.2em;
@@ -316,7 +329,7 @@
         min-width: 90px;
         height: 50px;
         font-size: 0.9em;
-        margin: 5px; /* ボタン間の余白を調整 */
+        margin: 5px;
       }
       #result {
         font-size: 1.4em;
@@ -350,6 +363,10 @@
     <label>
       <input type="checkbox" id="roundModeCheckbox" checked>
       ラウンドモード (出題数 = レベル)
+    </label><br>
+    <label>
+      <input type="checkbox" id="colorModeCheckbox">
+      色分け＆グループ分けモード
     </label><br>
     <label>
       メニューファイル読み込み (JSON):
@@ -391,7 +408,6 @@
   <div id="result"></div>
   
   <script>
-    // ◆ メニューリスト（初期データ）
     let menuItems = [
       "台湾ラーメン", "陳麻婆豆腐", "紅油鶏片", "古老肉", "回鍋肉片",
       "蒜苔肉絲", "魚香肉片", "蠣油肉片", "青椒肉絲", "青椒牛肉絲（大）",
@@ -409,60 +425,73 @@
       "乾焼蝦仁（小）", "天津飯 S", "にらレバー（小）", "金醤肉片（小）"
     ];
     
-    // ◆ ゲーム設定・状態変数
     let roundMode = true;
+    let colorMode = false;
     let currentLevel = 1;
-    let sequence = []; // 今回出題された注文の配列
-    let userSelections = []; // ユーザーがクリックした回答の配列
-    let consecutiveCorrects = 0; // 連続正解数
-    const MAX_MISTAKES = 3;     // 許容される間違いの最大回数
-    let mistakesCount = 0;      // 現在の間違い回数
+    let sequence = [];
+    let userSelections = [];
+    let consecutiveCorrects = 0;
+    const MAX_MISTAKES = 3;
+    let mistakesCount = 0;
+    let menuGroups = {};
 
-    // ◆ DOM 要素の取得
     const settingsBtn = document.getElementById("settingsBtn");
     const settingsModal = document.getElementById("settingsModal");
     const modalOverlay = document.getElementById("modalOverlay");
     const roundModeCheckbox = document.getElementById("roundModeCheckbox");
+    const colorModeCheckbox = document.getElementById("colorModeCheckbox");
     const jsonFileInput = document.getElementById("jsonFileInput");
     const applySettingsBtn = document.getElementById("applySettingsBtn");
     const closeSettingsBtn = document.getElementById("closeSettingsBtn");
     const saveMenuBtn = document.getElementById("saveMenuBtn");
-
     const gameOverModal = document.getElementById("gameOverModal");
     const gameOverText = document.getElementById("gameOverText");
     const gameOverScore = document.getElementById("gameOverScore");
     const restartGameBtn = document.getElementById("restartGameBtn");
     const closeGameOverBtn = document.getElementById("closeGameOverBtn");
-
     const levelIndicator = document.getElementById("levelIndicator");
     const levelUpBtn = document.getElementById("levelUpBtn");
     const levelDownBtn = document.getElementById("levelDownBtn");
     const startBtn = document.getElementById("startBtn");
     const orderDisplay = document.getElementById("orderDisplay");
     const instructionDiv = document.getElementById("instruction");
-    const answerProgressDiv = document.getElementById("answerProgress"); 
+    const answerProgressDiv = document.getElementById("answerProgress");
     const menuButtonsDiv = document.getElementById("menuButtons");
     const resultDiv = document.getElementById("result");
 
-    // 音声フィードバック用 (パスは実際のファイルに合わせてください)
-    // これらのファイルが存在しない場合、エラーは発生しませんが、音声は再生されません。
     const correctSound = new Audio('sounds/correct.mp3'); 
     const incorrectSound = new Audio('sounds/incorrect.mp3');
 
-    // ◆ 設定モーダルの操作
+    // メニューをランダムにグループ分け
+    function assignRandomGroups() {
+      menuGroups = {};
+      const numGroups = Math.min(5, Math.ceil(menuItems.length / 15));
+      const shuffledItems = [...menuItems].sort(() => Math.random() - 0.5);
+      
+      shuffledItems.forEach((item, index) => {
+        const group = index % numGroups;
+        menuGroups[item] = group;
+      });
+    }
+
     settingsBtn.addEventListener("click", () => {
       modalOverlay.classList.remove("hidden");
       settingsModal.classList.remove("hidden");
       roundModeCheckbox.checked = roundMode;
-      // ファイル選択をリセット（前回選択したファイルが残らないように）
-      jsonFileInput.value = ''; 
+      colorModeCheckbox.checked = colorMode;
+      jsonFileInput.value = '';
     });
+
     closeSettingsBtn.addEventListener("click", () => {
       modalOverlay.classList.add("hidden");
       settingsModal.classList.add("hidden");
     });
+
     applySettingsBtn.addEventListener("click", () => {
       roundMode = roundModeCheckbox.checked;
+      const prevColorMode = colorMode;
+      colorMode = colorModeCheckbox.checked;
+      
       if (jsonFileInput.files.length > 0) {
         const file = jsonFileInput.files[0];
         const reader = new FileReader();
@@ -471,9 +500,9 @@
             const jsonMenu = JSON.parse(e.target.result);
             if (Array.isArray(jsonMenu) && jsonMenu.length > 0) {
               menuItems = jsonMenu;
-              initMenuButtons(); // メニューボタンを再生成
+              assignRandomGroups();
+              initMenuButtons();
               alert("メニューが更新されました！");
-              // レベルがメニュー数を超えた場合、レベルを調整
               if (currentLevel > menuItems.length) {
                 currentLevel = menuItems.length > 0 ? menuItems.length : 1;
                 updateLevelIndicator();
@@ -488,13 +517,17 @@
         };
         reader.readAsText(file);
       }
+      
+      if (colorMode !== prevColorMode) {
+        initMenuButtons();
+      }
+      
       modalOverlay.classList.add("hidden");
       settingsModal.classList.add("hidden");
     });
 
-    // ◆ メニューをJSONとして保存するボタンの動作
     saveMenuBtn.addEventListener("click", () => {
-      const jsonStr = JSON.stringify(menuItems, null, 2); // インデント付きで整形
+      const jsonStr = JSON.stringify(menuItems, null, 2);
       const blob = new Blob([jsonStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -506,20 +539,19 @@
       URL.revokeObjectURL(url);
     });
 
-    // ◆ ゲームオーバーモーダルの操作
     restartGameBtn.addEventListener("click", () => {
       gameOverModal.classList.add("hidden");
       modalOverlay.classList.add("hidden");
-      resetGame(); // ゲームをリセットして開始
+      resetGame();
     });
+
     closeGameOverBtn.addEventListener("click", () => {
       gameOverModal.classList.add("hidden");
       modalOverlay.classList.add("hidden");
-      resetGame(false); // ゲームをリセットするだけで、自動開始はしない
-      startBtn.disabled = false; // スタートボタンを有効にする
+      resetGame(false);
+      startBtn.disabled = false;
     });
 
-    // ◆ レベルコントロール
     levelUpBtn.addEventListener("click", () => {
       if (currentLevel < menuItems.length) {
         currentLevel++;
@@ -528,43 +560,49 @@
         alert("これ以上レベルを上げられません。登録されているメニューの数が上限です。");
       }
     });
+
     levelDownBtn.addEventListener("click", () => {
       if (currentLevel > 1) {
         currentLevel--;
         updateLevelIndicator();
       }
     });
+
     function updateLevelIndicator() {
       levelIndicator.textContent = `レベル: ${currentLevel} (あと${MAX_MISTAKES - mistakesCount}回ミスでゲームオーバー)`;
     }
 
-    // ◆ 回答用ボタン群の初期生成（各ボタンがクリックされたら onAnswerClick() を呼ぶ）
     function initMenuButtons() {
-      menuButtonsDiv.innerHTML = ""; // 既存のボタンをクリア
-      // メニューアイテムをシャッフルして、毎回ボタンの並び順が変わるようにする
+      menuButtonsDiv.innerHTML = "";
       const shuffledMenuItems = menuItems.slice().sort(() => Math.random() - 0.5);
-
       shuffledMenuItems.forEach(item => {
         const btn = document.createElement("button");
         btn.textContent = item;
         btn.addEventListener("click", function() {
           onAnswerClick(item, this);
         });
+        if (colorMode && menuGroups[item] !== undefined) {
+          btn.classList.add(`color-group-${menuGroups[item]}`);
+        }
         menuButtonsDiv.appendChild(btn);
       });
     }
-    // 初期化時にメニューボタンを生成
+    assignRandomGroups();
     initMenuButtons();
 
-    // ◆ 回答用ボタンの選択状態をリセット
     function resetAnswerButtons() {
       Array.from(menuButtonsDiv.children).forEach(btn => {
         btn.classList.remove("selected", "correct-answer", "wrong-answer");
         btn.disabled = false;
+        if (colorMode) {
+          const groupClass = Array.from(btn.classList).find(cls => cls.startsWith('color-group-'));
+          if (groupClass) {
+            btn.style.backgroundColor = '';
+          }
+        }
       });
     }
 
-    // ◆ ゲーム全体の初期化（ゲームオーバー後など）
     function resetGame(shouldStartGame = true) {
         currentLevel = 1;
         consecutiveCorrects = 0;
@@ -574,16 +612,16 @@
         resultDiv.classList.remove("correct");
         menuButtonsDiv.classList.add("hidden");
         instructionDiv.classList.add("hidden");
-        answerProgressDiv.classList.add("hidden"); // 回答進捗表示も隠す
+        answerProgressDiv.classList.add("hidden");
         orderDisplay.innerHTML = "";
-        startBtn.disabled = false; // スタートボタンを有効にする
-
+        startBtn.disabled = false;
+        assignRandomGroups();
+        initMenuButtons();
         if (shouldStartGame) {
-            startGame(); // リセット後すぐにゲームを開始する場合
+            startGame();
         }
     }
 
-    // ◆ 出題開始（スタートボタン押下時）
     function startGame() {
       resultDiv.textContent = "";
       resultDiv.classList.remove("correct");
@@ -591,98 +629,149 @@
       instructionDiv.classList.add("hidden");
       answerProgressDiv.classList.add("hidden");
       resetAnswerButtons();
-      userSelections = []; // ユーザーの選択をリセット
-      orderDisplay.innerHTML = ""; // 表示エリアをクリア
-      startBtn.disabled = true; // スタートボタンを無効化
+      userSelections = [];
+      orderDisplay.innerHTML = "";
+      startBtn.disabled = true;
       
-      let numItemsToDisplay = roundMode ? currentLevel : 1; // ラウンドモードかどうかに応じて出題数を決定
+      let numItemsToDisplay = roundMode ? currentLevel : 1;
 
-      // 出題数がメニューアイテム数を超えている場合のチェック
       if (numItemsToDisplay > menuItems.length) {
         alert(`現在のレベル (${currentLevel} 品) は登録されているメニュー数 (${menuItems.length} 品) を超えています。レベルを下げてください。`);
-        startBtn.disabled = false; // スタートボタンを再度有効にする
+        startBtn.disabled = false;
         return;
       }
       
-      let availableMenuItems = [...menuItems]; // メニューアイテムのコピーを作成
-      sequence = []; // 今回の出題シーケンスをリセット
+      let availableMenuItems = [...menuItems];
+      sequence = [];
       for (let i = 0; i < numItemsToDisplay; i++) {
         const randomIndex = Math.floor(Math.random() * availableMenuItems.length);
         sequence.push(availableMenuItems[randomIndex]);
-        availableMenuItems.splice(randomIndex, 1); // 同じアイテムが重複しないように削除
+        availableMenuItems.splice(randomIndex, 1);
       }
       
-      // 出題内容を表示
+      // グループごとにアイテムを分類
+      const groupedItems = {};
       sequence.forEach(item => {
-        const cell = document.createElement("div");
-        cell.textContent = item;
-        orderDisplay.appendChild(cell);
+        const group = colorMode ? menuGroups[item] : 'default';
+        if (!groupedItems[group]) {
+          groupedItems[group] = [];
+        }
+        groupedItems[group].push(item);
       });
+
+      // グループごとにまとめて表示
+      for (const group in groupedItems) {
+        const container = document.createElement("div");
+        container.classList.add("item-container");
+        groupedItems[group].forEach(item => {
+          const cell = document.createElement("div");
+          cell.textContent = item;
+          if (colorMode && menuGroups[item] !== undefined) {
+            cell.classList.add(`color-group-${menuGroups[item]}`);
+          }
+          container.appendChild(cell);
+        });
+        orderDisplay.appendChild(container);
+      }
       
-      // 一定時間後に画面クリックで回答フェーズへ移行
       setTimeout(() => {
         const clickHandler = () => {
-          document.removeEventListener("click", clickHandler); // イベントリスナーを削除
+          document.removeEventListener("click", clickHandler);
           onScreenClick();
         };
-        document.addEventListener("click", clickHandler, { once: true }); // 一度だけクリックを検知
-      }, 1500); // 1.5秒間表示
+        document.addEventListener("click", clickHandler, { once: true });
+      }, 1500);
     }
 
-    // ◆ 画面またはボタンがクリックされたときの処理（出題フェーズから回答フェーズへ移行）
     function onScreenClick() {
-      orderDisplay.innerHTML = ""; // 出題内容をクリア
-      instructionDiv.classList.remove("hidden"); // 回答指示を表示
-      answerProgressDiv.classList.remove("hidden"); // 回答進捗表示を表示
-      menuButtonsDiv.classList.remove("hidden"); // 回答用ボタン群を表示
-      startBtn.disabled = false; // スタートボタンを再度有効にする
-      updateAnswerProgress(); // 回答進捗を初期表示
+      // 全てのコンテナを非表示に
+      Array.from(orderDisplay.children).forEach(container => container.classList.add("hidden"));
+      instructionDiv.classList.remove("hidden");
+      answerProgressDiv.classList.remove("hidden");
+      menuButtonsDiv.classList.remove("hidden");
+      startBtn.disabled = false;
+      updateAnswerProgress();
     }
 
-    // ◆ ユーザーが回答用ボタンをクリックしたときの処理
     function onAnswerClick(clickedItem, btn) {
-        // ボタンがすでに正解/不正解表示状態の場合は操作させない
         if (btn.classList.contains("correct-answer") || btn.classList.contains("wrong-answer")) {
             return;
         }
 
         if (btn.classList.contains("selected")) {
-            // すでに選択されている場合は選択を解除
             btn.classList.remove("selected");
             const index = userSelections.indexOf(clickedItem);
             if (index > -1) {
-                userSelections.splice(index, 1); // 配列から削除
+                userSelections.splice(index, 1);
             }
         } else {
-            // 未選択の場合は選択
-            if (userSelections.length < sequence.length) { // 出題数を超えて選択できないようにする
+            if (userSelections.length < sequence.length) {
                 btn.classList.add("selected");
                 userSelections.push(clickedItem);
             } else {
-                // 出題数と選択数が一致している場合は、それ以上選択できないことを視覚的にフィードバック（例：揺らすなど）
                 btn.animate([{ transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0px)' }], {
                     duration: 100,
                     iterations: 3
                 });
-                return; // ここで処理を終了し、回答チェックに進まない
+                return;
             }
         }
         
-        updateAnswerProgress(); // 回答進捗を更新
-
-        // 全ての答えが選択されたらチェック
+        updateAnswerProgress();
         if (userSelections.length === sequence.length) {
-            // 少し遅延を入れて、ユーザーが最後に選択したボタンがハイライトされるのを確認できるようにする
-            setTimeout(checkAnswer, 300); 
+            setTimeout(checkAnswer, 300);
         }
     }
 
-    // ◆ 回答進捗表示の更新
     function updateAnswerProgress() {
         answerProgressDiv.textContent = `選択数: ${userSelections.length} / ${sequence.length}`;
     }
 
-    // ◆ 順序を無視して回答の集合をチェック
+    function checkAnswer() {
+      let correct = arraysEqualIgnoreOrder(userSelections, sequence);
+      
+      Array.from(menuButtonsDiv.children).forEach(btn => btn.disabled = true);
+
+      if (correct) {
+        resultDiv.innerHTML = "正解！記憶力抜群です！";
+        resultDiv.classList.add("correct");
+        consecutiveCorrects++;
+        correctSound.play().catch(e => console.warn("Audio playback failed:", e));
+        
+        userSelections.forEach(item => {
+            const btn = Array.from(menuButtonsDiv.children).find(b => b.textContent === item);
+            if (btn) {
+                btn.classList.add("correct-answer");
+                btn.classList.remove("selected");
+            }
+        });
+      } else {
+        resultDiv.innerHTML = `不正解…<br>正解は:<br>${sequence.join(" ・ ")}`;
+        resultDiv.classList.remove("correct");
+        consecutiveCorrects = 0;
+        mistakesCount++;
+        incorrectSound.play().catch(e => console.warn("Audio playback failed:", e));
+
+        const correctItemsSet = new Set(sequence);
+        Array.from(menuButtonsDiv.children).forEach(btn => {
+            const btnText = btn.textContent;
+            if (userSelections.includes(btnText) && !correctItemsSet.has(btnText)) {
+                btn.classList.add("wrong-answer");
+                btn.classList.remove("selected");
+            } else if (!userSelections.includes(btnText) && correctItemsSet.has(btnText)) {
+                btn.classList.add("correct-answer");
+            }
+        });
+      }
+      updateLevelIndicator();
+
+      if (mistakesCount >= MAX_MISTAKES) {
+        setTimeout(showGameOver, 2000);
+      } else {
+        setTimeout(nextQuestion, 2000);
+      }
+    }
+    
     function arraysEqualIgnoreOrder(arr1, arr2) {
       if (arr1.length !== arr2.length) return false;
       const sorted1 = arr1.slice().sort();
@@ -693,79 +782,28 @@
       return true;
     }
 
-    // ◆ 回答チェック：回答集合と出題集合を比較
-    function checkAnswer() {
-      let correct = arraysEqualIgnoreOrder(userSelections, sequence);
-      
-      // 回答ボタンのクリックを一時的に無効化
-      Array.from(menuButtonsDiv.children).forEach(btn => btn.disabled = true);
-
-      if (correct) {
-        resultDiv.innerHTML = "正解！記憶力抜群です！";
-        resultDiv.classList.add("correct");
-        consecutiveCorrects++;
-        correctSound.play().catch(e => console.warn("Audio playback failed:", e)); // エラーハンドリング
-        
-        userSelections.forEach(item => {
-            const btn = Array.from(menuButtonsDiv.children).find(b => b.textContent === item);
-            if (btn) {
-                btn.classList.add("correct-answer");
-                btn.classList.remove("selected"); // 選択状態を解除
-            }
-        });
-      } else {
-        resultDiv.innerHTML = `不正解…<br>正解は:<br>${sequence.join(" ・ ")}`;
-        resultDiv.classList.remove("correct");
-        consecutiveCorrects = 0;
-        mistakesCount++;
-        incorrectSound.play().catch(e => console.warn("Audio playback failed:", e)); // エラーハンドリング
-
-        const correctItemsSet = new Set(sequence);
-        Array.from(menuButtonsDiv.children).forEach(btn => {
-            const btnText = btn.textContent;
-            if (userSelections.includes(btnText) && !correctItemsSet.has(btnText)) {
-                btn.classList.add("wrong-answer");
-                btn.classList.remove("selected"); // 選択状態を解除
-            } else if (!userSelections.includes(btnText) && correctItemsSet.has(btnText)) {
-                btn.classList.add("correct-answer");
-            }
-        });
-      }
-      updateLevelIndicator(); // ミス回数表示を更新
-
-      if (mistakesCount >= MAX_MISTAKES) {
-        setTimeout(showGameOver, 2000); // 2秒後にゲームオーバー画面
-      } else {
-        setTimeout(nextQuestion, 2000); // 2秒後に次の問題へ
-      }
-    }
-
-    // ◆ ゲームオーバー画面表示
     function showGameOver() {
         gameOverText.textContent = `残念！${MAX_MISTAKES}回間違えてしまいました。`;
         gameOverScore.textContent = `あなたの連続正解数は ${consecutiveCorrects} 回でした。`;
         modalOverlay.classList.remove("hidden");
         gameOverModal.classList.remove("hidden");
-        startBtn.disabled = true; // ゲームオーバー中はスタートボタンを無効化
-        answerProgressDiv.classList.add("hidden"); // ゲームオーバー時は非表示
+        startBtn.disabled = true;
+        answerProgressDiv.classList.add("hidden");
     }
 
-    // ◆ 次の問題へ（出題・回答エリアのリセット後、自動出題）
     function nextQuestion() {
       menuButtonsDiv.classList.add("hidden");
       instructionDiv.classList.add("hidden");
-      answerProgressDiv.classList.add("hidden"); // 次の出題まで非表示
+      answerProgressDiv.classList.add("hidden");
       resetAnswerButtons();
       userSelections = [];
       resultDiv.textContent = "";
       resultDiv.classList.remove("correct");
-      startGame(); // 次の問題を生成して開始
+      startGame();
     }
 
-    // スタートボタンのイベントリスナー
     startBtn.addEventListener("click", startGame);
 
-    // ページロード時にレベルインジケーターを更新
     updateLevelIndicator();
   </script>
 </body>
