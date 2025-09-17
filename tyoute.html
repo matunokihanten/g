@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>脳梁トレーニングアプリ - 左右同時タップ</title>
+  <style>
+    /* 共通スタイル */
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: none;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .container {
+      width: 100%;
+      max-width: 900px;
+      height: 100%;
+      background: rgba(255,255,255,0.98);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: 2.5em;
+      color: #2c5282;
+      text-align: center;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      font-size: 1.2em;
+      color: #718096;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .game-area {
+      flex: 1;
+      display: none;
+      opacity: 0;
+      transition: opacity .3s;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .game-area.active {
+      display: flex;
+      opacity: 1;
+    }
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .score, .timer, .feedback-text {
+      font-size: 1.2em;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+    }
+    .score { color: #2c5282; }
+    .timer { color: #e53e3e; }
+    .feedback-text {
+      color: #38a169;
+      transition: color 0.3s;
+    }
+    .instructions {
+      background: #e6fffa;
+      padding: 12px;
+      border-left: 4px solid #38b2ac;
+      border-radius: 10px;
+      font-size: .9em;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+    .game-modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+      flex-shrink: 0;
+    }
+    .mode-btn {
+      background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
+      color: #333;
+      border: none;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 1em;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      transition: transform .1s, box-shadow .1s;
+      touch-action: manipulation;
+    }
+    .mode-btn:active {
+      transform: scale(.96);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    .dual-tap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #tap-instruction {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #3a0ca3;
+      margin: 10px 0 20px;
+      animation: pulse 1.5s infinite;
+      text-align: center;
+      min-height: 3em;
+    }
+    @keyframes pulse {
+      0%,100%{opacity:1}50%{opacity:.7}
+    }
+    .tap-area-wrapper {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      flex-grow: 1;
+      align-items: center;
+    }
+    .tap-area {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5em;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+      transition: transform .1s, box-shadow .1s;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    .tap-area:active {
+      transform: scale(.94);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+    .left-tap { background: linear-gradient(45deg,#ff6b6b,#ee5a24); }
+    .right-tap{ background: linear-gradient(45deg,#4ecdc4,#44a08d); }
+    .tap-area.highlight {
+      border: 5px solid yellow;
+      animation: highlightPulse 0.5s infinite;
+    }
+    @keyframes highlightPulse {
+      0%,100%{transform:scale(1);}
+      50%{transform:scale(1.05);}
+    }
+    .back-btn {
+      position:absolute;
+      top:8px; left:8px;
+      padding:8px;
+      border:none;
+      border-radius:8px;
+      background:#718096;
+      color:white;
+      font-size:1em;
+      font-weight:bold;
+      box-shadow:0 4px 12px rgba(0,0,0,0.15);
+      transition:transform .1s,box-shadow .1s;
+      touch-action:manipulation;
+      z-index: 10;
+    }
+    .back-btn:active {
+      transform:scale(.96);
+      box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    }
+    .game-over-message {
+      font-size:1.5em;
+      font-weight:bold;
+      color:#dd6b20;
+      background:rgba(255,245,230,0.8);
+      padding:8px;
+      border-radius:8px;
+      text-align:center;
+      margin-top:4px;
+      display:none;
+    }
+    .feedback-correct { background-color:#38a169; }
+    .feedback-incorrect { background-color:#e53e3e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧠 左右同時タップ</h1>
+    <p class="subtitle">左右の脳を同時に使って、脳梁を活性化させましょう！</p>
+
+    <div id="menu" class="game-area active">
+      <div class="instructions">
+        プレイしたいモードを選んでください。
+        <br>脳梁の連携を鍛えるために、複雑な指示にも素早く反応することが重要です。
+      </div>
+      <div class="game-modes">
+        <button class="mode-btn" onclick="startGame('basic')">ベーシックモード</button>
+        <button class="mode-btn" onclick="startGame('advanced')">アドバンスモード</button>
+        <button class="mode-btn" onclick="startGame('audio-visual')">聴覚・視覚モード</button>
+      </div>
+    </div>
+
+    <div id="dual-tap" class="game-area">
+      <div class="info-bar">
+        <div class="score">スコア: <span id="tap-score">0</span></div>
+        <div class="timer">残り時間: <span id="tap-timer">30</span>秒</div>
+      </div>
+      <div id="tap-instruction"></div>
+      <div class="tap-area-wrapper">
+        <div class="tap-area left-tap" id="leftTap">左</div>
+        <div class="tap-area right-tap" id="rightTap">右</div>
+      </div>
+      <div class="game-over-message" id="tap-game-over"></div>
+    </div>
+
+    <button class="back-btn" id="back-to-menu" onclick="showMenu()" style="display:none">メニューに戻る</button>
+  </div>
+
+  <script>
+    const gameElements = { 'dual-tap': { score: 'tap-score', timer: 'tap-timer', over: 'tap-game-over' } };
+    let currentGame = null, timerId = null, tapIdx = 0, currentMode = null;
+    const scores = { 'dual-tap': 0 };
+    const durations = { 'basic': 30, 'advanced': 45, 'audio-visual': 60 };
+    const modes = {
+      'basic': [
+        {txt:'左右同時にタップ！', tgt:'both'},
+        {txt:'左だけタップ！', tgt:'left'},
+        {txt:'右だけタップ！', tgt:'right'}
+      ],
+      'advanced': [
+        {txt:'左手でタップ！', tgt:'left'},
+        {txt:'右手でタップ！', tgt:'right'},
+        {txt:'同時に素早く！', tgt:'both'},
+        {txt:'左だけ、でも速く！', tgt:'left'},
+        {txt:'右と左、両方！', tgt:'both'},
+        {txt:'右を叩け！', tgt:'right'}
+      ],
+      'audio-visual': [
+        {txt:'光った方をタップ！', tgt:'flash'},
+        {txt:'音が鳴ったら両方！', tgt:'sound'}
+      ]
+    };
+    let currentInstructions = [];
+    const tapSounds = { 'tap': new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3') };
+
+    function startGame(mode) {
+      currentMode = mode;
+      currentInstructions = modes[mode];
+      currentGame = 'dual-tap';
+      document.getElementById('menu').classList.remove('active');
+      document.getElementById('dual-tap').classList.add('active');
+      document.getElementById('back-to-menu').style.display = 'block';
+      scores['dual-tap'] = 0;
+      updateScore('dual-tap');
+      resetOver('dual-tap');
+      clearInterval(timerId);
+      startTimer(durations[mode]);
+      initDualTap();
+    }
+
+    function showMenu() {
+      currentGame = null;
+      document.getElementById('menu').classList.add('active');
+      document.getElementById('dual-tap').classList.remove('active');
+      document.getElementById('back-to-menu').style.display = 'none';
+      clearInterval(timerId);
+    }
+
+    function updateScore(t) { document.getElementById(gameElements[t].score).textContent = scores[t]; }
+    function resetOver(t) {
+      let el = document.getElementById(gameElements[t].over);
+      el.style.display = 'none';
+      el.textContent = '';
+    }
+    function showOver(t) {
+      let el = document.getElementById(gameElements[t].over);
+      el.textContent = `時間切れ！最終スコア: ${scores[t]}`;
+      el.style.display = 'block';
+    }
+    function startTimer(sec) {
+      let left = sec, te = document.getElementById('tap-timer');
+      timerId = setInterval(() => {
+        left--;
+        te.textContent = left;
+        if (left <= 0) {
+          clearInterval(timerId);
+          showOver('dual-tap');
+          setTimeout(() => { alert(`時間切れ！あなたのスコア: ${scores['dual-tap']}`); showMenu(); }, 1000);
+        }
+      }, 1000);
+    }
+
+    /* --- Dual Tap --- */
+    let lastTapTime = 0;
+    function initDualTap() {
+      tapIdx = 0;
+      showNextInstruction();
+      ['leftTap', 'rightTap'].forEach(id => {
+        const el = document.getElementById(id);
+        el.ontouchstart = el.onclick = null;
+        el.addEventListener('touchstart', e => { e.preventDefault(); handleTap(id === 'leftTap' ? 'left' : 'right', e.touches); });
+        el.addEventListener('mousedown', () => handleTap(id === 'leftTap' ? 'left' : 'right'));
+      });
+    }
+
+    function showNextInstruction() {
+      if (currentGame !== 'dual-tap') return;
+      const ins = currentInstructions[Math.floor(Math.random() * currentInstructions.length)];
+      const el = document.getElementById('tap-instruction');
+      const leftBtn = document.getElementById('leftTap');
+      const rightBtn = document.getElementById('rightTap');
+
+      // UIをリセット
+      leftBtn.classList.remove('highlight');
+      rightBtn.classList.remove('highlight');
+      el.textContent = ins.txt;
+      el.dataset.tgt = ins.tgt;
+
+      // 特殊な指示の処理
+      if (ins.tgt === 'flash') {
+        const flashTarget = Math.random() < 0.5 ? leftBtn : rightBtn;
+        el.textContent = '光った方をタップ！';
+        flashTarget.classList.add('highlight');
+      }
+      if (ins.tgt === 'sound') {
+        el.textContent = '音が鳴ったら両方タップ！';
+        tapSounds['tap'].play();
+      }
+
+      setTimeout(() => {
+        showNextInstruction();
+      }, 2000);
+    }
+
+    function handleTap(side, touches) {
+      if (currentGame !== 'dual-tap') return;
+
+      const el = document.getElementById('tap-instruction');
+      const tgt = el.dataset.tgt;
+      let pts = 0;
+
+      const now = Date.now();
+      const reactionTime = now - lastTapTime;
+      lastTapTime = now;
+
+      const feedbackEl = document.querySelector('.feedback-text');
+
+      // スコア計算ロジックを強化
+      if (tgt === 'both') {
+        if (touches && touches.length >= 2) {
+          pts = 20;
+          if (reactionTime < 500) pts += 10;
+        } else {
+          pts = -5;
+        }
+      } else if (tgt === 'left' && side === 'left') {
+        pts = 10;
+        if (reactionTime < 500) pts += 5;
+      } else if (tgt === 'right' && side === 'right') {
+        pts = 10;
+        if (reactionTime < 500) pts += 5;
+      } else if (tgt === 'flash') {
+        const flashBtn = document.querySelector('.tap-area.highlight');
+        if ((side === 'left' && flashBtn.id === 'leftTap') || (side === 'right' && flashBtn.id === 'rightTap')) {
+          pts = 15;
+        } else {
+          pts = -5;
+        }
+      } else if (tgt === 'sound') {
+        if (touches && touches.length >= 2) {
+          pts = 25;
+        } else {
+          pts = -10;
+        }
+      } else {
+        pts = -3;
+      }
+
+      scores['dual-tap'] = Math.max(0, scores['dual-tap'] + pts);
+      updateScore('dual-tap');
+
+      const btn = document.querySelector(side === 'left' ? '.left-tap' : '.right-tap');
+      btn.style.transition = 'transform .1s, background-color .1s';
+      if (pts > 0) {
+        btn.style.backgroundColor = '#38a169';
+      } else {
+        btn.style.backgroundColor = '#e53e3e';
+      }
+      setTimeout(() => {
+        btn.style.backgroundColor = '';
+        btn.style.transition = '';
+      }, 200);
+
+      // 視覚的フィードバック
+      const feedbackClass = pts > 0 ? 'feedback-correct' : 'feedback-incorrect';
+      const scoreMessage = pts > 0 ? `+${pts}点` : `${pts}点`;
+      // ここをフィードバック表示用にする
+    }
+  </script>
+</body>
+</html>
