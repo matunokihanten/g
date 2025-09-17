@@ -2,17 +2,18 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シンプル付箋掲示板</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>タイマー付き付箋</title>
     <style>
         :root {
-            --bg-color: #f0f0f0;
+            --bg-color-start: #1a1a2e;
+            --bg-color-end: #16213e;
             --toolbar-bg: #2c3e50;
             --toolbar-color: #ecf0f1;
             --button-bg: #3498db;
             --button-hover: #2980b9;
             --input-bg: #34495e;
-            --note-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            --note-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
         html, body {
@@ -21,8 +22,9 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-color-start) 0%, var(--bg-color-end) 100%);
+            color: #ecf0f1;
         }
 
         #toolbar {
@@ -30,73 +32,119 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 55px;
+            height: auto;
+            min-height: 60px;
             background: var(--toolbar-bg);
             color: var(--toolbar-color);
             display: flex;
             align-items: center;
-            padding: 0 15px;
+            padding: 8px 10px;
             box-sizing: border-box;
             z-index: 2000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
         }
 
         #toolbar .group {
             display: flex;
             align-items: center;
-            margin-right: 20px;
+            gap: 6px;
         }
-
-        #toolbar select,
+        #toolbar .group:last-child {
+            margin-left: auto;
+        }
+        @media (max-width: 600px) {
+            #toolbar .group:last-child {
+                margin-left: 0;
+            }
+        }
+        #toolbar input[type="text"],
         #toolbar button,
-        #toolbar input[type="text"] {
+        #toolbar select {
             padding: 8px 12px;
-            font-size: 14px;
+            font-size: 13px;
             border: none;
             border-radius: 6px;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             box-sizing: border-box;
-        }
-
-        #toolbar select,
-        #toolbar input[type="text"] {
             background: var(--input-bg);
             color: var(--toolbar-color);
-            border: 1px solid transparent;
-            min-width: 120px;
+            position: relative;
         }
-        
-        #toolbar select:focus,
+
+        #timerInput {
+            width: 70px;
+            text-align: center;
+        }
+        #toolbar input[type="text"] {
+            border: 1px solid transparent;
+            min-width: 80px;
+        }
         #toolbar input[type="text"]:focus {
             outline: none;
             border-color: var(--button-bg);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
         }
-
         #toolbar button {
+            cursor: pointer;
             background: var(--button-bg);
             color: #fff;
-            cursor: pointer;
-            margin-left: 8px;
+            box-shadow: 0 3px 0 #21618c;
+            border-bottom: 1px solid #21618c;
         }
-        #toolbar button:first-child {
-            margin-left: 0;
+        #toolbar button:active {
+            box-shadow: none;
+            transform: translateY(2px);
+            border-bottom: none;
         }
-
-        #toolbar button:hover {
-            background: var(--button-hover);
+        .time-btn {
+            background: #27ae60;
+            box-shadow: 0 3px 0 #1e8449;
+            border-bottom: 1px solid #1e8449;
+        }
+        .time-btn:active {
+            box-shadow: none;
+            transform: translateY(2px);
+            border-bottom: none;
         }
 
         #addBtn {
             background: #2ecc71;
-            margin-left: auto;
+            box-shadow: 0 3px 0 #27ae60;
+            border-bottom: 1px solid #27ae60;
         }
-        #addBtn:hover {
-            background: #27ae60;
+        #addBtn:active {
+            box-shadow: none;
+            transform: translateY(2px);
+            border-bottom: none;
+        }
+
+        #resetTimerBtn {
+            background: #e74c3c;
+            box-shadow: 0 3px 0 #c0392b;
+            border-bottom: 1px solid #c0392b;
+        }
+        #resetTimerBtn:active {
+            box-shadow: none;
+            transform: translateY(2px);
+            border-bottom: none;
+        }
+        #alignBtn {
+            background: #f1c40f;
+            box-shadow: 0 3px 0 #d39e0b;
+            border-bottom: 1px solid #d39e0b;
+        }
+        #alignBtn:active {
+            box-shadow: none;
+            transform: translateY(2px);
+            border-bottom: none;
         }
 
         #wrapper {
             position: absolute;
-            top: 55px;
+            top: 60px;
             bottom: 0;
             left: 0;
             right: 0;
@@ -105,7 +153,7 @@
             touch-action: none;
             user-select: none;
         }
-
+        
         #board {
             position: absolute;
             top: 0;
@@ -118,22 +166,33 @@
             position: absolute;
             padding: 15px;
             box-shadow: var(--note-shadow);
-            border-radius: 8px;
+            border-radius: 12px;
             white-space: pre-wrap;
             resize: both;
             overflow: auto;
             cursor: move;
-            transition: box-shadow 0.2s ease;
-            min-width: 150px;
+            transition: box-shadow 0.3s ease, transform 0.3s ease, background 0.5s;
+            min-width: 140px;
             min-height: 100px;
             box-sizing: border-box;
-            line-height: 1.5;
+            line-height: 1.6;
             word-wrap: break-word;
             background: #fffa65;
             color: #333;
         }
         .note:hover {
-            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            transform: translateY(-5px);
+        }
+        .note.alert {
+            background: #e74c3c !important;
+            color: #fff;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
 
         .note-content {
@@ -144,6 +203,7 @@
             margin: 0;
             outline: none;
             box-sizing: border-box;
+            font-size: 14px;
         }
         .note-content:empty::before {
             content: "ここに記入…";
@@ -152,36 +212,87 @@
 
         .close-btn {
             position: absolute;
-            top: 5px;
+            top: 6px;
             right: 8px;
             font-size: 16px;
             color: rgba(0,0,0,0.4);
             cursor: pointer;
             line-height: 1;
+            transition: color 0.3s ease;
         }
         .close-btn:hover {
             color: rgba(0,0,0,0.8);
         }
+        .note.alert .close-btn {
+            color: rgba(255,255,255,0.7);
+        }
+        .note.alert .close-btn:hover {
+            color: #fff;
+        }
 
+        .timer-info {
+            position: absolute;
+            bottom: 8px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .timer-controls {
+            display: flex;
+            gap: 5px;
+        }
+        .timer-display {
+            font-size: 12px;
+            color: rgba(0,0,0,0.6);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .timer-btn {
+            font-size: 12px;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            cursor: pointer;
+        }
+        .timer-btn.start {
+            background: #2ecc71;
+            box-shadow: 0 2px 0 #27ae60;
+        }
+        .timer-btn.stop {
+            background: #e74c3c;
+            box-shadow: 0 2px 0 #c0392b;
+        }
+        .timer-btn.reset {
+            background: #3498db;
+            box-shadow: 0 2px 0 #21618c;
+        }
+        .timer-btn:active {
+            box-shadow: none;
+            transform: translateY(1px);
+        }
     </style>
 </head>
 <body>
     <div id="toolbar">
         <div class="group">
-            <select id="boardSelect"></select>
-            <button id="addBoardBtn" title="新しいボードを追加">➕</button>
-            <button id="deleteBoardBtn" title="現在のボードを削除">✖️</button>
+            <input type="text" id="timerInput" placeholder="00:00">
+            <button id="addHourBtn" class="time-btn">+1h</button>
+            <button id="addMinuteBtn" class="time-btn">+1分</button>
+            <button id="addSecondBtn" class="time-btn">+1秒</button>
         </div>
         <div class="group">
-            <input type="text" id="searchInput" placeholder="検索...">
-            <button id="arrangeBtn" title="付箋を整列">整列</button>
+            <button id="resetTimerBtn" title="タイマーをリセット">リセット</button>
+            <button id="addBtn" title="新しい付箋を追加">付箋を追加</button>
         </div>
         <div class="group">
+            <button id="alignBtn" title="付箋を整列">整列</button>
             <button id="exportBtn" title="付箋データをエクスポート">エクスポート</button>
             <button id="importBtn" title="付箋データをインポート">インポート</button>
             <input type="file" id="importFile" accept=".json" style="display:none">
         </div>
-        <button id="addBtn" title="新しい付箋を追加">付箋を追加</button>
     </div>
 
     <div id="wrapper">
@@ -191,86 +302,100 @@
     <script>
         (function() {
             // State
-            let boards = JSON.parse(localStorage.getItem('stickynotes_boards') || '["デフォルト"]');
-            let currentBoard = boards[0];
             let notes = [];
             let scale = 1, translateX = 0, translateY = 0;
             let isPanning = false, panStartX = 0, panStartY = 0;
+            let timerInterval;
 
             // DOM Elements
             const wrapper = document.getElementById('wrapper');
             const board = document.getElementById('board');
-            const boardSelect = document.getElementById('boardSelect');
-            const addBoardBtn = document.getElementById('addBoardBtn');
-            const deleteBoardBtn = document.getElementById('deleteBoardBtn');
-            const searchInput = document.getElementById('searchInput');
-            const arrangeBtn = document.getElementById('arrangeBtn');
+            const addBtn = document.getElementById('addBtn');
+            const timerInput = document.getElementById('timerInput');
+            const resetTimerBtn = document.getElementById('resetTimerBtn');
+            const addHourBtn = document.getElementById('addHourBtn');
+            const addMinuteBtn = document.getElementById('addMinuteBtn');
+            const addSecondBtn = document.getElementById('addSecondBtn');
+            const alignBtn = document.getElementById('alignBtn');
             const exportBtn = document.getElementById('exportBtn');
             const importBtn = document.getElementById('importBtn');
             const importFile = document.getElementById('importFile');
-            const addBtn = document.getElementById('addBtn');
             const noteColors = ['#fffa65', '#ff9ff3', '#feca57', '#48dbfb', '#1dd1a1', '#7bed9f'];
+            const alarmSound = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
 
             // --- Core Functions ---
             function init() {
-                setupBoardSelect();
                 setupEventListeners();
-                switchBoard(currentBoard);
-            }
-
-            function setupBoardSelect() {
-                boardSelect.innerHTML = '';
-                boards.forEach(name => {
-                    const opt = document.createElement('option');
-                    opt.value = name;
-                    opt.innerText = name;
-                    boardSelect.appendChild(opt);
-                });
-                boardSelect.value = currentBoard;
-                localStorage.setItem('stickynotes_boards', JSON.stringify(boards));
+                loadNotes();
+                renderAll();
+                startTimerCheck();
+                if (Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
             }
 
             function setupEventListeners() {
-                // Board management
-                boardSelect.addEventListener('change', (e) => switchBoard(e.target.value));
-                boardSelect.addEventListener('dblclick', renameBoard);
-                addBoardBtn.addEventListener('click', addBoard);
-                deleteBoardBtn.addEventListener('click', deleteBoard);
-
-                // Pan & Zoom
                 wrapper.addEventListener('mousedown', startPan);
                 document.addEventListener('mousemove', doPan);
                 document.addEventListener('mouseup', endPan);
-                wrapper.addEventListener('wheel', doZoom, { passive: false });
+                wrapper.addEventListener('touchstart', startPanTouch, { passive: false });
+                document.addEventListener('touchmove', doPanTouch, { passive: false });
+                document.addEventListener('touchend', endPanTouch);
 
-                // Actions
-                addBtn.addEventListener('click', () => addNote(''));
-                arrangeBtn.addEventListener('click', arrangeNotes);
-                searchInput.addEventListener('input', filterNotes);
+                addBtn.addEventListener('click', () => {
+                    const timerSeconds = parseTimerInput(timerInput.value);
+                    addNote('', timerSeconds);
+                });
+                resetTimerBtn.addEventListener('click', () => timerInput.value = '');
+                addHourBtn.addEventListener('click', () => adjustTimer(3600));
+                addMinuteBtn.addEventListener('click', () => adjustTimer(60));
+                addSecondBtn.addEventListener('click', () => adjustTimer(1));
+                alignBtn.addEventListener('click', alignNotes);
+
+                timerInput.addEventListener('focus', () => {
+                    if (timerInput.value === '') {
+                        timerInput.value = '00:00';
+                    }
+                });
+                timerInput.addEventListener('blur', () => {
+                    if (timerInput.value === '00:00') {
+                        timerInput.value = '';
+                    }
+                });
+                timerInput.addEventListener('input', formatTimerInput);
+
                 exportBtn.addEventListener('click', exportNotes);
                 importBtn.addEventListener('click', () => importFile.click());
                 importFile.addEventListener('change', importNotes);
             }
 
-            function switchBoard(boardName) {
-                currentBoard = boardName;
-                searchInput.value = '';
-                notes = loadNotes();
-                renderAll();
+            function adjustTimer(secondsToAdd) {
+                let totalSeconds = parseTimerInput(timerInput.value);
+                totalSeconds += secondsToAdd;
+                if (totalSeconds < 0) totalSeconds = 0;
+                
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                let displayValue = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                if (hours > 0) {
+                    displayValue = `${hours}:${displayValue}`;
+                }
+                timerInput.value = displayValue;
             }
 
             function loadNotes() {
-                return JSON.parse(localStorage.getItem('stickynotes_' + currentBoard) || '[]');
+                notes = JSON.parse(localStorage.getItem('stickynotes') || '[]');
             }
 
             function saveNotes() {
-                localStorage.setItem('stickynotes_' + currentBoard, JSON.stringify(notes));
+                localStorage.setItem('stickynotes', JSON.stringify(notes));
             }
 
             function renderAll() {
                 board.innerHTML = '';
                 notes.forEach(renderNote);
-                filterNotes();
                 updateTransform();
             }
 
@@ -295,14 +420,101 @@
                 };
                 el.appendChild(closeBtn);
 
+                if (n.timer && n.timer.initialSeconds) {
+                    const timerInfoDiv = document.createElement('div');
+                    timerInfoDiv.className = 'timer-info';
+                    
+                    const timerDisplay = document.createElement('div');
+                    timerDisplay.className = 'timer-display';
+                    timerInfoDiv.appendChild(timerDisplay);
+
+                    const timerControlsDiv = document.createElement('div');
+                    timerControlsDiv.className = 'timer-controls';
+
+                    const startBtn = document.createElement('button');
+                    startBtn.className = 'timer-btn start';
+                    startBtn.innerText = '▶';
+                    startBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        startNoteTimer(n.id);
+                    };
+                    timerControlsDiv.appendChild(startBtn);
+
+                    const stopBtn = document.createElement('button');
+                    stopBtn.className = 'timer-btn stop';
+                    stopBtn.innerText = '■';
+                    stopBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        stopNoteTimer(n.id);
+                    };
+                    timerControlsDiv.appendChild(stopBtn);
+                    
+                    const resetBtn = document.createElement('button');
+                    resetBtn.className = 'timer-btn reset';
+                    resetBtn.innerText = '↺';
+                    resetBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        resetNoteTimer(n.id);
+                    };
+                    timerControlsDiv.appendChild(resetBtn);
+                    
+                    timerInfoDiv.appendChild(timerControlsDiv);
+                    el.appendChild(timerInfoDiv);
+                    
+                    updateTimerDisplay(el, n);
+                    if (Date.now() >= n.timer.endTime) {
+                         el.classList.add('alert');
+                    }
+                }
+
                 makeDraggable(el);
                 makeEditable(el, contentDiv);
                 observeResize(el);
 
                 board.appendChild(el);
-                
+
                 if (focusOnCreate) {
                     contentDiv.focus();
+                }
+            }
+            
+            function startNoteTimer(id) {
+                const note = notes.find(n => n.id === id);
+                if (!note || !note.timer) return;
+                
+                if (note.timer.isStopped) {
+                    note.timer.endTime = Date.now() + note.timer.remainingTime;
+                    note.timer.isStopped = false;
+                    note.timer.isAlerted = false;
+                    saveNotes();
+                    const el = document.querySelector(`.note[data-id="${note.id}"]`);
+                    el.classList.remove('alert');
+                }
+            }
+
+            function stopNoteTimer(id) {
+                const note = notes.find(n => n.id === id);
+                if (!note || !note.timer || note.timer.isStopped) return;
+
+                note.timer.remainingTime = note.timer.endTime - Date.now();
+                note.timer.isStopped = true;
+                saveNotes();
+            }
+
+            function resetNoteTimer(id) {
+                const note = notes.find(n => n.id === id);
+                if (!note || !note.timer) return;
+                
+                note.timer.endTime = Date.now() + note.timer.initialSeconds * 1000;
+                note.timer.remainingTime = note.timer.initialSeconds * 1000;
+                note.timer.isStopped = true;
+                note.timer.isAlerted = false;
+                saveNotes();
+                
+                const el = document.querySelector(`.note[data-id="${note.id}"]`);
+                if (el) {
+                    el.classList.remove('alert');
+                    updateTimerDisplay(el, note);
                 }
             }
 
@@ -315,71 +527,123 @@
                 el.style.zIndex = n.zIndex || 1;
             }
 
-            // --- Board Management ---
-            function addBoard() {
-                const name = prompt('新しいボード名を入力してください。');
-                if (name && !boards.includes(name)) {
-                    boards.push(name);
-                    setupBoardSelect();
-                    switchBoard(name);
-                } else if (name) {
-                    alert('そのボードはすでに存在します。');
+            function parseTimerInput(value) {
+                const parts = value.split(':');
+                let totalSeconds = 0;
+                if (parts.length === 3) {
+                    const hours = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10);
+                    const seconds = parseInt(parts[2], 10);
+                    totalSeconds = (isNaN(hours) ? 0 : hours * 3600) + (isNaN(minutes) ? 0 : minutes * 60) + (isNaN(seconds) ? 0 : seconds);
+                } else if (parts.length === 2) {
+                    const minutes = parseInt(parts[0], 10);
+                    const seconds = parseInt(parts[1], 10);
+                    totalSeconds = (isNaN(minutes) ? 0 : minutes * 60) + (isNaN(seconds) ? 0 : seconds);
+                }
+                return totalSeconds;
+            }
+
+            function formatTimerInput() {
+                let value = timerInput.value.replace(/[^0-9:]/g, '');
+                const parts = value.split(':');
+                if (parts.length === 3) {
+                    let hours = parts[0];
+                    let minutes = parts[1];
+                    let seconds = parts[2];
+                    if (hours.length > 2) hours = hours.substring(0, 2);
+                    if (minutes.length > 2) minutes = minutes.substring(0, 2);
+                    if (seconds.length > 2) seconds = seconds.substring(0, 2);
+                    timerInput.value = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
+                } else if (parts.length === 2) {
+                    let minutes = parts[0];
+                    let seconds = parts[1];
+                    if (minutes.length > 2) minutes = minutes.substring(0, 2);
+                    if (seconds.length > 2) seconds = seconds.substring(0, 2);
+                    timerInput.value = `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
+                } else {
+                    timerInput.value = value;
                 }
             }
 
-            function renameBoard() {
-                const oldName = boardSelect.value;
-                const newName = prompt(`「${oldName}」の新しいボード名を入力してください。`);
-                if (newName && newName !== oldName && !boards.includes(newName)) {
-                    const oldIndex = boards.indexOf(oldName);
-                    if (oldIndex > -1) {
-                        boards[oldIndex] = newName;
-                        localStorage.setItem('stickynotes_' + newName, localStorage.getItem('stickynotes_' + oldName));
-                        localStorage.removeItem('stickynotes_' + oldName);
-                        setupBoardSelect();
-                        switchBoard(newName);
-                    }
-                } else if (newName && newName !== oldName) {
-                    alert('そのボード名はすでに存在します。');
-                }
-            }
-
-            function deleteBoard() {
-                if (boards.length <= 1) {
-                    alert('最後のボードは削除できません。');
-                    return;
-                }
-                if (confirm(`本当にボード「${currentBoard}」を削除しますか？\n（付箋もすべて消えます）`)) {
-                    localStorage.removeItem('stickynotes_' + currentBoard);
-                    boards = boards.filter(name => name !== currentBoard);
-                    setupBoardSelect();
-                    switchBoard(boards[0]);
-                }
-            }
-
-            // --- Note Interactions ---
-            function addNote(content) {
+            function addNote(content, timerSeconds) {
                 const color = noteColors[Math.floor(Math.random() * noteColors.length)];
                 const note = {
                     id: Date.now().toString(),
                     content: content,
-                    x: (wrapper.scrollLeft + wrapper.clientWidth / 2) / scale - 100,
-                    y: (wrapper.scrollTop + wrapper.clientHeight / 2) / scale - 75,
-                    width: 200,
-                    height: 150,
+                    x: (wrapper.clientWidth / 2) / scale - 75,
+                    y: (wrapper.clientHeight / 2) / scale - 50,
+                    width: 150,
+                    height: 100,
                     color: color,
-                    zIndex: 1
+                    zIndex: 1,
+                    timer: null
                 };
+
+                if (timerSeconds && timerSeconds > 0) {
+                    note.timer = {
+                        seconds: timerSeconds,
+                        initialSeconds: timerSeconds,
+                        endTime: Date.now() + timerSeconds * 1000,
+                        remainingTime: timerSeconds * 1000,
+                        isStopped: false,
+                        isAlerted: false
+                    };
+                }
+
+                const initialX = note.x;
+                const initialY = note.y;
+                const maxAttempts = 100;
+                let attempts = 0;
+                while (isOverlapping(note) && attempts < maxAttempts) {
+                    note.x += 10;
+                    note.y += 10;
+                    attempts++;
+                }
+                if (attempts >= maxAttempts) {
+                    note.x = initialX;
+                    note.y = initialY;
+                }
+
                 notes.push(note);
                 saveNotes();
                 renderNote(note, true);
-                filterNotes();
+                timerInput.value = '';
+            }
+
+            function isOverlapping(newNote) {
+                const newRect = {
+                    left: newNote.x,
+                    top: newNote.y,
+                    right: newNote.x + newNote.width,
+                    bottom: newNote.y + newNote.height
+                };
+
+                for (const existingNote of notes) {
+                    const existingRect = {
+                        left: existingNote.x,
+                        top: existingNote.y,
+                        right: existingNote.x + existingNote.width,
+                        bottom: existingNote.y + existingNote.height
+                    };
+                    if (
+                        newRect.left < existingRect.right &&
+                        newRect.right > existingRect.left &&
+                        newRect.top < existingRect.bottom &&
+                        newRect.bottom > existingRect.top
+                    ) {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             function makeDraggable(el) {
                 let ox, oy, sx, sy;
-                el.addEventListener('mousedown', e => {
-                    if (e.target.closest('.note-content')) return;
+                el.addEventListener('mousedown', startDrag);
+                el.addEventListener('touchstart', startDragTouch, { passive: false });
+
+                function startDrag(e) {
+                    if (e.target.closest('.note-content, .close-btn, .timer-info')) return;
                     e.stopPropagation();
                     isPanning = false;
 
@@ -399,15 +663,53 @@
 
                     document.addEventListener('mousemove', move);
                     document.addEventListener('mouseup', drop, { once: true });
-                });
+                }
+
+                function startDragTouch(e) {
+                     if (e.target.closest('.note-content, .close-btn, .timer-info')) return;
+                    e.stopPropagation();
+                    isPanning = false;
+
+                    const touch = e.touches[0];
+                    const currentNote = notes.find(n => n.id === el.dataset.id);
+                    if (!currentNote) return;
+
+                    notes.forEach(n => {
+                        if (n.id === el.dataset.id) n.zIndex = ++n.zIndex;
+                    });
+                    el.style.zIndex = currentNote.zIndex;
+                    saveNotes();
+
+                    ox = touch.clientX / scale;
+                    oy = touch.clientY / scale;
+                    sx = parseInt(el.style.left);
+                    sy = parseInt(el.style.top);
+
+                    document.addEventListener('touchmove', moveTouch, { passive: false });
+                    document.addEventListener('touchend', dropTouch, { once: true });
+                }
 
                 function move(e) {
                     el.style.left = sx + (e.clientX / scale - ox) + 'px';
                     el.style.top = sy + (e.clientY / scale - oy) + 'px';
                 }
 
+                function moveTouch(e) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    el.style.left = sx + (touch.clientX / scale - ox) + 'px';
+                    el.style.top = sy + (touch.clientY / scale - oy) + 'px';
+                }
+
                 function drop() {
                     document.removeEventListener('mousemove', move);
+                    updateNote(el, {
+                        x: parseInt(el.style.left),
+                        y: parseInt(el.style.top)
+                    });
+                }
+                function dropTouch() {
+                    document.removeEventListener('touchmove', moveTouch);
                     updateNote(el, {
                         x: parseInt(el.style.left),
                         y: parseInt(el.style.top)
@@ -418,9 +720,6 @@
             function makeEditable(el, contentDiv) {
                 contentDiv.addEventListener('input', () => {
                     updateNote(el, { content: contentDiv.innerText });
-                });
-                contentDiv.addEventListener('blur', () => {
-                    filterNotes();
                 });
             }
 
@@ -450,43 +749,13 @@
                 board.removeChild(el);
             }
 
-            // --- Board Layout & Search ---
-            function arrangeNotes() {
-                const margin = 30;
-                const cellW = 250, cellH = 200;
-                const wrapW = wrapper.clientWidth;
-                const cols = Math.max(1, Math.floor(wrapW / cellW));
-                
-                let visibleNotes = notes.filter(n => {
-                    const term = searchInput.value.trim().toLowerCase();
-                    return n.content.toLowerCase().includes(term);
-                });
-                
-                visibleNotes.forEach((n, i) => {
-                    n.x = margin + (i % cols) * cellW;
-                    n.y = margin + Math.floor(i / cols) * cellH;
-                });
-                
-                saveNotes();
-                renderAll();
-            }
-
-            function filterNotes() {
-                const term = searchInput.value.trim().toLowerCase();
-                board.querySelectorAll('.note').forEach(el => {
-                    const note = notes.find(n => n.id === el.dataset.id);
-                    el.style.display = note.content.toLowerCase().includes(term) ? '' : 'none';
-                });
-            }
-
-            // --- Data Import/Export ---
             function exportNotes() {
                 const data = JSON.stringify(notes, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `stickynotes_${currentBoard}.json`;
+                a.download = `stickynotes.json`;
                 a.click();
                 URL.revokeObjectURL(url);
             }
@@ -502,16 +771,15 @@
                         notes = importedNotes;
                         saveNotes();
                         renderAll();
-                        alert(`ボード「${currentBoard}」に付箋をインポートしました。`);
+                        alert(`付箋をインポートしました。`);
                     } catch (error) {
                         alert('JSON形式が不正です。付箋データのインポートに失敗しました。');
                     }
                 };
                 reader.readAsText(file);
-                e.target.value = ''; // Reset file input
+                e.target.value = '';
             }
 
-            // --- Pan & Zoom ---
             function startPan(e) {
                 if (e.target !== wrapper && !e.target.closest('#board')) return;
                 if (e.target.closest('.note')) return;
@@ -535,24 +803,134 @@
                 wrapper.style.cursor = 'grab';
             }
 
-            function doZoom(e) {
-                if (!e.ctrlKey) return;
+            function startPanTouch(e) {
+                if (e.touches.length !== 1) return;
+                if (e.target.closest('.note')) return;
                 e.preventDefault();
-                const oldScale = scale;
-                const factor = e.deltaY > 0 ? 0.9 : 1.1;
-                scale = Math.min(3, Math.max(0.3, scale * factor));
-                
-                const mouseX = e.clientX - wrapper.offsetLeft;
-                const mouseY = e.clientY - wrapper.offsetTop;
+                isPanning = true;
+                panStartX = e.touches[0].clientX;
+                panStartY = e.touches[0].clientY;
+            }
 
-                translateX = mouseX - (mouseX - translateX) * (scale / oldScale);
-                translateY = mouseY - (mouseY - translateY) * (scale / oldScale);
-                
+            function doPanTouch(e) {
+                if (!isPanning || e.touches.length !== 1) return;
+                e.preventDefault();
+                translateX += (e.touches[0].clientX - panStartX);
+                translateY += (e.touches[0].clientY - panStartY);
+                panStartX = e.touches[0].clientX;
+                panStartY = e.touches[0].clientY;
                 updateTransform();
+            }
+
+            function endPanTouch() {
+                isPanning = false;
             }
 
             function updateTransform() {
                 board.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            }
+
+            function alignNotes() {
+                const PADDING = 20;
+                const maxBoardWidth = window.innerWidth * 0.8 / scale;
+                let x = PADDING;
+                let y = PADDING;
+                let currentRowMaxHeight = 0;
+
+                notes.sort((a, b) => {
+                    if (a.y !== b.y) return a.y - b.y;
+                    return a.x - b.x;
+                });
+
+                notes.forEach(note => {
+                    if (x + note.width + PADDING > maxBoardWidth) {
+                        x = PADDING;
+                        y += currentRowMaxHeight + PADDING;
+                        currentRowMaxHeight = 0;
+                    }
+                    note.x = x;
+                    note.y = y;
+                    x += note.width + PADDING;
+                    currentRowMaxHeight = Math.max(currentRowMaxHeight, note.height);
+                });
+
+                saveNotes();
+                renderAll();
+            }
+
+            function startTimerCheck() {
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    const now = Date.now();
+                    notes.forEach(note => {
+                        if (note.timer && note.timer.endTime && !note.timer.isStopped && !note.timer.isAlerted) {
+                            if (now >= note.timer.endTime) {
+                                note.timer.isAlerted = true;
+                                saveNotes();
+                                const el = document.querySelector(`.note[data-id="${note.id}"]`);
+                                if (el) {
+                                    el.classList.add('alert');
+                                    triggerNotification(note);
+                                    playAlertSound();
+                                }
+                            }
+                        }
+                    });
+                    updateAllTimerDisplays();
+                }, 1000);
+            }
+
+            function updateAllTimerDisplays() {
+                notes.forEach(note => {
+                    const el = document.querySelector(`.note[data-id="${note.id}"]`);
+                    if (el && note.timer) {
+                        updateTimerDisplay(el, note);
+                    }
+                });
+            }
+
+            function updateTimerDisplay(el, note) {
+                const now = Date.now();
+                let timeLeft;
+                if (note.timer.isStopped) {
+                    timeLeft = note.timer.remainingTime;
+                } else {
+                    timeLeft = Math.max(0, note.timer.endTime - now);
+                }
+                const totalSeconds = Math.floor(timeLeft / 1000);
+                
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                const display = el.querySelector('.timer-display');
+                if (display) {
+                    if (totalSeconds > 0) {
+                        let displayValue = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                        if (hours > 0) {
+                            displayValue = `${hours}:${displayValue}`;
+                        }
+                        display.innerText = displayValue;
+                    } else if (note.timer.isAlerted) {
+                        display.innerText = `時間切れ`;
+                    } else {
+                        display.innerText = `00:00`;
+                    }
+                }
+            }
+
+            function triggerNotification(note) {
+                if (Notification.permission === 'granted') {
+                    new Notification('時間切れです', {
+                        body: `付箋「${note.content.substring(0, 30)}...」のタイマーが終了しました。`
+                    });
+                }
+            }
+
+            function playAlertSound() {
+                alarmSound.currentTime = 0;
+                alarmSound.volume = 0.5;
+                alarmSound.play().catch(e => console.error("音声再生に失敗しました", e));
             }
 
             init();
