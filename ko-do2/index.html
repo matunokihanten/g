@@ -1,96 +1,88 @@
 <!DOCTYPE html>
-
-<a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
-<img border="0" width="728" height="90" alt="" src="https://www27.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
-<img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO4+6L9O1" alt="">
 <html lang="ja">
 <head>
+
+
+
+<a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
+<img border="0" width="728" height="90" alt="" src="https://www25.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
+<img border="0" width="1" height="1" src="https://www14.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO
+4+6L9O1" alt="">
+
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シンプルHTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
 
-  
   <style>
-    /* ページ全体を縦に並べた1画面とする */
     body {
       margin: 0;
       font-family: sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
-      /* iOS の Safe Area に対応するための最小設定 */
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
     }
-    /* 操作パネルのスタイル */
     .controls {
       padding: 10px;
       background-color: #f0f0f0;
-      display: flex; /* ボタンを横並びにするためにflexboxを使用 */
-      flex-wrap: wrap; /* ボタンが多すぎたら改行する */
-      gap: 5px; /* ボタン間のスペース */
-      position: relative; /* メッセージ表示用にpositionを付与 */
-      z-index: 10; /* 他の要素より手前に表示 */
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 少し影をつける */
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .controls button {
-      padding: 8px 12px; /* ボタンのパディングを少し増やして押しやすく */
+      padding: 8px 12px;
       cursor: pointer;
       border: 1px solid #ccc;
-      border-radius: 4+px; /* 角を少し丸く */
+      border-radius: 4px;
       background-color: #e0e0e0;
-      transition: background-color 0.2s, box-shadow 0.2s; /* ホバーエフェクト */
+      transition: background-color 0.2s, box-shadow 0.2s;
     }
     .controls button:hover {
       background-color: #d0d0d0;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
-
-    /* 特定のボタンを大きく、見やすくするスタイル */
     .controls button.prominent {
-      padding: 12px 20px; /* パディングを増やして大きく */
-      font-size: 1.1em; /* フォントサイズを少し大きく */
-      font-weight: bold; /* 少し太字に */
-      background-color: #007bff; /* 青系の目立つ色 */
-      color: white; /* 文字色を白に */
-      border-color: #007bff; /* ボーダー色も合わせる */
+      padding: 12px 20px;
+      font-size: 1.1em;
+      font-weight: bold;
+      background-color: #007bff;
+      color: white;
+      border-color: #007bff;
     }
     .controls button.prominent:hover {
-      background-color: #0056b3; /* ホバー時の色を濃く */
+      background-color: #0056b3;
       border-color: #0056b3;
     }
-    /* 全削除ボタンは警告色に */
     .controls button#clearAllBtn.prominent {
-      background-color: #dc3545; /* 赤系の警告色 */
+      background-color: #dc3545;
       border-color: #dc3545;
     }
     .controls button#clearAllBtn.prominent:hover {
       background-color: #c82333;
       border-color: #c82333;
     }
-
-
-    /* エディター領域（CodeMirror用の全画面エリア） */
     .editor {
       flex: 1;
       overflow: hidden;
     }
-    /* CodeMirrorエディターの高さを100%に */
     .CodeMirror {
       height: 100%;
-      border: 1px solid #ddd; /* エディターに枠線を追加 */
-      border-top: none; /* 上部の枠線はコントロールパネルと区別するため削除 */
+      border: 1px solid #ddd;
+      border-top: none;
     }
-
-    /* メッセージエリアのスタイル (追加) */
     #messageArea {
       position: absolute;
       right: 10px;
-      top: 50%; /* デフォルトのデスクトップ表示用 */
-      transform: translateY(-50%); /* デフォルトのデスクトップ表示用 */
+      top: 50%;
+      transform: translateY(-50%);
       padding: 8px 15px;
       font-size: 0.85em;
       white-space: nowrap;
@@ -99,15 +91,15 @@
       border-radius: 5px;
       opacity: 0;
       transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
-      z-index: 100; /* 最前面に表示 */
-      pointer-events: none; /* クリックイベントを無効化 */
+      z-index: 100;
+      pointer-events: none;
     }
     #messageArea.show {
         opacity: 1;
         transform: translateY(-50%) translateX(0);
     }
     #messageArea:not(.show) {
-        transform: translateY(-50%) translateX(20px); /* 非表示時は少し右へ */
+        transform: translateY(-50%) translateX(20px);
     }
     #messageArea.success {
         background-color: #28a745;
@@ -119,31 +111,80 @@
         background-color: #17a2b8;
     }
 
-    /* スマートフォンでの表示調整 */
+    /* Versioning feature styles */
+    #versionList {
+        display: none; /* Initially hidden */
+        position: absolute;
+        top: 100%; /* Position below the controls */
+        left: 0;
+        right: 0;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-top: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        z-index: 9;
+        padding: 5px;
+    }
+    .version-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .version-item:hover {
+        background-color: #f9f9f9;
+    }
+    .version-item .version-name {
+        flex-grow: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .version-item .delete-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        font-weight: bold;
+        cursor: pointer;
+        padding: 4px;
+        margin-left: 10px;
+    }
+    .version-item .delete-btn:hover {
+        color: #c82333;
+    }
+
+    /* Smart-phone adjustments */
     @media (max-width: 768px) {
         .controls {
-            /* env(safe-area-inset-top)でデバイスのノッチやアドレスバー領域を考慮し、
-               さらにボタン約3個分の高さを確保するために追加でパディングを設定 */
-            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px)); /* ★変更: 150pxはボタン約3個分の目安、10pxは既存パディング */
-            padding-bottom: 10px; /* 下部パディングも調整 */
+            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px));
+            padding-bottom: 10px;
         }
-        /* メッセージエリアの調整 */
         #messageArea {
-            top: calc(70px + env(safe-area-inset-top, 0px)); /* 約1.5個分のボタン高さを目安に調整 */
-            transform: translateY(0); /* topプロパティで位置を調整するため、transformは0に */
+            top: calc(70px + env(safe-area-inset-top, 0px));
+            transform: translateY(0);
         }
         #messageArea.show {
-            transform: translateY(0) translateX(0); /* 表示時もtransformを0に */
+            transform: translateY(0) translateX(0);
         }
         #messageArea:not(.show) {
-            transform: translateY(0) translateX(20px); /* 非表示時もtransformを0に */
+            transform: translateY(0) translateX(20px);
+        }
+        /* Versioning list position on mobile */
+        #versionList {
+            top: calc(100% + 150px + 10px + env(safe-area-inset-top, 0px));
+            max-height: 150px;
         }
     }
   </style>
 </head>
 <body>
-  <div class="controls" id="controlsPanel"> <div id="messageArea"></div>
-
+  <div class="controls" id="controlsPanel">
+    <div id="messageArea"></div>
     <button id="selectAllBtn">全選択</button>
     <button id="copyBtn">コピー</button>
     <button id="pasteBtn" class="prominent">貼付け</button>
@@ -152,6 +193,9 @@
     <input type="file" id="fileInput" accept=".html" style="display:none">
     <button id="saveBtn">保存</button>
     <button id="runBtn" class="prominent">実行</button>
+    <button id="saveVersionBtn">バージョン保存</button>
+    <button id="viewVersionsBtn">バージョン表示</button>
+    <div id="versionList"></div>
   </div>
 
   <div class="editor">
@@ -165,24 +209,20 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
 
   <script>
-    // CodeMirror でエディターを初期化（元の <textarea> を置換）
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
       mode: "htmlmixed",
       lineNumbers: true,
       theme: "default"
     });
 
-    // localStorage に保存されたコードがあれば復元
     if (localStorage.getItem("htmlCode")) {
       cm.setValue(localStorage.getItem("htmlCode"));
     }
 
-    // 編集内容が変更されるたびに localStorage へ保存
     cm.on("change", function() {
       localStorage.setItem("htmlCode", cm.getValue());
     });
 
-    // 各ボタン要素の取得
     const selectAllBtn = document.getElementById('selectAllBtn');
     const copyBtn = document.getElementById('copyBtn');
     const pasteBtn = document.getElementById('pasteBtn');
@@ -191,14 +231,14 @@
     const fileInput = document.getElementById('fileInput');
     const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
-    const messageArea = document.getElementById('messageArea'); // メッセージエリアの要素を追加取得
-    const controlsPanel = document.getElementById('controlsPanel'); // 操作パネルの要素も取得
+    const messageArea = document.getElementById('messageArea');
+    const controlsPanel = document.getElementById('controlsPanel');
 
-    /**
-     * メッセージ表示関数
-     * @param {string} msg - 表示するメッセージ
-     * @param {'success'|'error'|'info'} type - メッセージの種類 (デフォルト: 'info')
-     */
+    // New versioning elements
+    const saveVersionBtn = document.getElementById('saveVersionBtn');
+    const viewVersionsBtn = document.getElementById('viewVersionsBtn');
+    const versionList = document.getElementById('versionList');
+
     function showMessage(msg, type = 'info') {
       messageArea.textContent = msg;
       messageArea.className = 'show ' + type;
@@ -206,17 +246,15 @@
       setTimeout(() => {
         messageArea.className = '';
         messageArea.textContent = '';
-      }, 2500); // 2.5秒後に非表示
+      }, 2500);
     }
 
-    // 全選択ボタン：CodeMirror にフォーカスを与えて全選択する
     selectAllBtn.addEventListener('click', function() {
       cm.focus();
       cm.execCommand("selectAll");
       showMessage("全選択しました", "info");
     });
 
-    // コピーボタン：選択範囲がない場合は全選択後にコピーを実行
     copyBtn.addEventListener('click', function() {
       if (!cm.somethingSelected()) {
         cm.focus();
@@ -228,34 +266,28 @@
         .catch(err => showMessage("コピーに失敗しました: " + err, "error"));
     });
 
-    // 貼付けボタン：クリップボードの内容を現在のカーソル位置に挿入
     pasteBtn.addEventListener('click', function() {
       navigator.clipboard.readText()
         .then(text => {
           cm.replaceSelection(text);
           showMessage("貼り付けました", "success");
-          // 貼り付け後、操作パネルの位置までスクロール
           controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         })
         .catch(err => showMessage("貼り付けに失敗しました: " + err, "error"));
     });
 
-    // 全削除ボタン：エディター内の全テキストを確認後に削除
     clearAllBtn.addEventListener('click', function() {
       if (confirm("本当に全削除しますか？")) {
         cm.setValue("");
         showMessage("全て削除しました", "info");
-        // 全削除後、操作パネルの位置までスクロール
         controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
 
-    // ファイルを開くボタン：非表示の file input をクリック
     openFileBtn.addEventListener('click', function() {
       fileInput.click();
     });
 
-    // ファイルが選択されたら FileReader で内容を読み込みエディターに設定
     fileInput.addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (file) {
@@ -266,10 +298,9 @@
         }
         reader.readAsText(file);
       }
-      fileInput.value = ''; // 同じファイルを再度選択できるようにする
+      fileInput.value = '';
     });
 
-    // 保存ボタン：現在の内容をHTMLファイルとしてダウンロード
     saveBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
@@ -283,16 +314,95 @@
       URL.revokeObjectURL(url);
       showMessage("保存しました", "success");
     });
-    
-    // 実行ボタン：エディターの内容を Blob URL として新規タブで開き実行する
+
     runBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
       window.open(url, "_blank");
       showMessage("コードを実行しました", "info");
-      // 実行後、操作パネルの位置までスクロール
       controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+
+    // --- Versioning Feature Logic ---
+
+    // Function to load and display versions from localStorage
+    function loadVersions() {
+        const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
+        const sortedKeys = Object.keys(versions).sort((a, b) => b - a); // Sort by timestamp, newest first
+        
+        versionList.innerHTML = ''; // Clear the current list
+        if (sortedKeys.length === 0) {
+            versionList.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">保存されたバージョンはありません。</div>';
+            return;
+        }
+
+        sortedKeys.forEach(key => {
+            const versionItem = document.createElement('div');
+            versionItem.className = 'version-item';
+
+            const versionDate = new Date(parseInt(key));
+            const dateString = versionDate.toLocaleString();
+
+            const versionName = document.createElement('span');
+            versionName.className = 'version-name';
+            versionName.textContent = `バージョン: ${dateString}`;
+            versionName.title = versions[key].substring(0, 100) + (versions[key].length > 100 ? '...' : ''); // Show a preview on hover
+            versionItem.appendChild(versionName);
+
+            // Load button functionality
+            versionItem.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('delete-btn')) { // Don't load if delete button is clicked
+                    if (confirm(`バージョン ${dateString} を復元しますか？\n現在の内容は失われます。`)) {
+                        cm.setValue(versions[key]);
+                        showMessage(`バージョン ${dateString} を復元しました`, "success");
+                        versionList.style.display = 'none'; // Hide list after loading
+                    }
+                }
+            });
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '削除';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent the parent click event from firing
+                if (confirm(`バージョン ${dateString} を本当に削除しますか？`)) {
+                    delete versions[key]; // Remove the version from the object
+                    localStorage.setItem('htmlVersions', JSON.stringify(versions)); // Save the updated object
+                    loadVersions(); // Reload the list
+                    showMessage("バージョンを削除しました", "info");
+                }
+            });
+            versionItem.appendChild(deleteBtn);
+
+            versionList.appendChild(versionItem);
+        });
+    }
+
+    // Save Version button click handler
+    saveVersionBtn.addEventListener('click', function() {
+        const currentCode = cm.getValue();
+        if (!currentCode.trim()) {
+            showMessage("保存するコードがありません", "error");
+            return;
+        }
+        const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
+        const timestamp = Date.now();
+        versions[timestamp] = currentCode;
+        localStorage.setItem('htmlVersions', JSON.stringify(versions));
+        showMessage("現在のコードを新しいバージョンとして保存しました", "success");
+    });
+
+    // View Versions button click handler
+    viewVersionsBtn.addEventListener('click', function() {
+        if (versionList.style.display === 'block') {
+            versionList.style.display = 'none';
+        } else {
+            loadVersions(); // Load versions every time it's shown to ensure it's up-to-date
+            versionList.style.display = 'block';
+        }
+    });
+
   </script>
 </body>
 </html>
