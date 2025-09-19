@@ -1,15 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-
-
-<a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
-<img border="0" width="728" height="90" alt="" src="https://www25.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
-<img border="0" width="1" height="1" src="https://www14.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO
-4+6L9O1" alt="">
-
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シンプルHTMLエディター</title>
@@ -111,11 +102,10 @@
         background-color: #17a2b8;
     }
 
-    /* Versioning feature styles */
     #versionList {
-        display: none; /* Initially hidden */
+        display: none;
         position: absolute;
-        top: 100%; /* Position below the controls */
+        top: 100%;
         left: 0;
         right: 0;
         max-height: 200px;
@@ -158,7 +148,6 @@
         color: #c82333;
     }
 
-    /* Smart-phone adjustments */
     @media (max-width: 768px) {
         .controls {
             padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px));
@@ -174,7 +163,6 @@
         #messageArea:not(.show) {
             transform: translateY(0) translateX(20px);
         }
-        /* Versioning list position on mobile */
         #versionList {
             top: calc(100% + 150px + 10px + env(safe-area-inset-top, 0px));
             max-height: 150px;
@@ -195,6 +183,7 @@
     <button id="runBtn" class="prominent">実行</button>
     <button id="saveVersionBtn">バージョン保存</button>
     <button id="viewVersionsBtn">バージョン表示</button>
+    <button id="clearVersionsBtn" class="prominent">全バージョン削除</button>
     <div id="versionList"></div>
   </div>
 
@@ -234,9 +223,9 @@
     const messageArea = document.getElementById('messageArea');
     const controlsPanel = document.getElementById('controlsPanel');
 
-    // New versioning elements
     const saveVersionBtn = document.getElementById('saveVersionBtn');
     const viewVersionsBtn = document.getElementById('viewVersionsBtn');
+    const clearVersionsBtn = document.getElementById('clearVersionsBtn');
     const versionList = document.getElementById('versionList');
 
     function showMessage(msg, type = 'info') {
@@ -323,14 +312,11 @@
       controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    // --- Versioning Feature Logic ---
-
-    // Function to load and display versions from localStorage
     function loadVersions() {
         const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
-        const sortedKeys = Object.keys(versions).sort((a, b) => b - a); // Sort by timestamp, newest first
+        const sortedKeys = Object.keys(versions).sort((a, b) => b - a);
         
-        versionList.innerHTML = ''; // Clear the current list
+        versionList.innerHTML = '';
         if (sortedKeys.length === 0) {
             versionList.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">保存されたバージョンはありません。</div>';
             return;
@@ -346,30 +332,28 @@
             const versionName = document.createElement('span');
             versionName.className = 'version-name';
             versionName.textContent = `バージョン: ${dateString}`;
-            versionName.title = versions[key].substring(0, 100) + (versions[key].length > 100 ? '...' : ''); // Show a preview on hover
+            versionName.title = versions[key].substring(0, 100) + (versions[key].length > 100 ? '...' : '');
             versionItem.appendChild(versionName);
 
-            // Load button functionality
             versionItem.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('delete-btn')) { // Don't load if delete button is clicked
+                if (!e.target.classList.contains('delete-btn')) {
                     if (confirm(`バージョン ${dateString} を復元しますか？\n現在の内容は失われます。`)) {
                         cm.setValue(versions[key]);
                         showMessage(`バージョン ${dateString} を復元しました`, "success");
-                        versionList.style.display = 'none'; // Hide list after loading
+                        versionList.style.display = 'none';
                     }
                 }
             });
 
-            // Delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
             deleteBtn.textContent = '削除';
             deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent the parent click event from firing
+                e.stopPropagation();
                 if (confirm(`バージョン ${dateString} を本当に削除しますか？`)) {
-                    delete versions[key]; // Remove the version from the object
-                    localStorage.setItem('htmlVersions', JSON.stringify(versions)); // Save the updated object
-                    loadVersions(); // Reload the list
+                    delete versions[key];
+                    localStorage.setItem('htmlVersions', JSON.stringify(versions));
+                    loadVersions();
                     showMessage("バージョンを削除しました", "info");
                 }
             });
@@ -379,7 +363,6 @@
         });
     }
 
-    // Save Version button click handler
     saveVersionBtn.addEventListener('click', function() {
         const currentCode = cm.getValue();
         if (!currentCode.trim()) {
@@ -393,16 +376,23 @@
         showMessage("現在のコードを新しいバージョンとして保存しました", "success");
     });
 
-    // View Versions button click handler
     viewVersionsBtn.addEventListener('click', function() {
         if (versionList.style.display === 'block') {
             versionList.style.display = 'none';
         } else {
-            loadVersions(); // Load versions every time it's shown to ensure it's up-to-date
+            loadVersions();
             versionList.style.display = 'block';
         }
     });
 
+    // --- 新規追加機能: 全バージョン削除 ---
+    clearVersionsBtn.addEventListener('click', function() {
+        if (confirm("本当に全てのバージョン履歴を削除しますか？")) {
+            localStorage.removeItem('htmlVersions');
+            loadVersions();
+            showMessage("全てのバージョン履歴を削除しました", "info");
+        }
+    });
   </script>
 </body>
 </html>
