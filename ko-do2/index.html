@@ -5,185 +5,176 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シンプルHTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
-
   <style>
     body {
       margin: 0;
-      font-family: sans-serif;
+      font-family: 'Arial', sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      padding: env(safe-area-inset);
+      background-color: #f9f9f9;
+      overflow: hidden; /* Prevent body scroll */
     }
     .controls {
-      padding: 10px;
-      background-color: #f0f0f0;
+      padding: 5px; /* Reduced padding */
+      background-color: #ffffff;
       display: flex;
       flex-wrap: wrap;
+      justify-content: center; /* Center buttons on wider screens */
       gap: 5px;
-      position: relative;
-      z-index: 10;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      z-index: 10;
     }
     .controls button {
-      padding: 8px 12px;
+      padding: 8px 10px; /* Reduced padding */
       cursor: pointer;
-      border: 1px solid #ccc;
+      border: none;
       border-radius: 4px;
-      background-color: #e0e0e0;
-      transition: background-color 0.2s, box-shadow 0.2s;
-    }
-    .controls button:hover {
-      background-color: #d0d0d0;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-    .controls button.prominent {
-      padding: 12px 20px;
-      font-size: 1.1em;
-      font-weight: bold;
       background-color: #007bff;
       color: white;
-      border-color: #007bff;
+      transition: background-color 0.3s, transform 0.2s;
+      font-size: 0.8em; /* Reduced font size */
+      white-space: nowrap; /* Prevent text wrapping */
+      flex: 1 1 auto; /* Allow buttons to grow/shrink but not break */
+      min-width: 0;
     }
-    .controls button.prominent:hover {
+    .controls button:hover {
       background-color: #0056b3;
-      border-color: #0056b3;
+      transform: scale(1.05);
     }
-    .controls button#clearAllBtn.prominent {
-      background-color: #dc3545;
-      border-color: #dc3545;
+    #pasteBtn {
+      background-color: #28a745; /* Green for Paste */
     }
-    .controls button#clearAllBtn.prominent:hover {
+    #pasteBtn:hover {
+      background-color: #218838;
+    }
+    #runBtn {
+      background-color: #ffc107; /* Yellow for Run */
+      color: #333;
+    }
+    #runBtn:hover {
+      background-color: #e0a800;
+    }
+    #clearAllBtn {
+      background-color: #dc3545; /* Red for Clear All */
+    }
+    #clearAllBtn:hover {
       background-color: #c82333;
-      border-color: #c82333;
     }
     .editor {
       flex: 1;
-      overflow: hidden;
+      overflow: hidden; /* Prevent editor scroll bar */
+      background-color: #ffffff;
+      border-top: 1px solid #ddd;
+      border-radius: 0 0 8px 8px;
+      position: relative; /* For CodeMirror height */
     }
     .CodeMirror {
-      height: 100%;
-      border: 1px solid #ddd;
-      border-top: none;
+      position: absolute; /* Take up full space */
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 100%; /* Make CodeMirror fill the container */
     }
     #messageArea {
       position: absolute;
       right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
+      top: 10px;
       padding: 8px 15px;
       font-size: 0.85em;
-      white-space: nowrap;
       background-color: rgba(0, 0, 0, 0.7);
       color: white;
       border-radius: 5px;
       opacity: 0;
-      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
+      transition: opacity 0.4s ease-out;
       z-index: 100;
-      pointer-events: none;
     }
     #messageArea.show {
-        opacity: 1;
-        transform: translateY(-50%) translateX(0);
+      opacity: 1;
     }
-    #messageArea:not(.show) {
-        transform: translateY(-50%) translateX(20px);
-    }
-    #messageArea.success {
-        background-color: #28a745;
-    }
-    #messageArea.error {
-        background-color: #dc3545;
-    }
-    #messageArea.info {
-        background-color: #17a2b8;
-    }
-
     #versionList {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        max-height: 200px;
-        overflow-y: auto;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        border-top: none;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        z-index: 9;
-        padding: 5px;
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 200px;
+      overflow-y: auto;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      z-index: 9;
+      padding: 5px;
+      border-radius: 4px;
     }
     .version-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px;
-        border-bottom: 1px solid #eee;
-        cursor: pointer;
-        transition: background-color 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-size: 0.9em;
     }
     .version-item:hover {
-        background-color: #f9f9f9;
+      background-color: #f0f0f0;
     }
-    .version-item .version-name {
-        flex-grow: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #dc3545;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 4px;
+      font-size: 1.1em;
     }
-    .version-item .delete-btn {
-        background: none;
-        border: none;
-        color: #dc3545;
-        font-weight: bold;
-        cursor: pointer;
-        padding: 4px;
-        margin-left: 10px;
+    .delete-btn:hover {
+      color: #c82333;
     }
-    .version-item .delete-btn:hover {
-        color: #c82333;
-    }
-
     @media (max-width: 768px) {
-        .controls {
-            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px));
-            padding-bottom: 10px;
-        }
-        #messageArea {
-            top: calc(70px + env(safe-area-inset-top, 0px));
-            transform: translateY(0);
-        }
-        #messageArea.show {
-            transform: translateY(0) translateX(0);
-        }
-        #messageArea:not(.show) {
-            transform: translateY(0) translateX(20px);
-        }
-        #versionList {
-            top: calc(100% + 150px + 10px + env(safe-area-inset-top, 0px));
-            max-height: 150px;
-        }
+      .controls {
+        flex-direction: row; /* Ensure buttons stay in a row on mobile */
+        justify-content: flex-start;
+        padding: 5px 5px; /* Adjust padding for mobile */
+      }
+      .controls button {
+        font-size: 0.75em; /* Smaller font on mobile */
+        padding: 6px 8px; /* Smaller padding on mobile */
+        flex-grow: 1; /* Allow buttons to take available space */
+        flex-basis: auto; /* Buttons will try to fit on a single line */
+      }
+      /* Prevent horizontal scroll on button row */
+      .controls {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Ensure the last button is fully visible */
+      .controls::after {
+        content: '';
+        flex-basis: 0;
+        width: 5px;
+      }
     }
   </style>
 </head>
 <body>
+  <div id="messageArea"></div>
   <div class="controls" id="controlsPanel">
-    <div id="messageArea"></div>
     <button id="selectAllBtn">全選択</button>
     <button id="copyBtn">コピー</button>
-    <button id="pasteBtn" class="prominent">貼付け</button>
-    <button id="clearAllBtn" class="prominent">全削除</button>
+    <button id="pasteBtn">貼付け</button>
+    <button id="clearAllBtn">全削除</button>
     <button id="openFileBtn">開く</button>
     <input type="file" id="fileInput" accept=".html" style="display:none">
     <button id="saveBtn">保存</button>
-    <button id="runBtn" class="prominent">実行</button>
+    <button id="runBtn">実行</button>
     <button id="saveVersionBtn">バージョン保存</button>
     <button id="viewVersionsBtn">バージョン表示</button>
-    <button id="clearVersionsBtn" class="prominent">全バージョン削除</button>
+    <button id="clearVersionsBtn">全バージョン削除</button>
     <div id="versionList"></div>
   </div>
 
@@ -221,27 +212,20 @@
     const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
     const messageArea = document.getElementById('messageArea');
-    const controlsPanel = document.getElementById('controlsPanel');
-
-    const saveVersionBtn = document.getElementById('saveVersionBtn');
-    const viewVersionsBtn = document.getElementById('viewVersionsBtn');
-    const clearVersionsBtn = document.getElementById('clearVersionsBtn');
     const versionList = document.getElementById('versionList');
 
-    function showMessage(msg, type = 'info') {
+    function showMessage(msg) {
       messageArea.textContent = msg;
-      messageArea.className = 'show ' + type;
-
+      messageArea.classList.add('show');
       setTimeout(() => {
-        messageArea.className = '';
-        messageArea.textContent = '';
+        messageArea.classList.remove('show');
       }, 2500);
     }
 
     selectAllBtn.addEventListener('click', function() {
       cm.focus();
       cm.execCommand("selectAll");
-      showMessage("全選択しました", "info");
+      showMessage("全選択しました");
     });
 
     copyBtn.addEventListener('click', function() {
@@ -251,25 +235,23 @@
       }
       var text = cm.getSelection();
       navigator.clipboard.writeText(text)
-        .then(() => showMessage("コピーしました", "success"))
-        .catch(err => showMessage("コピーに失敗しました: " + err, "error"));
+        .then(() => showMessage("コピーしました"))
+        .catch(err => showMessage("コピーに失敗しました: " + err));
     });
 
     pasteBtn.addEventListener('click', function() {
       navigator.clipboard.readText()
         .then(text => {
           cm.replaceSelection(text);
-          showMessage("貼り付けました", "success");
-          controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          showMessage("貼り付けました");
         })
-        .catch(err => showMessage("貼り付けに失敗しました: " + err, "error"));
+        .catch(err => showMessage("貼り付けに失敗しました: " + err));
     });
 
     clearAllBtn.addEventListener('click', function() {
       if (confirm("本当に全削除しますか？")) {
         cm.setValue("");
-        showMessage("全て削除しました", "info");
-        controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showMessage("全て削除しました");
       }
     });
 
@@ -283,7 +265,7 @@
         var reader = new FileReader();
         reader.onload = function(evt) {
           cm.setValue(evt.target.result);
-          showMessage(`ファイル「${file.name}」を開きました`, "success");
+          showMessage(`ファイル「${file.name}」を開きました`);
         }
         reader.readAsText(file);
       }
@@ -296,102 +278,87 @@
       var a = document.createElement("a");
       a.href = url;
       a.download = "index.html";
-      a.style.display = "none";
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showMessage("保存しました", "success");
+      showMessage("保存しました");
     });
 
     runBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
       window.open(url, "_blank");
-      showMessage("コードを実行しました", "info");
-      controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showMessage("コードを実行しました");
     });
 
     function loadVersions() {
-        const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
-        const sortedKeys = Object.keys(versions).sort((a, b) => b - a);
-        
-        versionList.innerHTML = '';
-        if (sortedKeys.length === 0) {
-            versionList.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">保存されたバージョンはありません。</div>';
-            return;
-        }
+      const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
+      versionList.innerHTML = '';
+      const sortedKeys = Object.keys(versions).sort((a, b) => b - a);
+      
+      if (sortedKeys.length === 0) {
+        versionList.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">保存されたバージョンはありません。</div>';
+        return;
+      }
 
-        sortedKeys.forEach(key => {
-            const versionItem = document.createElement('div');
-            versionItem.className = 'version-item';
+      sortedKeys.forEach(key => {
+        const versionItem = document.createElement('div');
+        versionItem.className = 'version-item';
+        const versionDate = new Date(parseInt(key));
+        const dateString = versionDate.toLocaleString();
 
-            const versionDate = new Date(parseInt(key));
-            const dateString = versionDate.toLocaleString();
+        const versionName = document.createElement('span');
+        versionName.textContent = `バージョン: ${dateString}`;
+        versionItem.appendChild(versionName);
 
-            const versionName = document.createElement('span');
-            versionName.className = 'version-name';
-            versionName.textContent = `バージョン: ${dateString}`;
-            versionName.title = versions[key].substring(0, 100) + (versions[key].length > 100 ? '...' : '');
-            versionItem.appendChild(versionName);
-
-            versionItem.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('delete-btn')) {
-                    if (confirm(`バージョン ${dateString} を復元しますか？\n現在の内容は失われます。`)) {
-                        cm.setValue(versions[key]);
-                        showMessage(`バージョン ${dateString} を復元しました`, "success");
-                        versionList.style.display = 'none';
-                    }
-                }
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '削除';
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm(`バージョン ${dateString} を本当に削除しますか？`)) {
-                    delete versions[key];
-                    localStorage.setItem('htmlVersions', JSON.stringify(versions));
-                    loadVersions();
-                    showMessage("バージョンを削除しました", "info");
-                }
-            });
-            versionItem.appendChild(deleteBtn);
-
-            versionList.appendChild(versionItem);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '削除';
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`バージョン ${dateString} を本当に削除しますか？`)) {
+            delete versions[key];
+            localStorage.setItem('htmlVersions', JSON.stringify(versions));
+            loadVersions();
+            showMessage("バージョンを削除しました");
+          }
         });
+        versionItem.appendChild(deleteBtn);
+
+        versionItem.addEventListener('click', () => {
+          if (confirm(`バージョン ${dateString} を復元しますか？`)) {
+            cm.setValue(versions[key]);
+            showMessage(`バージョン ${dateString} を復元しました`);
+          }
+        });
+
+        versionList.appendChild(versionItem);
+      });
     }
 
-    saveVersionBtn.addEventListener('click', function() {
-        const currentCode = cm.getValue();
-        if (!currentCode.trim()) {
-            showMessage("保存するコードがありません", "error");
-            return;
-        }
-        const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
-        const timestamp = Date.now();
-        versions[timestamp] = currentCode;
-        localStorage.setItem('htmlVersions', JSON.stringify(versions));
-        showMessage("現在のコードを新しいバージョンとして保存しました", "success");
+    document.getElementById('saveVersionBtn').addEventListener('click', function() {
+      const currentCode = cm.getValue();
+      if (!currentCode.trim()) {
+        showMessage("保存するコードがありません");
+        return;
+      }
+      const versions = JSON.parse(localStorage.getItem('htmlVersions') || '{}');
+      const timestamp = Date.now();
+      versions[timestamp] = currentCode;
+      localStorage.setItem('htmlVersions', JSON.stringify(versions));
+      showMessage("現在のコードを新しいバージョンとして保存しました");
     });
 
-    viewVersionsBtn.addEventListener('click', function() {
-        if (versionList.style.display === 'block') {
-            versionList.style.display = 'none';
-        } else {
-            loadVersions();
-            versionList.style.display = 'block';
-        }
+    document.getElementById('viewVersionsBtn').addEventListener('click', function() {
+      versionList.style.display = versionList.style.display === 'block' ? 'none' : 'block';
+      if (versionList.style.display === 'block') loadVersions();
     });
 
-    // --- 新規追加機能: 全バージョン削除 ---
-    clearVersionsBtn.addEventListener('click', function() {
-        if (confirm("本当に全てのバージョン履歴を削除しますか？")) {
-            localStorage.removeItem('htmlVersions');
-            loadVersions();
-            showMessage("全てのバージョン履歴を削除しました", "info");
-        }
+    document.getElementById('clearVersionsBtn').addEventListener('click', function() {
+      if (confirm("本当に全てのバージョン履歴を削除しますか？")) {
+        localStorage.removeItem('htmlVersions');
+        loadVersions();
+        showMessage("全てのバージョン履歴を削除しました");
+      }
     });
   </script>
 </body>
