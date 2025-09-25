@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Advanced Binary Editor & Disassembler — 完成版</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+:root{
+  --primary-dark:#1a1a2e;--secondary-dark:#16213e;--accent-blue:#0f4c75;--bright-blue:#3282b8;
+  --bright-cyan:#00d4ff;--warning:#ff6b6b;--success:#4ecdc4;--text-primary:#ffffff;--text-secondary:#b8c5d6;
+  --border:#2c3e50;--bg-light:#34495e;--syntax-keyword:#c678dd;--syntax-string:#98c379;--syntax-comment:#5c6370;
+  --syntax-number:#d19a66;
+}
+*{box-sizing:border-box}
+body{
+  font-family:Consolas,Monaco,'Courier New',monospace;margin:0;
+  background:linear-gradient(135deg,var(--primary-dark) 0%,var(--secondary-dark) 100%);
+  color:var(--text-primary);display:flex;flex-direction:column;height:100vh;overflow:hidden;
+}
+.header{background:linear-gradient(90deg,var(--accent-blue),var(--bright-blue));padding:12px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+.logo{font-size:18px;font-weight:bold;color:var(--bright-cyan);text-shadow:0 0 10px rgba(0,212,255,0.5)}
+.header-controls{display:flex;gap:10px;flex:1;align-items:center}
+.btn{padding:8px 16px;border:1px solid var(--bright-cyan);background:rgba(0,212,255,0.1);color:var(--bright-cyan);border-radius:4px;cursor:pointer;font-size:12px;transition:all 0.3s ease;font-family:inherit}
+.btn:hover:not(:disabled){background:var(--bright-cyan);color:var(--primary-dark);box-shadow:0 0 15px rgba(0,212,255,0.5);transform:translateY(-1px)}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn.danger{border-color:var(--warning);color:var(--warning)}
+.file-input-wrapper{position:relative;overflow:hidden}
+.file-input-wrapper input[type=file]{position:absolute;left:-9999px}
+.main-container{display:flex;flex:1;overflow:hidden}
+.sidebar{width:300px;background:var(--secondary-dark);border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:15px;background:var(--accent-blue);color:var(--text-primary);font-weight:bold;border-bottom:1px solid var(--border)}
+.search-box{padding:10px;background:var(--bg-light)}
+.search-box input{width:100%;padding:8px;background:var(--primary-dark);border:1px solid var(--border);color:var(--text-primary);border-radius:4px}
+.file-tree{flex:1;overflow-y:auto;padding:0;margin:0;list-style:none}
+.file-tree li{padding:8px 15px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:8px;transition:all 0.12s ease}
+.file-tree li:hover{background:var(--accent-blue)}
+.file-tree li.selected{background:var(--bright-blue);border-left:4px solid var(--bright-cyan)}
+.file-icon{width:20px;text-align:center;flex-shrink:0}
+.editor-container{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.editor-tabs{display:flex;background:var(--bg-light);border-bottom:2px solid var(--border);overflow-x:auto}
+.tab{padding:10px 15px;background:var(--secondary-dark);border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;position:relative}
+.tab.active{background:var(--accent-blue);color:var(--bright-cyan)}
+.tab .close{margin-left:10px;color:var(--warning);cursor:pointer}
+.analysis-container{display:flex;flex:1;overflow:hidden}
+.main-editor{flex:2;display:flex;flex-direction:column;overflow:hidden}
+.editor-header{padding:10px 15px;background:var(--bg-light);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.view-modes{display:flex;gap:5px}
+.view-mode{padding:4px 8px;background:var(--secondary-dark);border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px}
+.view-mode.active{background:var(--bright-blue);border-color:var(--bright-cyan)}
+.editor-content{flex:1;display:flex;overflow:hidden}
+.line-numbers{width:60px;background:var(--primary-dark);border-right:2px solid var(--border);padding:10px 5px;font-size:11px;color:var(--text-secondary);overflow:hidden;text-align:right;line-height:1.5}
+.editor{flex:1;background:var(--primary-dark);color:var(--text-primary);border:none;padding:10px;font-family:Consolas,Monaco,monospace;font-size:12px;line-height:1.5;resize:none;outline:none;white-space:pre;overflow:auto}
+.disassembly-view{flex:1;background:var(--primary-dark);padding:10px;overflow:auto;font-size:11px;line-height:1.6}
+.analysis-panel{width:350px;background:var(--secondary-dark);border-left:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-tabs{display:flex;background:var(--bg-light)}
+.panel-tab{flex:1;padding:8px;text-align:center;cursor:pointer;border-right:1px solid var(--border);font-size:11px;transition:all 0.12s ease}
+.panel-tab.active{background:var(--accent-blue);color:var(--bright-cyan)}
+.panel-content{flex:1;overflow-y:auto;padding:10px;font-size:12px;line-height:1.4}
+.instruction{color:var(--syntax-keyword);font-weight:bold}
+.register{color:var(--bright-cyan)}
+.immediate{color:var(--syntax-number)}
+.address{color:var(--syntax-string)}
+.comment{color:var(--syntax-comment);font-style:italic}
+.label{color:var(--success);font-weight:bold}
+.jump-target{color:var(--warning);text-decoration:underline;cursor:pointer}
+.status-bar{background:var(--primary-dark);border-top:2px solid var(--border);padding:8px 15px;font-size:11px;display:flex;justify-content:space-between;align-items:center;gap:15px}
+.status-info{display:flex;gap:15px}
+.status-item{color:var(--text-secondary)}
+.status-item.highlight{color:var(--bright-cyan);font-weight:bold}
+.analysis-item{margin-bottom:10px;padding:8px;background:var(--primary-dark);border-left:3px solid var(--bright-cyan);border-radius:0 4px 4px 0}
+.loading{display:flex;align-items:center;justify-content:center;color:var(--bright-cyan);padding:20px}
+.error{color:var(--warning);background:rgba(255,107,107,0.1);padding:10px;border-radius:4px;margin:10px}
+@media (max-width:1200px){.analysis-panel{width:300px}}
+@media (max-width:768px){.sidebar{width:250px}.analysis-panel{display:none}}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🔬 Advanced Binary Editor & Disassembler</div>
+    <div class="header-controls">
+      <div class="file-input-wrapper">
+        <button class="btn" id="load-btn">📁 Load Binary</button>
+        <input type="file" id="file-input" accept=".apk,.aab,.zip,.exe,.dll,.so,.bin,.dex" />
+      </div>
+      <button class="btn" id="save-btn" disabled>💾 Save</button>
+      <button class="btn" id="patch-btn" disabled>🔧 Patch</button>
+      <button class="btn danger" id="analyze-btn" disabled>🔍 Deep Analysis</button>
+      <span id="file-info" style="margin-left:15px;color:var(--text-secondary)">No file loaded</span>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="sidebar-header">📂 File Explorer</div>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Search files..." />
+      </div>
+      <ul class="file-tree" id="file-tree"></ul>
+    </div>
+
+    <div class="editor-container">
+      <div class="editor-tabs" id="editor-tabs"><div class="tab active">Welcome</div></div>
+      <div class="analysis-container">
+        <div class="main-editor">
+          <div class="editor-header">
+            <div id="current-file">Select a file to begin analysis</div>
+            <div class="view-modes">
+              <div class="view-mode active" data-mode="hex">HEX</div>
+              <div class="view-mode" data-mode="disasm">ASM</div>
+              <div class="view-mode" data-mode="text">TEXT</div>
+            </div>
+          </div>
+          <div class="editor-content">
+            <div class="line-numbers" id="line-numbers">1</div>
+            <textarea class="editor" id="main-editor" placeholder="Load a binary file to start analysis..." spellcheck="false" disabled></textarea>
+            <div class="disassembly-view" id="disasm-view" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="analysis-panel">
+          <div class="panel-tabs">
+            <div class="panel-tab active" data-panel="info">📊 Info</div>
+            <div class="panel-tab" data-panel="strings">📝 Strings</div>
+            <div class="panel-tab" data-panel="entropy">📈 Entropy</div>
+            <div class="panel-tab" data-panel="imports">📥 Imports</div>
+          </div>
+          <div class="panel-content" id="panel-content"><div class="loading">No analysis yet</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-info">
+      <span class="status-item" id="status-text">Ready</span>
+      <span class="status-item" id="cursor-pos">Position: 0</span>
+      <span class="status-item" id="file-size">Size: 0 bytes</span>
+      <span class="status-item" id="selection">Selection: None</span>
+    </div>
+  </div>
+
+  <!-- External libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script>
+  // 完成版スクリプト（バグ修正・機能補完済み）
+  (function () {
+    class AdvancedBinaryEditor {
+      constructor() {
+        // state
+        this.zip = null;
+        this.allFiles = [];
+        this.currentFile = null; // file path (in archive) or filename
+        this.currentData = null; // Uint8Array
+        this.isArchive = false;
+
+        // elements
+        this.e = {
+          fileInput: document.getElementById('file-input'),
+          loadBtn: document.getElementById('load-btn'),
+          saveBtn: document.getElementById('save-btn'),
+          patchBtn: document.getElementById('patch-btn'),
+          analyzeBtn: document.getElementById('analyze-btn'),
+          fileInfo: document.getElementById('file-info'),
+          searchInput: document.getElementById('search-input'),
+          fileTree: document.getElementById('file-tree'),
+          currentFileLabel: document.getElementById('current-file'),
+          mainEditor: document.getElementById('main-editor'),
+          disasmView: document.getElementById('disasm-view'),
+          panelContent: document.getElementById('panel-content'),
+          statusText: document.getElementById('status-text'),
+          cursorPos: document.getElementById('cursor-pos'),
+          fileSize: document.getElementById('file-size'),
+          selection: document.getElementById('selection'),
+          lineNumbers: document.getElementById('line-numbers'),
+          viewModeBtns: document.querySelectorAll('.view-mode'),
+          panelTabs: document.querySelectorAll('.panel-tab'),
+        };
+
+        this.currentMode = 'hex';
+        this.activePanel = 'info';
+
+        this.init();
+      }
+
+      init() {
+        // events
+        this.e.loadBtn.addEventListener('click', () => this.e.fileInput.click());
+        this.e.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        this.e.saveBtn.addEventListener('click', () => this.saveEditedFile());
+        this.e.patchBtn.addEventListener('click', () => this.showPatchDialog());
+        this.e.analyzeBtn.addEventListener('click', () => this.runDeepAnalysis());
+        this.e.searchInput.addEventListener('input', (e) => this.filterFiles(e.target.value));
+        this.e.mainEditor.addEventListener('input', () => this.updateLineNumbers());
+        this.e.mainEditor.addEventListener('scroll', () => this.syncLineNumbers());
+        this.e.mainEditor.addEventListener('click', () => this.updateCursorInfo());
+        window.addEventListener('keydown', (ev) => { if (ev.ctrlKey && ev.key === 's') { ev.preventDefault(); if (!this.e.saveBtn.disabled) this.saveEditedFile(); } });
+
+        this.e.viewModeBtns.forEach(btn => btn.addEventListener('click', (ev) => this.switchViewMode(ev.target.dataset.mode)));
+        this.e.panelTabs.forEach(tab => tab.addEventListener('click', (ev) => this.switchPanel(ev.target.dataset.panel)));
+
+        document.body.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+        document.body.addEventListener('drop', (e) => this.handleDrop(e));
+
+        this.updateStatus('Ready');
+      }
+
+      // ----- File Load -----
+      async handleFileSelect(event) {
+        const file = event.target.files ? event.target.files[0] : event;
+        if (!file) return;
+        this.resetState();
+        this.updateStatus('Loading file...');
+        try {
+          const name = file.name || 'unnamed';
+          const buf = await file.arrayBuffer();
+          const u8 = new Uint8Array(buf);
+
+          // detect archive (ZIP/APK/AAB)
+          if (name.match(/\.(apk|aab|zip)$/i) || (u8[0] === 0x50 && u8[1] === 0x4B)) {
+            await this.loadArchive(u8, name);
+          } else {
+            await this.loadBinary(u8, name);
+          }
+        } catch (err) {
+          this.showError('Failed to load file: ' + (err && err.message ? err.message : err));
+        }
+      }
+
+      resetState() {
+        this.zip = null;
+        this.allFiles = [];
+        this.currentFile = null;
+        this.currentData = null;
+        this.isArchive = false;
+        this.e.fileTree.innerHTML = '';
+        this.e.mainEditor.value = '';
+        this.e.disasmView.innerHTML = '';
+        this.e.panelContent.innerHTML = '<div class="loading">No analysis yet</div>';
+        this.e.saveBtn.disabled = true;
+        this.e.patchBtn.disabled = true;
+        this.e.analyzeBtn.disabled = true;
+        this.e.currentFileLabel.textContent = 'Select a file to begin analysis';
+        this.e.fileInfo.textContent = 'No file loaded';
+        this.e.fileSize.textContent = 'Size: 0 bytes';
+        this.updateLineNumbers();
+      }
+
+      async loadArchive(u8, filename) {
+        this.isArchive = true;
+        const ab = u8.buffer;
+        this.zip = await JSZip.loadAsync(ab);
+        this.allFiles = [];
+        Object.keys(this.zip.files).forEach(fname => {
+          if (!this.zip.files[fname].dir) {
+            // try to get uncompressed size safely
+            const entry = this.zip.files[fname];
+            const size = (entry._data && entry._data.uncompressedSize) ? entry._data.uncompressedSize : 0;
+            this.allFiles.push({ name: fname, size, type: this.getFileType(fname), icon: this.getFileIcon(fname) });
+          }
+        });
+        this.allFiles.sort((a,b)=>a.name.localeCompare(b.name));
+        this.renderFileTree();
+        this.updateFileInfo(`Archive: ${filename} (${this.allFiles.length} files)`);
+        this.e.saveBtn.disabled = false;
+        this.e.patchBtn.disabled = false;
+        this.e.analyzeBtn.disabled = false;
+        this.updateStatus('Archive loaded');
+      }
+
+      async loadBinary(u8, filename) {
+        this.isArchive = false;
+        this.currentData = u8;
+        this.currentFile = filename;
+        this.allFiles = [{ name: filename, size: u8.length, type: this.getFileType(filename), icon: this.getFileIcon(filename), data: u8 }];
+        this.renderFileTree();
+        this.loadFileContent(filename, u8);
+        this.e.saveBtn.disabled = false;
+        this.e.patchBtn.disabled = false;
+        this.e.analyzeBtn.disabled = false;
+        this.updateFileInfo(`Binary: ${filename} (${this.formatFileSize(u8.length)})`);
+        this.updateStatus('Binary loaded');
+      }
+
+      renderFileTree() {
+        this.e.fileTree.innerHTML = '';
+        if (!this.allFiles.length) {
+          const li = document.createElement('li'); li.textContent = '(no files)'; this.e.fileTree.appendChild(li); return;
+        }
+        this.allFiles.forEach(file => {
+          const li = document.createElement('li');
+          li.dataset.filename = file.name;
+          li.innerHTML = `<span class="file-icon">${file.icon}</span><div style="flex:1;overflow:hidden">${file.name}</div><div style="color:var(--text-secondary);font-size:11px;margin-left:8px">${this.formatFileSize(file.size)}</div>`;
+          li.addEventListener('click', () => this.selectFileFromTree(file.name, li));
+          this.e.fileTree.appendChild(li);
+        });
+      }
+
+      async selectFileFromTree(filename, liElement) {
+        // clear selection
+        this.e.fileTree.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
+        liElement.classList.add('selected');
+        // load content
+        if (this.isArchive) {
+          const fileObj = this.zip.file(filename);
+          if (!fileObj) { this.showError('Archive entry missing'); return; }
+          const arraybuffer = await fileObj.async('arraybuffer');
+          const u8 = new Uint8Array(arraybuffer);
+          this.currentFile = filename;
+          this.currentData = u8;
+          this.e.currentFileLabel.textContent = filename;
+          this.e.fileSize.textContent = `Size: ${this.formatFileSize(u8.length)}`;
+          this.displayContent();
+          this.runBasicAnalysis();
+        } else {
+          // single binary
+          const entry = this.allFiles.find(f=>f.name===filename);
+          if (!entry) { this.showError('File not found'); return; }
+          this.currentFile = filename;
+          this.currentData = entry.data;
+          this.e.currentFileLabel.textContent = filename;
+          this.e.fileSize.textContent = `Size: ${this.formatFileSize(entry.size)}`;
+          this.displayContent();
+          this.runBasicAnalysis();
+        }
+      }
+
+      // ----- Display -----
+      displayContent() {
+        if (!this.currentData) return;
+        if (this.currentMode === 'hex') {
+          this.e.mainEditor.disabled = false;
+          this.e.mainEditor.style.display = 'block';
+          this.e.disasmView.style.display = 'none';
+          this.e.mainEditor.value = this.generateHexDump(this.currentData);
+        } else if (this.currentMode === 'text') {
+          this.e.mainEditor.disabled = false;
+          this.e.mainEditor.style.display = 'block';
+          this.e.disasmView.style.display = 'none';
+          this.e.mainEditor.value = this.decodeText(this.currentData);
+        } else { // disasm
+          this.e.mainEditor.style.display = 'none';
+          this.e.disasmView.style.display = 'block';
+          this.e.disasmView.innerHTML = this.generateDisassembly(this.currentData);
+        }
+        this.updateLineNumbers();
+        this.updateCursorInfo();
+      }
+
+      decodeText(u8) {
+        try {
+          return new TextDecoder('utf-8', { fatal:false }).decode(u8);
+        } catch (e) {
+          return new TextDecoder('latin1').decode(u8);
+        }
+      }
+
+      // ----- Hex Dump -----
+      generateHexDump(data) {
+        const maxDisplay = Math.min(data.length, 1024 * 32); // 32KB
+        let out = '';
+        for (let i=0;i<maxDisplay;i+=16) {
+          const addr = i.toString(16).padStart(8,'0').toUpperCase();
+          let hexPart='';
+          let asciiPart='';
+          for (let j=0;j<16 && i+j<maxDisplay;j++){
+            const b = data[i+j];
+            hexPart += b.toString(16).padStart(2,'0').toUpperCase() + ' ';
+            asciiPart += (b>=32 && b<=126) ? String.fromCharCode(b) : '.';
+          }
+          hexPart = hexPart.padEnd(48,' ');
+          out += `${addr}  ${hexPart} |${asciiPart}|\n`;
+        }
+        if (data.length > maxDisplay) out += `\n... (showing first ${this.formatFileSize(maxDisplay)} of ${this.formatFileSize(data.length)})`;
+        return out;
+      }
+
+      // ----- Pseudo Disassembly -----
+      generateDisassembly(data) {
+        // Stable, deterministic pseudo-disassembly for demo without capstone.
+        const arch = this.detectArchitecture(data);
+        let html = `<div class="comment">; Detected architecture: ${arch}</div>`;
+        html += `<div class="comment">; File: ${this.currentFile}</div>`;
+        html += `<div class="comment">; Size: ${this.formatFileSize(data.length)}</div><br/>`;
+        const maxBytes = Math.min(data.length, 1024*16);
+        for (let i=0;i<maxBytes;i+=4) {
+          const addr = i.toString(16).padStart(8,'0').toUpperCase();
+          const slice = data.slice(i, Math.min(i+4, maxBytes));
+          const bytes = Array.from(slice).map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
+          const instr = this.generatePseudoInstruction(slice, i);
+          html += `<div><span class="address">${addr}:</span> <span style="color:#666;width:110px;display:inline-block">${bytes.padEnd(11,' ')}</span> ${instr}</div>`;
+        }
+        if (data.length > maxBytes) html += `<div class="comment">; ... (truncated)</div>`;
+        return html;
+      }
+
+      generatePseudoInstruction(bytes, offset) {
+        if (bytes.length === 0) return '<span class="comment">; eof</span>';
+        if (bytes.length < 4) return `<span class="instruction">db</span> <span class="immediate">0x${bytes[0].toString(16).padStart(2,'0')}</span>`;
+        const w = (bytes[0]<<24) >>> 0; // just to produce some pattern
+        // simple patterns to give readable output
+        if (bytes[0] === 0x90) return '<span class="instruction">nop</span>';
+        if (bytes[0] === 0x55) return '<span class="instruction">push</span> <span class="register">rbp</span>';
+        if (bytes[0] === 0x48 && bytes[1] === 0x89) return '<span class="instruction">mov</span> <span class="register">rbx</span>, <span class="register">rax</span>';
+        // show data fallback
+        return `<span class="instruction">db</span> <span class="immediate">0x${bytes[0].toString(16).padStart(2,'0')}</span> <span class="comment">; ${Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('')}</span>`;
+      }
+
+      detectArchitecture(data) {
+        if (!data || data.length < 4) return 'Unknown';
+        if (data[0] === 0x4D && data[1] === 0x5A) return 'PE (x86/x64)';
+        if (data[0] === 0x7F && data[1] === 0x45 && data[2] === 0x4C && data[3] === 0x46) return 'ELF';
+        if (data[0] === 0x64 && data[1] === 0x65 && data[2] === 0x78) return 'DEX (Android)';
+        if (data[0] === 0x50 && data[1] === 0x4B) return 'ZIP/APK';
+        return 'Unknown';
+      }
+
+      // ----- Analysis -----
+      runBasicAnalysis() {
+        if (!this.currentData) return;
+        const info = this.analyzeFileInfo();
+        const strings = this.extractStrings();
+        const entropy = this.calculateEntropy(this.currentData);
+        // render panel: info by default
+        this.e.panelContent.innerHTML = '';
+        // info block
+        const infoBlock = document.createElement('div'); infoBlock.className='analysis-item';
+        infoBlock.innerHTML = `<div class="analysis-title">File Info</div>
+          <div class="analysis-detail">Name: ${this.currentFile}</div>
+          <div class="analysis-detail">Size: ${this.formatFileSize(this.currentData.length)}</div>
+          <div class="analysis-detail">Detected: ${info.detected}</div>`;
+        this.e.panelContent.appendChild(infoBlock);
+        // strings block
+        const strBlock = document.createElement('div'); strBlock.className='analysis-item';
+        strBlock.innerHTML = `<div class="analysis-title">Strings (top 50)</div><div class="analysis-detail" style="max-height:200px;overflow:auto">${strings.slice(0,50).map(s=>this.escapeHtml(s)).join('<br/>')}</div>`;
+        this.e.panelContent.appendChild(strBlock);
+        // entropy block
+        const entBlock = document.createElement('div'); entBlock.className='analysis-item';
+        entBlock.innerHTML = `<div class="analysis-title">Entropy</div><div class="analysis-detail">Shannon entropy: ${entropy.toFixed(3)}</div>`;
+        this.e.panelContent.appendChild(entBlock);
+      }
+
+      analyzeFileInfo() {
+        return { detected: this.detectArchitecture(this.currentData) };
+      }
+
+      extractStrings(minLen=4) {
+        const out = [];
+        let curr = [];
+        for (let i=0;i<this.currentData.length;i++){
+          const b = this.currentData[i];
+          if (b >= 32 && b <= 126) curr.push(String.fromCharCode(b));
+          else {
+            if (curr.length >= minLen) out.push(curr.join(''));
+            curr = [];
+          }
+        }
+        if (curr.length >= minLen) out.push(curr.join(''));
+        return out;
+      }
+
+      calculateEntropy(data) {
+        const counts = new Array(256).fill(0);
+        for (let i=0;i<data.length;i++) counts[data[i]]++;
+        let e = 0;
+        const len = data.length;
+        for (let i=0;i<256;i++){
+          if (counts[i] === 0) continue;
+          const p = counts[i] / len;
+          e -= p * Math.log2(p);
+        }
+        return e;
+      }
+
+      // ----- Save / Update -----
+      async saveEditedFile() {
+        this.updateStatus('Preparing file for save...');
+        try {
+          if (this.isArchive && this.zip) {
+            // update current entry if editor changed and was text
+            await this.updateArchiveEntryFromEditor();
+            const blob = await this.zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+            this.downloadBlob(blob, `edited_${this.sanitizeFilename(this.e.fileInfo.textContent || 'archive')}`);
+            this.updateStatus('Archive saved');
+          } else {
+            // single binary or edited file
+            if (!this.currentData) { this.showError('No data'); return; }
+            // if in hex mode and editor content differs, try to parse hex dump back
+            if (this.currentMode === 'hex') {
+              const parsed = this.parseHexDumpToUint8(this.e.mainEditor.value);
+              if (parsed) this.currentData = parsed;
+            } else if (this.currentMode === 'text') {
+              // text mode save: encode as utf-8
+              const enc = new TextEncoder();
+              this.currentData = enc.encode(this.e.mainEditor.value);
+            }
+            const blob = new Blob([this.currentData], { type: 'application/octet-stream' });
+            this.downloadBlob(blob, `edited_${this.sanitizeFilename(this.currentFile || 'binary')}`);
+            this.updateStatus('File saved');
+          }
+        } catch (err) {
+          this.showError('Save failed: ' + (err && err.message ? err.message : err));
+        }
+      }
+
+      async updateArchiveEntryFromEditor() {
+        if (!this.currentFile) return;
+        // if text file, write string; if hex mode, try parse
+        if (this.currentMode === 'text' && this.isTextualFile(this.currentFile)) {
+          this.zip.file(this.currentFile, this.e.mainEditor.value);
+        } else if (this.currentMode === 'hex') {
+          const parsed = this.parseHexDumpToUint8(this.e.mainEditor.value);
+          if (parsed) this.zip.file(this.currentFile, parsed);
+        } else {
+          // no-op: binary editing not supported in GUI beyond hex->parse
+        }
+      }
+
+      downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      }
+
+      sanitizeFilename(name) {
+        return name.replace(/[\\\/:<>?"|*\x00-\x1F]/g,'_').slice(0,200);
+      }
+
+      // ----- Hex parse -----
+      parseHexDumpToUint8(text) {
+        // Accept formats: "ADDR  XX XX ..." or plain hex bytes separated by spaces/newlines
+        try {
+          const cleaned = text.replace(/^[0-9A-Fa-f]{8}\s+/gm,'') // remove addresses
+                              .replace(/\|.*$/gm,'') // remove ascii parts
+                              .replace(/[^0-9A-Fa-f]/g,'');
+          if (cleaned.length % 2 !== 0) { this.showError('Hex text length invalid'); return null; }
+          const arr = new Uint8Array(cleaned.length/2);
+          for (let i=0;i<cleaned.length;i+=2) arr[i/2] = parseInt(cleaned.substr(i,2),16);
+          return arr;
+        } catch (e) {
+          this.showError('Failed to parse hex: ' + e.message);
+          return null;
+        }
+      }
+
+      // ----- Patch dialog (simple find/replace hex) -----
+      showPatchDialog() {
+        const findHex = prompt('Find hex bytes (e.g. DE AD BE EF):');
+        if (!findHex) return;
+        const replaceHex = prompt('Replace with hex bytes (leave empty to delete bytes):', '');
+        const findClean = findHex.replace(/[^0-9A-Fa-f]/g,'');
+        const replaceClean = replaceHex ? replaceHex.replace(/[^0-9A-Fa-f]/g,'') : '';
+        if (findClean.length % 2 !== 0) { alert('Find hex length invalid'); return; }
+        const findBytes = new Uint8Array(findClean.length/2);
+        for (let i=0;i<findClean.length;i+=2) findBytes[i/2] = parseInt(findClean.substr(i,2),16);
+        const replaceBytes = replaceClean.length ? new Uint8Array(replaceClean.length/2) : new Uint8Array(0);
+        for (let i=0;i<replaceClean.length;i+=2) replaceBytes[i/2] = parseInt(replaceClean.substr(i,2),16);
+
+        // operate on currentData
+        if (!this.currentData) { this.showError('No data to patch'); return; }
+        const data = this.currentData;
+        // find occurrences
+        const matches = [];
+        for (let i=0;i<=data.length - findBytes.length;i++){
+          let ok = true;
+          for (let j=0;j<findBytes.length;j++){ if (data[i+j] !== findBytes[j]) { ok=false; break; } }
+          if (ok) matches.push(i);
+        }
+        if (!matches.length) { alert('No occurrences found'); return; }
+        // for simplicity, apply replacements sequentially creating new array
+        let out = new Uint8Array(data.length + matches.length * (replaceBytes.length - findBytes.length));
+        let ro = 0; let srcIdx = 0; let mi = 0;
+        for (let pos of matches) {
+          // copy data from srcIdx to pos
+          out.set(data.subarray(srcIdx,pos),ro); ro += pos - srcIdx;
+          // write replaceBytes
+          out.set(replaceBytes, ro); ro += replaceBytes.length;
+          srcIdx = pos + findBytes.length;
+        }
+        // copy remainder
+        out.set(data.subarray(srcIdx), ro);
+        // commit
+        this.currentData = out;
+        this.updateStatus(`Patched ${matches.length} occurrence(s)`);
+        this.displayContent();
+        this.runBasicAnalysis();
+      }
+
+      // ----- Deep analysis (simulated) -----
+      runDeepAnalysis() {
+        if (!this.currentData) { this.showError('No data'); return; }
+        this.updateStatus('Deep analysis running...');
+        // simulate heavy work and then show more analysis
+        setTimeout(() => {
+          const imports = this.findImports();
+          const html = `<div class="analysis-item"><div class="analysis-title">Detected imports</div><div class="analysis-detail">${imports.length ? this.escapeHtml(imports.join('<br/>')) : '(none detected)'}</div></div>`;
+          this.e.panelContent.insertAdjacentHTML('beforeend', html);
+          this.updateStatus('Deep analysis complete');
+        }, 600);
+      }
+
+      findImports() {
+        // very naive string-based import detection
+        const s = this.extractStrings(3).join('\n').toLowerCase();
+        const imports = [];
+        const candidates = ['http','socket','malloc','free','LoadLibrary','GetProcAddress','pthread','JNIEnv','java/lang'];
+        for (const c of candidates) if (s.indexOf(c.toLowerCase())>=0) imports.push(c);
+        return imports;
+      }
+
+      // ----- UI helpers -----
+      filterFiles(q) {
+        const ql = (q||'').toLowerCase().trim();
+        const filtered = this.allFiles.filter(f => f.name.toLowerCase().includes(ql));
+        this.e.fileTree.innerHTML = '';
+        filtered.forEach(f => {
+          const li = document.createElement('li');
+          li.dataset.filename = f.name;
+          li.innerHTML = `<span class="file-icon">${f.icon}</span><div style="flex:1;overflow:hidden">${f.name}</div><div style="color:var(--text-secondary);font-size:11px;margin-left:8px">${this.formatFileSize(f.size)}</div>`;
+          li.addEventListener('click', ()=> this.selectFileFromTree(f.name, li));
+          this.e.fileTree.appendChild(li);
+        });
+      }
+
+      updateStatus(msg, loading) {
+        this.e.statusText.textContent = msg;
+      }
+
+      showError(msg) {
+        this.e.statusText.innerHTML = `Error: ${msg}`;
+      }
+
+      updateFileInfo(msg) {
+        this.e.fileInfo.textContent = msg;
+      }
+
+      formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024; const sizes = ['B','KB','MB','GB'];
+        const i = Math.floor(Math.log(bytes)/Math.log(k));
+        return (bytes/Math.pow(k,i)).toFixed(2) + ' ' + sizes[i];
+      }
+
+      getFileType(name) {
+        const ext = (name.split('.').pop()||'').toLowerCase();
+        if (['xml','html','htm','txt','smali','properties','json','js','css','mf','sf'].includes(ext)) return 'text';
+        if (['dex','so','class','exe','dll','bin'].includes(ext)) return 'binary';
+        return 'unknown';
+      }
+
+      getFileIcon(name) {
+        const ext = (name.split('.').pop()||'').toLowerCase();
+        const map = {xml:'📄',html:'🌐',css:'🎨',js:'📜',json:'📋',txt:'📝',apk:'📱',aab:'📦',dex:'⚡',so:'🔗',class:'☕',exe:'🖥️',dll:'🔧',bin:'📦'};
+        return map[ext]||'📄';
+      }
+
+      isTextualFile(name) {
+        return this.getFileType(name) === 'text';
+      }
+
+      switchViewMode(mode) {
+        this.currentMode = mode;
+        document.querySelectorAll('.view-mode').forEach(btn=>btn.classList.toggle('active', btn.dataset.mode===mode));
+        this.displayContent();
+      }
+
+      switchPanel(panel) {
+        this.activePanel = panel;
+        document.querySelectorAll('.panel-tab').forEach(p=>p.classList.toggle('active', p.dataset.panel===panel));
+        // render panel content depending on panel
+        if (panel === 'info') this.runBasicAnalysis();
+        else if (panel === 'strings') {
+          const s = this.extractStrings(); this.e.panelContent.innerHTML = `<div class="analysis-item"><div class="analysis-title">Strings</div><div class="analysis-detail" style="max-height:300px;overflow:auto">${s.map(x=>this.escapeHtml(x)).join('<br/>')}</div></div>`;
+        } else if (panel === 'entropy') {
+          const e = this.currentData ? this.calculateEntropy(this.currentData) : 0; this.e.panelContent.innerHTML = `<div class="analysis-item"><div class="analysis-title">Entropy</div><div class="analysis-detail">${e.toFixed(6)}</div></div>`;
+        } else if (panel === 'imports') {
+          const imports = this.findImports(); this.e.panelContent.innerHTML = `<div class="analysis-item"><div class="analysis-title">Imports</div><div class="analysis-detail">${imports.length ? imports.join('<br/>') : '(none)'}</div></div>`;
+        }
+      }
+
+      updateLineNumbers() {
+        const text = this.e.mainEditor.value || '';
+        const lines = text.split('\n').length;
+        let out = '';
+        for (let i=1;i<=lines;i++) out += i + '\n';
+        this.e.lineNumbers.textContent = out;
+      }
+
+      syncLineNumbers() {
+        this.e.lineNumbers.scrollTop = this.e.mainEditor.scrollTop;
+      }
+
+      updateCursorInfo() {
+        const pos = this.e.mainEditor.selectionStart || 0;
+        this.e.cursorPos.textContent = `Position: ${pos}`;
+        const selLen = Math.abs((this.e.mainEditor.selectionEnd || 0) - (this.e.mainEditor.selectionStart || 0));
+        this.e.selection.textContent = selLen ? `Selection: ${selLen}` : 'Selection: None';
+      }
+
+      handleDrop(e) {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (files && files.length) this.handleFileSelect(files[0]);
+      }
+
+      escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+
+      parseHexString(hex) {
+        const cleaned = hex.replace(/[^0-9A-Fa-f]/g,'');
+        if (cleaned.length % 2 !== 0) return null;
+        const arr = new Uint8Array(cleaned.length/2);
+        for (let i=0;i<cleaned.length;i+=2) arr[i/2] = parseInt(cleaned.substr(i,2),16);
+        return arr;
+      }
+
+    } // class end
+
+    // instantiate editor
+    window.advancedEditor = new AdvancedBinaryEditor();
+
+    // expose some helpers for debugging (optional)
+    window.__abe = window.advancedEditor;
+
+  })();
+  </script>
+</body>
+</html>
