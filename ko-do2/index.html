@@ -2,6 +2,7 @@
 
 
 
+
 <a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
 <img border="0" width="728" height="90" alt="" src="https://www25.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
 <img border="0" width="1" height="1" src="https://www14.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO
@@ -161,6 +162,52 @@
       flex-grow: 0;
       min-width: auto;
     }
+    
+    /* ドロップダウンボタンのスタイル */
+    .dropdown {
+        position: relative;
+        display: inline-block;
+        flex-grow: 1;
+        min-width: 80px; /* 他のボタンと合わせる */
+    }
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #f9f9f9;
+        min-width: 100%;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 10;
+        top: 100%; /* ボタンの下に配置 */
+        left: 0;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .dropdown-content button {
+        color: #007bff;
+        padding: 10px 15px;
+        text-decoration: none;
+        display: block;
+        border: none;
+        width: 100%;
+        text-align: left;
+        background: none;
+        box-shadow: none;
+        min-width: 100%;
+        margin: 0;
+        border-radius: 0;
+        flex-grow: 0;
+        border-bottom: 1px solid #eee;
+    }
+    .dropdown-content button:last-child {
+        border-bottom: none;
+    }
+    .dropdown-content button:hover {
+        background-color: #f1f1f1;
+    }
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+
 
     /* ------------------------------ */
     /* スマートフォンでの調整 (パネルの高さを最小化) */
@@ -179,6 +226,15 @@
             min-width: 80px;
             padding: 10px 15px;
         }
+        /* ドロップダウンも柔軟に */
+        .dropdown {
+             flex-grow: 1;
+             min-width: 60px;
+        }
+        .dropdown-content {
+             top: calc(100% + 4px); /* ボタンとドロップダウンの間に少し隙間 */
+        }
+        
         /* 設定グループは画面幅いっぱいに表示し、必ず2行目/3行目以降に配置 */
         .controls .setting-group {
             flex-basis: 100%; 
@@ -272,10 +328,17 @@
     <button id="selectAllBtn">全選択</button>
     <button id="copyBtn">コピー</button>
     <button id="openFileBtn">開く</button>
-    <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
-    <button id="saveBtn">保存</button>
-    
     <button id="removeEmptyLinesBtn">空白行削除</button>
+
+    <div class="dropdown">
+        <button id="saveDropdownBtn">保存 ▼</button>
+        <div class="dropdown-content">
+            <button id="saveHtmlBtn">HTMLとして保存</button>
+            <button id="saveTxtBtn">TXTとして保存</button>
+        </div>
+    </div>
+    
+    <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
 
     <div class="setting-group">
         <label for="themeToggleBtn">テーマ:</label>
@@ -344,12 +407,12 @@
     const clearAllBtn = document.getElementById('clearAllBtn');
     const openFileBtn = document.getElementById('openFileBtn');
     const fileInput = document.getElementById('fileInput');
-    const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
     const removeEmptyLinesBtn = document.getElementById('removeEmptyLinesBtn'); 
     const messageArea = document.getElementById('messageArea');
-    const controlsPanel = document.getElementById('controlsPanel');
     const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const saveHtmlBtn = document.getElementById('saveHtmlBtn'); // 【新規】HTML保存ボタン
+    const saveTxtBtn = document.getElementById('saveTxtBtn');   // 【新規】TXT保存ボタン
 
 
     /**
@@ -381,8 +444,31 @@
      * CodeMirrorのサイズを更新し、表示崩れを修正する関数
      */
     function refreshEditor() {
-        // CodeMirrorのrefresh()を呼び出し、描画領域を再計算させる
         cm.refresh(); 
+    }
+
+    /**
+     * ファイル保存の共通処理
+     * @param {string} filename - 保存するファイル名 (例: index.html, memo.txt)
+     * @param {string} mimeType - MIMEタイプ (例: text/html, text/plain)
+     */
+    function saveFile(filename, mimeType) {
+        var content = cm.getValue();
+        if (!content.trim()) {
+            showMessage("コードが空なので保存を中止しました", "error");
+            return;
+        }
+        var blob = new Blob([content], { type: mimeType });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showMessage(`${filename}として保存しました`, "success");
     }
 
 
@@ -414,7 +500,6 @@
       navigator.clipboard.readText()
         .then(text => {
           cm.replaceSelection(text);
-          // 【修正点】貼り付け後にエディターをリフレッシュ
           setTimeout(refreshEditor, 0); 
           showMessage("貼り付けました", "success");
           cm.focus();
@@ -428,7 +513,6 @@
         cm.setValue("");
         showMessage("全て削除しました", "info");
         cm.focus();
-        // 削除後にエディターをリフレッシュ
         setTimeout(refreshEditor, 0); 
       }
     });
@@ -446,7 +530,6 @@
         cm.setValue(newValue);
         showMessage("空白行を削除しました", "success");
         cm.focus();
-        // 削除後にエディターをリフレッシュ
         setTimeout(refreshEditor, 0); 
     });
 
@@ -462,7 +545,6 @@
         var reader = new FileReader();
         reader.onload = function(evt) {
           cm.setValue(evt.target.result);
-          // ファイル読み込み後にエディターをリフレッシュ
           setTimeout(refreshEditor, 100); 
           showMessage(`ファイル「${file.name}」を開きました`, "success");
           cm.focus();
@@ -472,24 +554,14 @@
       fileInput.value = '';
     });
 
-    // 保存ボタン
-    saveBtn.addEventListener('click', function() {
-      var content = cm.getValue();
-      if (!content.trim()) {
-          showMessage("コードが空なので保存を中止しました", "error");
-          return;
-      }
-      var blob = new Blob([content], { type: "text/html" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "index.html";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showMessage("HTMLファイルとして保存しました", "success");
+    // 【修正・拡張】HTMLとして保存
+    saveHtmlBtn.addEventListener('click', function() {
+        saveFile("index.html", "text/html");
+    });
+    
+    // 【新規機能】TXTとして保存
+    saveTxtBtn.addEventListener('click', function() {
+        saveFile("index.txt", "text/plain");
     });
     
     // 実行ボタン
@@ -537,7 +609,6 @@
             const cursorLine = 4;
             const cursorCh = 10;
             cm.setCursor(cursorLine, cursorCh);
-            // テンプレート挿入後にエディターをリフレッシュ
             setTimeout(refreshEditor, 0); 
             showMessage("HTMLテンプレートを挿入しました", "success");
         }
@@ -551,7 +622,6 @@
     // 起動時に一度リフレッシュを実行し、初期レイアウト崩れを防ぐ
     window.onload = function() {
         refreshEditor();
-        // 初期コードが復元された場合は、念のため再度リフレッシュを遅延実行
         setTimeout(refreshEditor, 200);
     };
 
