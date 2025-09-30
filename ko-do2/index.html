@@ -18,23 +18,21 @@
       height: 100vh;
       /* iOS の Safe Area に対応 */
       padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
+      padding-bottom: 0; 
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
-      overflow: hidden; /* メイン画面のスクロールを禁止 */
+      overflow: hidden; 
     }
     
     /* ------------------------------ */
-    /* 広告バナーのスタイル (広告要素はHTMLから削除済) */
+    /* 広告バナーのスタイル (広告は削除済) */
     /* ------------------------------ */
     .ad-container {
-        /* 広告を削除したため、このコンテナは残しますが中身は空です */
         text-align: center;
         padding: 0; 
         background-color: #fff;
         border-bottom: none; 
     }
-    /* 広告を削除したため、このメディアクエリは機能しませんが、構造を維持するために残します */
     @media (max-width: 768px) {
         .ad-container img {
             width: 100%;
@@ -48,8 +46,7 @@
     .controls {
       padding: 10px;
       background-color: #f8f9fa;
-      /* 広告を削除したため、最上部のパネルが画面の端に来ます */
-      border-top: 1px solid #dee2e6; /* 画面上端に境界線を維持 */
+      border-top: 1px solid #dee2e6;
       border-bottom: 1px solid #dee2e6;
       display: flex;
       flex-wrap: wrap; 
@@ -114,6 +111,17 @@
       box-shadow: 0 6px 10px rgba(220, 53, 69, 0.5);
     }
     
+    /* 空白行削除ボタンの色 */
+    .controls button#removeEmptyLinesBtn {
+        background-color: #f0ad4e;
+        color: white;
+        border-color: #f0ad4e;
+    }
+    .controls button#removeEmptyLinesBtn:hover {
+        background-color: #ec971f;
+        border-color: #ec971f;
+    }
+
     /* ------------------------------ */
     /* 設定コントロールのスタイル */
     /* ------------------------------ */
@@ -144,14 +152,7 @@
       flex-grow: 0;
       min-width: auto;
     }
-    .setting-group #fontSizeDisplay {
-        font-weight: bold;
-        padding: 0 5px;
-        min-width: 20px;
-        text-align: center;
-        font-size: 1.0em;
-    }
-    
+
     /* ------------------------------ */
     /* スマートフォンでの調整 (パネルの高さを最小化) */
     /* ------------------------------ */
@@ -184,7 +185,9 @@
     .editor {
       /* flex: 1; により、操作パネルを除いた残りの画面の高さを全て占有 */
       flex: 1; 
-      overflow: hidden;
+      /* スクロール問題を修正するため、このコンテナ自体にパディングを適用 */
+      padding-bottom: env(safe-area-inset-bottom);
+      overflow: hidden; 
       display: flex;
     }
     .CodeMirror {
@@ -248,8 +251,7 @@
 </head>
 <body>
 
-  <div class="ad-container">
-    </div>
+  <div class="ad-container"></div>
 
   <div class="controls" id="controlsPanel"> 
     <div id="messageArea"></div>
@@ -263,16 +265,12 @@
     <button id="openFileBtn">開く</button>
     <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
     <button id="saveBtn">保存</button>
+    
+    <button id="removeEmptyLinesBtn">空白行削除</button>
 
     <div class="setting-group">
         <label for="themeToggleBtn">テーマ:</label>
         <button id="themeToggleBtn">🎨 Light/Dark</button>
-    </div>
-    <div class="setting-group">
-        <label>サイズ:</label>
-        <button id="fontDecreaseBtn" title="フォントを小さく">-</button>
-        <span id="fontSizeDisplay">14px</span>
-        <button id="fontIncreaseBtn" title="フォントを大きく">+</button>
     </div>
   </div>
 
@@ -312,15 +310,7 @@
     // UX/UI 強化機能 (初期設定のロードと保存)
     // ------------------------------
     const DEFAULT_FONT_SIZE = 14;
-    let currentFontSize = parseInt(localStorage.getItem("editorFontSize")) || DEFAULT_FONT_SIZE;
-
-    // フォントサイズの適用
-    function applyFontSize(size) {
-        document.querySelector('.CodeMirror').style.fontSize = `${size}px`;
-        document.getElementById('fontSizeDisplay').textContent = `${size}px`;
-        localStorage.setItem("editorFontSize", size);
-    }
-    applyFontSize(currentFontSize);
+    document.querySelector('.CodeMirror').style.fontSize = `${DEFAULT_FONT_SIZE}px`;
 
     // localStorage に保存されたコードがあれば復元
     const savedCode = localStorage.getItem("htmlCode");
@@ -347,13 +337,10 @@
     const fileInput = document.getElementById('fileInput');
     const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
+    const removeEmptyLinesBtn = document.getElementById('removeEmptyLinesBtn'); 
     const messageArea = document.getElementById('messageArea');
     const controlsPanel = document.getElementById('controlsPanel');
-    
-    // 新しいUI要素
     const themeToggleBtn = document.getElementById('themeToggleBtn');
-    const fontIncreaseBtn = document.getElementById('fontIncreaseBtn');
-    const fontDecreaseBtn = document.getElementById('fontDecreaseBtn');
 
 
     /**
@@ -365,7 +352,6 @@
       messageArea.textContent = msg;
       messageArea.className = 'show ' + type;
 
-      // 視覚的なフィードバックを強化: クリックしたボタンを短時間強調表示
       const activeElement = document.activeElement;
       if (activeElement && activeElement.tagName === 'BUTTON') {
           activeElement.style.transform = 'scale(0.95)';
@@ -380,6 +366,14 @@
         messageArea.className = '';
         messageArea.textContent = '';
       }, 2500);
+    }
+    
+    /**
+     * CodeMirrorのサイズを更新し、表示崩れを修正する関数
+     */
+    function refreshEditor() {
+        // CodeMirrorのrefresh()を呼び出し、描画領域を再計算させる
+        cm.refresh(); 
     }
 
 
@@ -411,6 +405,8 @@
       navigator.clipboard.readText()
         .then(text => {
           cm.replaceSelection(text);
+          // 【修正点】貼り付け後にエディターをリフレッシュ
+          setTimeout(refreshEditor, 0); 
           showMessage("貼り付けました", "success");
           cm.focus();
         })
@@ -423,7 +419,26 @@
         cm.setValue("");
         showMessage("全て削除しました", "info");
         cm.focus();
+        // 削除後にエディターをリフレッシュ
+        setTimeout(refreshEditor, 0); 
       }
+    });
+    
+    // 空白行削除ボタン
+    removeEmptyLinesBtn.addEventListener('click', function() {
+        const originalValue = cm.getValue();
+        const newValue = originalValue.split('\n').filter(line => line.trim() !== '').join('\n');
+        
+        if (originalValue === newValue) {
+             showMessage("削除できる空白行はありませんでした", "info");
+             return;
+        }
+
+        cm.setValue(newValue);
+        showMessage("空白行を削除しました", "success");
+        cm.focus();
+        // 削除後にエディターをリフレッシュ
+        setTimeout(refreshEditor, 0); 
     });
 
     // ファイルを開くボタン
@@ -438,6 +453,8 @@
         var reader = new FileReader();
         reader.onload = function(evt) {
           cm.setValue(evt.target.result);
+          // ファイル読み込み後にエディターをリフレッシュ
+          setTimeout(refreshEditor, 100); 
           showMessage(`ファイル「${file.name}」を開きました`, "success");
           cm.focus();
         }
@@ -481,7 +498,7 @@
 
     
     // ------------------------------
-    // イベントリスナー: 新規UI/UX機能 (進化部分)
+    // イベントリスナー: UI/UX機能
     // ------------------------------
 
     // テーマ切り替え機能
@@ -491,28 +508,6 @@
         cm.setOption("theme", newTheme);
         localStorage.setItem("editorTheme", newTheme);
         showMessage(`${newTheme === "monokai" ? "ダーク" : "ライト"}テーマに切り替えました`, "info");
-    });
-
-    // フォントサイズ増加
-    fontIncreaseBtn.addEventListener('click', function() {
-        if (currentFontSize < 30) {
-            currentFontSize += 2;
-            applyFontSize(currentFontSize);
-            showMessage("フォントサイズを大きくしました", "info");
-        } else {
-            showMessage("これ以上大きくできません", "error");
-        }
-    });
-
-    // フォントサイズ減少
-    fontDecreaseBtn.addEventListener('click', function() {
-        if (currentFontSize > 10) {
-            currentFontSize -= 2;
-            applyFontSize(currentFontSize);
-            showMessage("フォントサイズを小さくしました", "info");
-        } else {
-            showMessage("これ以上小さくできません", "error");
-        }
     });
     
     // Emmet風の基本テンプレート補完機能
@@ -533,9 +528,23 @@
             const cursorLine = 4;
             const cursorCh = 10;
             cm.setCursor(cursorLine, cursorCh);
+            // テンプレート挿入後にエディターをリフレッシュ
+            setTimeout(refreshEditor, 0); 
             showMessage("HTMLテンプレートを挿入しました", "success");
         }
     });
+
+    // ウィンドウのリサイズ時にもリフレッシュを実行 (画面の回転やリサイズに対応)
+    window.addEventListener('resize', function() {
+        refreshEditor();
+    });
+
+    // 起動時に一度リフレッシュを実行し、初期レイアウト崩れを防ぐ
+    window.onload = function() {
+        refreshEditor();
+        // 初期コードが復元された場合は、念のため再度リフレッシュを遅延実行
+        setTimeout(refreshEditor, 200);
+    };
 
   </script>
 </body>
