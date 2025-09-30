@@ -1,8 +1,5 @@
 <!DOCTYPE html>
 
-<a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
-<img border="0" width="728" height="90" alt="" src="https://www27.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
-<img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO4+6L9O1" alt="">
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -40,7 +37,7 @@
       padding: 8px 12px; /* ボタンのパディングを少し増やして押しやすく */
       cursor: pointer;
       border: 1px solid #ccc;
-      border-radius: 4+px; /* 角を少し丸く */
+      border-radius: 4px; /* 角を少し丸く */
       background-color: #e0e0e0;
       transition: background-color 0.2s, box-shadow 0.2s; /* ホバーエフェクト */
     }
@@ -150,7 +147,8 @@
     <button id="clearAllBtn" class="prominent">全削除</button>
     <button id="openFileBtn">開く</button>
     <input type="file" id="fileInput" accept=".html" style="display:none">
-    <button id="saveBtn">保存</button>
+    <button id="saveBtn">保存 (HTML)</button>
+    <button id="saveTxtBtn">保存 (TXT)</button>
     <button id="runBtn" class="prominent">実行</button>
   </div>
 
@@ -190,6 +188,7 @@
     const openFileBtn = document.getElementById('openFileBtn');
     const fileInput = document.getElementById('fileInput');
     const saveBtn = document.getElementById('saveBtn');
+    const saveTxtBtn = document.getElementById('saveTxtBtn'); 
     const runBtn = document.getElementById('runBtn');
     const messageArea = document.getElementById('messageArea'); // メッセージエリアの要素を追加取得
     const controlsPanel = document.getElementById('controlsPanel'); // 操作パネルの要素も取得
@@ -269,7 +268,7 @@
       fileInput.value = ''; // 同じファイルを再度選択できるようにする
     });
 
-    // 保存ボタン：現在の内容をHTMLファイルとしてダウンロード
+    // HTMLファイル保存ボタン：現在の内容をHTMLファイルとしてダウンロード
     saveBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
@@ -281,7 +280,23 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showMessage("保存しました", "success");
+      showMessage("HTMLとして保存しました", "success");
+    });
+
+    // TXTファイル保存ボタン：現在の内容をテキストファイルとしてダウンロード
+    saveTxtBtn.addEventListener('click', function() {
+      // 修正箇所: typeにcharset=utf-8を追加し、文字化けを防ぐ
+      var blob = new Blob([cm.getValue()], { type: "text/plain;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "index.txt"; // ファイル名を index.txt に設定
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showMessage("TXTとして保存しました", "success");
     });
     
     // 実行ボタン：エディターの内容を Blob URL として新規タブで開き実行する
@@ -296,7 +311,3 @@
   </script>
 </body>
 </html>
-
-あなたの考えで、このアプリが使いやすくなるように大幅に進化させて下さい。
-他の機能は、絶対に変えないで下さい。
-1つのhtmlに纏めた完全コードで作って。
