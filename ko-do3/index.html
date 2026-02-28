@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>スマートHTMLエディター</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <title>スマートHTMLエディター - 固定版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css" />
     <style>
@@ -15,35 +15,50 @@
             --btn-success: #2ecc71;
         }
 
-        body {
+        /* 画面全体のスクロールを禁止 */
+        html, body {
             margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background-color: #1e1e1e;
         }
 
-        /* 操作パネルの改良 */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            /* 動的ビューポート高さを使用してツールバーの影響を回避 */
+            height: 100dvh; 
+        }
+
+        /* 操作パネル：固定され、スクロールしない */
         .controls {
+            flex-shrink: 0; /* 高さを維持 */
             padding: 10px;
             background-color: var(--header-bg);
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 6px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             z-index: 100;
+            /* iPhoneのノッチ（上部）対策 */
+            padding-top: calc(10px + env(safe-area-inset-top));
         }
 
         .controls button {
-            padding: 8px 14px;
+            flex: 1 1 auto; /* スマホでボタン幅を自動調整 */
+            min-width: 70px;
+            padding: 8px 10px;
             cursor: pointer;
             border: none;
             border-radius: 6px;
             background-color: var(--btn-normal);
             font-weight: bold;
             transition: all 0.2s;
-            font-size: 13px;
+            font-size: 12px;
+            white-space: nowrap;
         }
 
         /* ボタンの色分け */
@@ -53,14 +68,23 @@
         
         .controls button:active { transform: scale(0.95); }
 
-        /* エディター領域 */
-        .editor { flex: 1; overflow: hidden; }
-        .CodeMirror { height: 100%; font-size: 16px; } /* スマホでズームしないよう16px推奨 */
+        /* エディター領域：残りの高さをすべて占有 */
+        .editor {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 0; /* Flexboxの子要素が縮小できるように設定 */
+        }
 
-        /* メッセージエリアの改良 */
+        .CodeMirror {
+            height: 100% !important; /* 親要素の高さに100%合わせる */
+            font-size: 16px;
+        }
+
+        /* メッセージエリア */
         #messageArea {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             padding: 10px 20px;
@@ -72,14 +96,23 @@
             opacity: 0;
             transition: opacity 0.3s;
             z-index: 1000;
+            white-space: nowrap;
         }
         #messageArea.show { opacity: 1; }
         .bg-info { background: rgba(52, 152, 219, 0.9); }
         .bg-success { background: rgba(46, 204, 113, 0.9); }
 
+        /* スマホ向け微調整 */
         @media (max-width: 600px) {
-            .controls { padding: 5px; gap: 4px; }
-            .controls button { padding: 10px 8px; flex-grow: 1; font-size: 12px; }
+            .controls {
+                padding: 6px;
+                gap: 4px;
+            }
+            .controls button {
+                padding: 10px 5px;
+                font-size: 11px;
+                min-width: calc(25% - 4px); /* 1列に最大4つ並ぶよう調整 */
+            }
         }
     </style>
 </head>
@@ -111,25 +144,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
 
 <script>
-    // エディターの初期化（ダークテーマ 'dracula' を適用）
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
         mode: "htmlmixed",
         lineNumbers: true,
         theme: "dracula",
-        lineWrapping: true, // 右端で折り返す設定
+        lineWrapping: true,
         tabSize: 2
     });
 
-    // データの復元
     const savedCode = localStorage.getItem("htmlCode");
     if (savedCode) cm.setValue(savedCode);
 
-    // 保存処理
     cm.on("change", () => {
         localStorage.setItem("htmlCode", cm.getValue());
     });
 
-    // メッセージ表示機能
     function showMsg(text, type = 'info') {
         const area = document.getElementById('messageArea');
         area.textContent = text;
@@ -137,21 +166,16 @@
         setTimeout(() => area.className = '', 2000);
     }
 
-    // --- ボタンアクション ---
-
-    // 元に戻す (Undo)
     document.getElementById('undoBtn').addEventListener('click', () => {
         cm.undo();
         cm.focus();
     });
 
-    // コピー
     document.getElementById('copyBtn').addEventListener('click', () => {
         const text = cm.getValue();
         navigator.clipboard.writeText(text).then(() => showMsg("コピー完了", "success"));
     });
 
-    // 貼り付け (ブラウザのセキュリティ制限により、一部制限される場合があります)
     document.getElementById('pasteBtn').addEventListener('click', async () => {
         try {
             const text = await navigator.clipboard.readText();
@@ -162,13 +186,11 @@
         }
     });
 
-    // 全選択
     document.getElementById('selectAllBtn').addEventListener('click', () => {
         cm.setSelection({line: 0, ch: 0}, {line: cm.lineCount(), ch: 0});
         cm.focus();
     });
 
-    // 全削除
     document.getElementById('clearAllBtn').addEventListener('click', () => {
         if(confirm("すべて削除しますか？")) {
             cm.setValue("");
@@ -176,14 +198,12 @@
         }
     });
 
-    // 実行 (Run)
     document.getElementById('runBtn').addEventListener('click', () => {
         const blob = new Blob([cm.getValue()], { type: "text/html" });
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
     });
 
-    // 保存 (HTML)
     document.getElementById('saveBtn').addEventListener('click', () => {
         const blob = new Blob([cm.getValue()], { type: "text/html" });
         const a = document.createElement("a");
@@ -193,7 +213,16 @@
         showMsg("HTMLを保存しました", "success");
     });
 
-    // ファイルを開く
+    // TXT保存機能の追加 (ボタンIDに基づき実装を補完)
+    document.getElementById('saveTxtBtn').addEventListener('click', () => {
+        const blob = new Blob([cm.getValue()], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "code.txt";
+        a.click();
+        showMsg("TXTを保存しました", "success");
+    });
+
     document.getElementById('openFileBtn').addEventListener('click', () => {
         document.getElementById('fileInput').click();
     });
@@ -211,4 +240,3 @@
 </script>
 </body>
 </html>
-
