@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <link rel="manifest" href="manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高度な3Dアイコン作成ツール</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=M+PLUS+Rounded+1c:wght@400;700&family=Kosugi+Maru&family=Varela+Round&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #667eea;
+      --secondary: #764ba2;
+      --accent: #f093fb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --background: #f1f5f9;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --border-focus: #cbd5e1;
+      --shadow-sm: rgba(0, 0, 0, 0.05);
+      --shadow: rgba(0, 0, 0, 0.1);
+      --shadow-lg: rgba(0, 0, 0, 0.15);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      min-height: 100vh;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: minmax(320px, 400px) 1fr;
+      gap: 30px;
+      min-height: 100vh;
+    }
+
+    .control-panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
+      height: fit-content;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .preview-area {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    h1 {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+      letter-spacing: -0.02em;
+    }
+
+    .section { margin-bottom: 25px; }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-row { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+    .control { display: flex; flex-direction: column; gap: 8px; }
+    .control-inline { display: flex; flex-direction: row; align-items: center; gap: 12px; flex-wrap: wrap; }
+    
+    label { font-weight: 500; color: var(--text-secondary); font-size: 0.9rem; cursor: pointer; }
+    
+    input, select, textarea {
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      transition: var(--transition);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-family: inherit;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    input:invalid { border-color: var(--error); }
+    
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    
+    input[type="file"] { padding: 10px; background: var(--surface-2); cursor: pointer; }
+    input[type="file"]::file-selector-button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      margin-right: 10px;
+      transition: var(--transition);
+    }
+    input[type="file"]::file-selector-button:hover { background: var(--secondary); }
+
+    input[type="range"] {
+      appearance: none;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 4px var(--shadow);
+      transition: var(--transition);
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+    
+    input[type="color"] {
+      width: 60px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      padding: 2px;
+      border: 2px solid var(--border);
+    }
+
+    textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+
+    .color-display { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+    .color-box {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      box-shadow: inset 0 1px 2px var(--shadow);
+      flex-shrink: 0;
+    }
+    .color-hex {
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: var(--surface-2);
+      padding: 4px 8px;
+      border-radius: 4px;
+      min-width: 70px;
+      text-align: center;
+    }
+
+    .radio-group, .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; }
+    .radio-item, .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: var(--transition);
+      border: 1px solid transparent;
+    }
+    .radio-item:hover, .checkbox-item:hover { background: var(--surface-2); border-color: var(--border-focus); }
+
+    input[type="radio"], input[type="checkbox"] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition);
+      margin: 0;
+      padding: 0;
+    }
+    input[type="checkbox"] { border-radius: 4px; }
+    
+    input[type="radio"]:checked, input[type="checkbox"]:checked {
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+    input[type="radio"]:checked::before {
+      content: ''; width: 8px; height: 8px; background: white; border-radius: 50%;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+    input[type="checkbox"]:checked::before {
+      content: '✓'; color: white; font-size: 12px; font-weight: bold;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+
+    .button-group { display: flex; gap: 15px; margin-top: 30px; }
+    button {
+      flex: 1; padding: 14px 20px; border: none; border-radius: 10px;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: var(--transition);
+      position: relative; overflow: hidden; font-family: inherit; min-height: 48px;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+    .btn-secondary { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3); }
+    .btn-accent { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3); }
+    .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+    
+    button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    
+    .btn-outline { background: var(--surface); border: 2px solid var(--border); color: var(--text-secondary); box-shadow: none; }
+    .btn-outline:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-focus); color: var(--text-primary); box-shadow: none; transform: none; }
+
+    .preview-canvas-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 30px;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      border-radius: var(--radius);
+      border: 3px dashed var(--border);
+      position: relative;
+      transition: var(--transition);
+    }
+    .preview-canvas-container.dragover {
+      background: rgba(102, 126, 234, 0.1);
+      border-color: var(--primary);
+    }
+
+    canvas, #svgPreview {
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px var(--shadow-lg);
+      transition: var(--transition-slow);
+      max-width: 100%;
+      height: auto;
+      background: transparent;
+    }
+
+    .size-indicator { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; }
+    
+    .advanced-controls { display: none; animation: slideDown 0.3s ease-out; }
+    .advanced-controls.show { display: block; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .toggle-advanced {
+      background: none; border: 2px solid var(--primary); color: var(--primary);
+      padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px;
+      transition: var(--transition); width: 100%;
+    }
+    .toggle-advanced:hover { background: var(--primary); color: white; transform: none; box-shadow: none; }
+
+    .preset-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-top: 15px; }
+    .preset-btn {
+      padding: 8px; border-radius: 6px; font-size: 0.8rem; background: var(--surface-2);
+      border: 1px solid var(--border); cursor: pointer; transition: var(--transition);
+      color: var(--text-primary); font-weight: 500;
+    }
+    .preset-btn:hover { background: var(--primary); color: white; transform: none; box-shadow: none; }
+
+    .export-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-top: 20px; }
+    .export-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px;
+      border: 2px solid var(--border); border-radius: var(--radius); background: var(--surface);
+      cursor: pointer; transition: var(--transition); text-decoration: none; color: inherit;
+    }
+    .export-btn:hover { border-color: var(--primary); background: rgba(102, 126, 234, 0.05); transform: translateY(-2px); }
+    .export-icon {
+      width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; font-weight: bold; color: white;
+    }
+    
+    .range-display { display: flex; align-items: center; gap: 10px; }
+    .range-display input[type="range"] { flex: 1; }
+    .range-display output {
+      min-width: 50px; text-align: center; font-weight: 600; color: var(--primary);
+      background: var(--surface-2); padding: 4px 8px; border-radius: 4px; font-size: 0.9rem;
+    }
+    
+    .size-input-group { display: flex; gap: 10px; }
+    .size-input-group input { flex: 1; }
+    
+    .tooltip { position: relative; }
+    .tooltip::after {
+      content: attr(data-tooltip); position: absolute; top: -10px; left: 50%;
+      transform: translate(-50%, -100%); background: var(--text-primary); color: white;
+      padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: var(--transition); z-index: 1000;
+    }
+    .tooltip:hover::after { opacity: 1; transform: translate(-50%, -100%); }
+
+    .error-message, .success-message {
+      padding: 12px; border-radius: var(--radius-sm); margin-top: 10px; font-size: 0.9rem; display: none;
+    }
+    .error-message { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: var(--error); }
+    .success-message { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); color: var(--success); }
+    
+    .mode-switcher {
+      display: flex; background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: 6px; margin-bottom: 25px; border: 1px solid var(--border);
+    }
+    .mode-switcher label {
+      flex: 1; text-align: center; padding: 10px; border-radius: 6px; font-weight: 600;
+      color: var(--text-secondary); cursor: pointer; transition: var(--transition); position: relative;
+    }
+    .mode-switcher input[type="radio"] { display: none; }
+    .mode-switcher input[type="radio"]:checked + label {
+      background: var(--surface); color: var(--primary); box-shadow: 0 2px 8px var(--shadow-sm); border: 1px solid var(--border-focus);
+    }
+
+    /* ユーティリティ領域 */
+    .utility-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 1200px) { .app-container { grid-template-columns: 1fr; max-width: 800px; } }
+    @media (max-width: 768px) {
+      .app-container { padding: 15px; gap: 20px; }
+      .control-panel, .preview-area { padding: 20px; }
+      h1 { font-size: 2rem; }
+      .button-group { flex-direction: column; }
+      .export-options { grid-template-columns: repeat(2, 1fr); }
+      .radio-group, .checkbox-group { flex-direction: column; gap: 10px; }
+      .preset-buttons { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .control-inline { flex-direction: column; align-items: stretch; }
+      .size-input-group { flex-direction: column; }
+      .export-options { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="control-panel">
+      <h1>🎨 高度な3Dアイコン作成ツール</h1>
+
+      <div class="mode-switcher">
+        <input type="radio" name="mode" id="modeText" value="text" checked>
+        <label for="modeText">📝 テキスト</label>
+        
+        <input type="radio" name="mode" id="modeImage" value="image">
+        <label for="modeImage">🖼️ 画像</label>
+      </div>
+      
+      <div class="section" id="textSettingsSection">
+        <div class="section-title">📝 テキスト設定</div>
+        <div class="control">
+          <label for="iconText">表示テキスト</label>
+          <textarea id="iconText" placeholder="アイコンに表示するテキストを入力" rows="2" maxlength="50">松乃木飯店</textarea>
+          <small class="color-hex">文字数: <span id="textLength">5</span>/50</small>
+        </div>
+        
+        <div class="control">
+          <label for="fontFamily">フォント</label>
+          <select id="fontFamily">
+            <option value="'Inter', sans-serif">Inter (モダン)</option>
+            <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+            <option value="'M PLUS Rounded 1c', sans-serif" selected>M PLUS Rounded (丸文字)</option>
+            <option value="'Kosugi Maru', sans-serif">Kosugi Maru</option>
+            <option value="'Varela Round', sans-serif">Varela Round</option>
+            <option value="system-ui, sans-serif">システムフォント</option>
+            <option value="'Courier New', monospace">等幅フォント</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="fontWeight">文字の太さ</label>
+          <select id="fontWeight">
+            <option value="300">Light (300)</option>
+            <option value="400">Regular (400)</option>
+            <option value="500">Medium (500)</option>
+            <option value="600">SemiBold (600)</option>
+            <option value="700">Bold (700)</option>
+            <option value="800" selected>ExtraBold (800)</option>
+            <option value="900">Black (900)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section" id="imageSettingsSection" style="display: none;">
+        <div class="section-title">🖼️ 画像設定</div>
+        <div class="control">
+          <label for="imageUpload">画像ファイル (ドラッグ＆ドロップ対応)</label>
+          <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp">
+        </div>
+        
+        <div class="control">
+          <label for="imageFit">画像の表示方法</label>
+          <select id="imageFit">
+            <option value="contain" selected>全体を表示 (Contain)</option>
+            <option value="cover">全体を埋める (Cover)</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <button id="clearImageBtn" class="btn-outline">画像をクリア</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🎨 カラー設定 (背景)</div>
+        <div class="control">
+          <label for="gradColor1">背景グラデーション1</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor1" value="#667eea">
+            <div class="color-display">
+              <div class="color-box" id="gradColor1Box"></div>
+              <div class="color-hex" id="gradColor1Hex">#667EEA</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="gradColor2">背景グラデーション2</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor2" value="#764ba2">
+            <div class="color-display">
+              <div class="color-box" id="gradColor2Box"></div>
+              <div class="color-hex" id="gradColor2Hex">#764BA2</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preset-buttons">
+          <button class="preset-btn" data-colors="#667eea,#764ba2">オーシャン</button>
+          <button class="preset-btn" data-colors="#f093fb,#f5576c">サンセット</button>
+          <button class="preset-btn" data-colors="#4facfe,#00f2fe">スカイ</button>
+          <button class="preset-btn" data-colors="#43e97b,#38f9d7">フォレスト</button>
+          <button class="preset-btn" data-colors="#fa709a,#fee140">ウォーム</button>
+          <button class="preset-btn" data-colors="#a8edea,#fed6e3">パステル</button>
+          <button class="preset-btn" data-colors="#ff6b6b,#ee5a52">コーラル</button>
+          <button class="preset-btn" data-colors="#4ecdc4,#44a08d">ティール</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">⚙️ 基本設定</div>
+        <div class="control">
+          <label for="iconSize">アイコンサイズ</label>
+          <select id="iconSize">
+            <option value="64">64×64 (ファビコン)</option>
+            <option value="128">128×128 (アプリ)</option>
+            <option value="192">192×192 (ウェーブ)</option>
+            <option value="256" selected>256×256 (標準)</option>
+            <option value="512">512×512 (高解像度)</option>
+            <option value="1024">1024×1024 (超高解像度)</option>
+            <option value="custom">カスタム</option>
+          </select>
+        </div>
+        <div class="control size-input-group" id="customSizeInputs" style="display: none;">
+          <input type="number" id="iconWidth" placeholder="幅 (px)" value="256" min="32" max="2048" step="1">
+          <input type="number" id="iconHeight" placeholder="高さ (px)" value="256" min="32" max="2048" step="1">
+        </div>
+
+        <div class="control" id="textLetterSpacingControl">
+          <label for="letterSpacing">文字間隔</label>
+          <div class="range-display">
+            <input type="range" id="letterSpacing" min="-5" ma
