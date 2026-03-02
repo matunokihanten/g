@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-    <title>スマートHTMLエディター - 固定版</title>
+    <title>スマートHTMLエディター - 進化版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css" />
     <style>
@@ -13,9 +13,9 @@
             --btn-primary: #3498db;
             --btn-danger: #e74c3c;
             --btn-success: #2ecc71;
+            --btn-redo: #f39c12; /* やり直しボタンの色 */
         }
 
-        /* 画面全体のスクロールを禁止 */
         html, body {
             margin: 0;
             padding: 0;
@@ -29,13 +29,12 @@
             font-family: 'Segoe UI', sans-serif;
             display: flex;
             flex-direction: column;
-            /* 動的ビューポート高さを使用してツールバーの影響を回避 */
             height: 100dvh; 
         }
 
-        /* 操作パネル：固定され、スクロールしない */
+        /* 操作パネル */
         .controls {
-            flex-shrink: 0; /* 高さを維持 */
+            flex-shrink: 0;
             padding: 10px;
             background-color: var(--header-bg);
             display: flex;
@@ -43,45 +42,46 @@
             gap: 6px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             z-index: 100;
-            /* iPhoneのノッチ（上部）対策 */
             padding-top: calc(10px + env(safe-area-inset-top));
         }
 
         .controls button {
-            flex: 1 1 auto; /* スマホでボタン幅を自動調整 */
-            min-width: 70px;
-            padding: 8px 10px;
+            flex: 1 1 auto;
+            min-width: 65px;
+            padding: 8px 5px;
             cursor: pointer;
             border: none;
             border-radius: 6px;
             background-color: var(--btn-normal);
             font-weight: bold;
             transition: all 0.2s;
-            font-size: 12px;
+            font-size: 11px;
             white-space: nowrap;
         }
 
-        /* ボタンの色分け */
+        /* ボタン固有色 */
+        button#undoBtn { border-left: 4px solid #95a5a6; }
+        button#redoBtn { background-color: var(--btn-redo); color: white; }
         button#runBtn { background-color: var(--btn-success); color: white; }
         button#saveBtn, button#saveTxtBtn { background-color: var(--btn-primary); color: white; }
         button#clearAllBtn { background-color: var(--btn-danger); color: white; }
         
         .controls button:active { transform: scale(0.95); }
 
-        /* エディター領域：残りの高さをすべて占有 */
+        /* エディター領域 */
         .editor {
             flex: 1;
             position: relative;
             overflow: hidden;
-            min-height: 0; /* Flexboxの子要素が縮小できるように設定 */
+            min-height: 0;
         }
 
         .CodeMirror {
-            height: 100% !important; /* 親要素の高さに100%合わせる */
+            height: 100% !important;
             font-size: 16px;
         }
 
-        /* メッセージエリア */
+        /* メッセージ通知 */
         #messageArea {
             position: fixed;
             bottom: 30px;
@@ -96,23 +96,14 @@
             opacity: 0;
             transition: opacity 0.3s;
             z-index: 1000;
-            white-space: nowrap;
         }
         #messageArea.show { opacity: 1; }
         .bg-info { background: rgba(52, 152, 219, 0.9); }
         .bg-success { background: rgba(46, 204, 113, 0.9); }
 
-        /* スマホ向け微調整 */
         @media (max-width: 600px) {
-            .controls {
-                padding: 6px;
-                gap: 4px;
-            }
-            .controls button {
-                padding: 10px 5px;
-                font-size: 11px;
-                min-width: calc(25% - 4px); /* 1列に最大4つ並ぶよう調整 */
-            }
+            .controls { padding: 5px; gap: 4px; }
+            .controls button { font-size: 10px; min-width: calc(20% - 4px); }
         }
     </style>
 </head>
@@ -120,6 +111,7 @@
 
 <div class="controls" id="controlsPanel">
     <button id="undoBtn">元に戻す</button>
+    <button id="redoBtn">やり直し</button>
     <button id="selectAllBtn">全選択</button>
     <button id="copyBtn">コピー</button>
     <button id="pasteBtn">貼付け</button>
@@ -144,21 +136,26 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
 
 <script>
+    // エディターの初期化
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
         mode: "htmlmixed",
         lineNumbers: true,
         theme: "dracula",
         lineWrapping: true,
-        tabSize: 2
+        tabSize: 2,
+        extraKeys: {"Ctrl-Z": "undo", "Ctrl-Y": "redo"} // キーボードショートカット
     });
 
+    // ローカルストレージから復元
     const savedCode = localStorage.getItem("htmlCode");
     if (savedCode) cm.setValue(savedCode);
 
+    // 変更時に自動保存
     cm.on("change", () => {
         localStorage.setItem("htmlCode", cm.getValue());
     });
 
+    // 通知メッセージ表示
     function showMsg(text, type = 'info') {
         const area = document.getElementById('messageArea');
         area.textContent = text;
@@ -166,8 +163,17 @@
         setTimeout(() => area.className = '', 2000);
     }
 
+    // --- 各ボタンのイベント設定 ---
+
+    // 元に戻す (Undo)
     document.getElementById('undoBtn').addEventListener('click', () => {
         cm.undo();
+        cm.focus();
+    });
+
+    // やり直し (Redo) - 今回追加した機能
+    document.getElementById('redoBtn').addEventListener('click', () => {
+        cm.redo();
         cm.focus();
     });
 
@@ -213,7 +219,6 @@
         showMsg("HTMLを保存しました", "success");
     });
 
-    // TXT保存機能の追加 (ボタンIDに基づき実装を補完)
     document.getElementById('saveTxtBtn').addEventListener('click', () => {
         const blob = new Blob([cm.getValue()], { type: "text/plain" });
         const a = document.createElement("a");
