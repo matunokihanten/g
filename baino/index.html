@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>禅スタジオ - バイノーラル・ヒーリング</title>
+    <title>禅スタジオ - 高精度音響モデル</title>
     <style>
         :root {
             --bg-dark: #1a222f;
@@ -205,7 +205,7 @@
             filter.type = s.filter; filter.frequency.value = s.freq; filter.Q.value = s.q;
             const g = audioCtx.createGain(); g.gain.value = 0;
 
-            if (s.surge) {
+            if (s.surge) { // 波のうねり
                 const lfo = audioCtx.createOscillator(); lfo.frequency.value = s.lfo;
                 const lg = audioCtx.createGain(); lg.gain.value = 300;
                 lfo.connect(lg).connect(filter.frequency);
@@ -217,7 +217,8 @@
                 l.connect(lg).connect(g.gain); l.start();
             }
 
-            if (s.crackle || s.impulse) {
+            if (s.crackle || s.impulse) { // パチパチ音、雨の粒
+                const pG = audioCtx.createGain(); pG.gain.value = 0;
                 setInterval(() => {
                     if (g.gain.value > 0.01) {
                         const iG = audioCtx.createGain();
