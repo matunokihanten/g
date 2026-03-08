@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>禅スタジオ - ノイズ・カラー・エディション</title>
+    <title>禅スタジオ - 能力開発エディション</title>
     <style>
         :root {
             --bg-dark: #1a222f;
             --panel-bg: rgba(255, 255, 255, 0.05);
             --accent-blue: #38bdf8;
+            --accent-gold: #fbbf24;
             --text-main: #f1f5f9;
             --text-dim: #94a3b8;
         }
@@ -39,38 +40,38 @@
             margin-bottom: 25px;
         }
         canvas { width: 100%; height: 100px; border-radius: 10px; }
-        #status { font-size: 12px; color: var(--accent-blue); margin-top: 10px; text-align: center; }
+        #status { font-size: 11px; color: var(--accent-blue); margin-top: 10px; text-align: center; min-height: 1.5em; }
 
         .section-label { font-size: 12px; color: var(--text-dim); margin: 20px 0 10px 5px; border-left: 3px solid var(--accent-blue); padding-left: 8px; }
 
         .mode-selector { display: flex; gap: 8px; margin-bottom: 20px; }
         .mode-btn {
             flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-dim); padding: 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+            color: var(--text-dim); padding: 10px; border-radius: 8px; font-size: 11px; cursor: pointer;
         }
         .mode-btn.active { background: var(--accent-blue); color: #0f172a; font-weight: bold; }
 
-        /* ノイズカラー・セレクター */
+        /* プリセットグリッド */
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .preset-btn {
+            background: #334155; color: white; border: none; padding: 14px 8px; border-radius: 12px;
+            font-size: 13px; cursor: pointer; transition: 0.2s;
+        }
+        .preset-btn.active { outline: 2px solid var(--accent-blue); background: #3e4e63; }
+        .special-btn { grid-column: span 2; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-weight: bold; }
+
+        .slider-group { margin-bottom: 25px; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: #475569; height: 6px; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: var(--accent-blue); border: 3px solid #fff; cursor: pointer;
+        }
+
         .color-selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 20px; }
         .color-btn {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
             color: var(--text-dim); padding: 8px 2px; border-radius: 6px; font-size: 10px; cursor: pointer;
         }
         .color-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(56, 189, 248, 0.1); }
-
-        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
-        .preset-btn {
-            background: #334155; color: white; border: none; padding: 18px; border-radius: 12px;
-            font-size: 16px; cursor: pointer; transition: transform 0.1s, background 0.2s;
-        }
-        .preset-btn.active { outline: 2px solid var(--accent-blue); background: #3e4e63; }
-
-        .slider-group { margin-bottom: 25px; }
-        .slider-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px; }
-        input[type=range] { -webkit-appearance: none; width: 100%; background: #475569; height: 6px; border-radius: 3px; }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: var(--accent-blue); border: 3px solid #fff; cursor: pointer;
-        }
 
         .mixer-grid {
             display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
@@ -106,24 +107,28 @@
         <button class="mode-btn" id="modeNature" onclick="changeMode('nature')">環境音のみ</button>
     </div>
 
-    <div class="section-label">ノイズ・カラー選択</div>
-    <div class="color-selector">
-        <button class="color-btn" id="col-white" onclick="setColor('white')">ホワイト</button>
-        <button class="color-btn" id="col-pink" onclick="setColor('pink')">ピンク</button>
-        <button class="color-btn active" id="col-brown" onclick="setColor('brown')">ブラウン</button>
-        <button class="color-btn" id="col-blue" onclick="setColor('blue')">ブルー</button>
-        <button class="color-btn" id="col-violet" onclick="setColor('violet')">バイオレット</button>
+    <div class="section-label">能力開発トレーニング</div>
+    <div class="preset-grid">
+        <button class="preset-btn special-btn" id="btn-eidetic" onclick="setPreset('eidetic')">✨ 写真記憶 (6.3Hz)</button>
+        <button class="preset-btn" id="btn-speedread" onclick="setPreset('speedread')">① 速読・視力 (11Hz)</button>
+        <button class="preset-btn" id="btn-flash" onclick="setPreset('flash')">② 爆速暗算 (40Hz)</button>
+        <button class="preset-btn" id="btn-zone" onclick="setPreset('zone')">④ ゾーン突入 (9Hz)</button>
+        <button class="preset-btn" id="btn-lang" onclick="setPreset('lang')">⑥ 語学聴解 (5.5Hz)</button>
+        <button class="preset-btn" id="btn-autonomic" onclick="setPreset('autonomic')">⑧ 自律神経 (10Hz)</button>
+        <button class="preset-btn" id="btn-peace" onclick="setPreset('peace')">⑨ 心の平穏 (7.8Hz)</button>
+        <button class="preset-btn special-btn" id="btn-multi" onclick="setPreset('multi')">⑩ 多角思考 (14Hz)</button>
     </div>
 
+    <div class="section-label">基本プリセット</div>
     <div class="preset-grid">
-        <button class="preset-btn" onclick="setPreset('sleep')">睡眠 (2Hz)</button>
-        <button class="preset-btn" onclick="setPreset('meditation')">瞑想 (6Hz)</button>
-        <button class="preset-btn" onclick="setPreset('study')">学習 (10Hz)</button>
-        <button class="preset-btn active" id="initFocus" onclick="setPreset('focus')">集中 (29Hz)</button>
+        <button class="preset-btn" id="btn-sleep" onclick="setPreset('sleep')">睡眠 (2Hz)</button>
+        <button class="preset-btn" id="btn-meditation" onclick="setPreset('meditation')">瞑想 (6Hz)</button>
+        <button class="preset-btn" id="btn-study" onclick="setPreset('study')">学習 (10Hz)</button>
+        <button class="preset-btn active" id="btn-focus" onclick="setPreset('focus')">集中 (29Hz)</button>
     </div>
 
     <div class="slider-group">
-        <div class="slider-header">
+        <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px;">
             <span>バイノーラル周波数</span>
             <span style="color:var(--accent-blue); font-weight:bold;"><span id="beatDisp">29</span> Hz</span>
         </div>
@@ -132,24 +137,34 @@
 
     <div class="section-label">基本周波数（ソルフェジオ）</div>
     <select id="baseSelect" style="width:100%; background:#334155; padding:12px; border-radius:10px; margin-bottom:20px;">
-        <option value="174">174Hz (苦痛の軽減)</option>
-        <option value="432">432Hz (自然界の調律)</option>
-        <option value="528" selected>528Hz (理想の修復・奇跡)</option>
+        <option value="174">174Hz (苦痛の軽減・平穏)</option>
+        <option value="432">432Hz (自然界・ゾーン・自律神経)</option>
+        <option value="528">528Hz (理想の修復・学習・速読)</option>
         <option value="639">639Hz (対人関係の向上)</option>
+        <option value="852" selected>852Hz (直感力の覚醒・写真記憶)</option>
     </select>
 
-    <div class="section-label">環境音ミキサー（1/fゆらぎ対応）</div>
+    <div class="section-label">ノイズ・カラー</div>
+    <div class="color-selector">
+        <button class="color-btn" id="col-white" onclick="setColor('white')">白</button>
+        <button class="color-btn" id="col-pink" onclick="setColor('pink')">桃</button>
+        <button class="color-btn active" id="col-brown" onclick="setColor('brown')">茶</button>
+        <button class="color-btn" id="col-blue" onclick="setColor('blue')">青</button>
+        <button class="color-btn" id="col-violet" onclick="setColor('violet')">紫</button>
+    </div>
+
+    <div class="section-label">環境音ミキサー</div>
     <div class="mixer-grid" id="mixer"></div>
 
     <div class="bottom-nav">
         <select id="timer">
-            <option value="0">タイマーなし</option>
-            <option value="15">15分後に停止</option>
-            <option value="30">30分後に停止</option>
-            <option value="60">60分後に停止</option>
+            <option value="0">なし</option>
+            <option value="15">15分</option>
+            <option value="30">30分</option>
+            <option value="60">60分</option>
         </select>
         <button class="play-btn" id="playBtn">▶</button>
-        <div style="font-size:12px">音量: <span id="volDisp">80</span>%</div>
+        <div style="font-size:11px">音量: <span id="volDisp">80</span>%</div>
     </div>
 
     <div class="footer-info">制作：松乃木飯店</div>
@@ -159,72 +174,45 @@
     const sounds = [
         { id: 'rain', name: '本降りの雨', type: 'lowpass', freq: 1500, q: 1, impulse: 0.08 },
         { id: 'wave', name: '深みのある波', type: 'lowpass', freq: 400, q: 2, surge: true },
-        { id: 'fire', name: '薪の焚き火', type: 'bandpass', freq: 800, q: 0.5, crackle: 0.05 },
-        { id: 'river', name: 'せせらぎ', type: 'bandpass', freq: 1200, q: 5, lfo: 2.5 },
+        { id: 'fire', name: '薪の焚き火', type: 'highpass', freq: 2500, q: 0.5, crackle: 0.05 },
+        { id: 'river', name: 'せせらぎ', type: 'lowpass', freq: 1500, q: 5, lfo: 2.5 },
         { id: 'wind', name: '吹き抜ける風', type: 'bandpass', freq: 300, q: 1, dynamic: true },
         { id: 'deep', name: '深海の響き', type: 'lowpass', freq: 100, q: 1 }
     ];
 
     let audioCtx, oscL, oscR, masterGain, analyser, binauralGain, natureMasterGain;
-    let isPlaying = false, currentMode = 'both', baseHz = 528, beatHz = 29, noiseColor = 'brown';
+    let isPlaying = false, currentMode = 'both', baseHz = 852, beatHz = 29, noiseColor = 'brown';
     let noiseSources = [];
 
     const mixer = document.getElementById('mixer');
     sounds.forEach(s => {
-        const d = document.createElement('div');
-        d.className = 'mixer-item';
+        const d = document.createElement('div'); d.className = 'mixer-item';
         d.innerHTML = `<span>${s.name}</span><input type="range" id="vol-${s.id}" min="0" max="100" value="0">`;
         mixer.appendChild(d);
     });
 
-    // --- 各色ノイズ生成用バッファ作成 ---
     function generateNoiseBuffer(color) {
-        const duration = 2;
-        const bufferSize = audioCtx.sampleRate * duration;
+        const duration = 2; const bufferSize = audioCtx.sampleRate * duration;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
-
-        if (color === 'white') {
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        } else if (color === 'pink') {
-            let b0, b1, b2, b3, b4, b5, b6;
-            b0 = b1 = b2 = b3 = b4 = b5 = b6 = 0.0;
+        if (color === 'white') { for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; }
+        else if (color === 'pink') {
+            let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
             for (let i = 0; i < bufferSize; i++) {
-                let white = Math.random() * 2 - 1;
-                b0 = 0.99886 * b0 + white * 0.0555179;
-                b1 = 0.99332 * b1 + white * 0.0750759;
-                b2 = 0.96900 * b2 + white * 0.1538520;
-                b3 = 0.86650 * b3 + white * 0.3104856;
-                b4 = 0.55000 * b4 + white * 0.5329522;
-                b5 = -0.7616 * b5 - white * 0.0168980;
-                data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-                data[i] *= 0.11;
-                b6 = white * 0.115926;
+                let w = Math.random() * 2 - 1;
+                b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.96900 * b2 + w * 0.1538520;
+                b3 = 0.86650 * b3 + w * 0.3104856; b4 = 0.55000 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.0168980;
+                data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; data[i] *= 0.11; b6 = w * 0.115926;
             }
         } else if (color === 'brown') {
-            let lastOut = 0.0;
-            for (let i = 0; i < bufferSize; i++) {
-                let white = Math.random() * 2 - 1;
-                data[i] = (lastOut + (0.02 * white)) / 1.02;
-                lastOut = data[i];
-                data[i] *= 3.5;
+            let last = 0.0; for (let i = 0; i < bufferSize; i++) {
+                let w = Math.random() * 2 - 1; data[i] = (last + (0.02 * w)) / 1.02; last = data[i]; data[i] *= 3.5;
             }
         } else if (color === 'blue') {
-            let lastOut = 0.0;
-            for (let i = 0; i < bufferSize; i++) {
-                let white = Math.random() * 2 - 1;
-                data[i] = white - lastOut;
-                lastOut = white;
-                data[i] *= 0.5;
-            }
+            let last = 0.0; for (let i = 0; i < bufferSize; i++) { let w = Math.random() * 2 - 1; data[i] = (w - last) * 0.5; last = w; }
         } else if (color === 'violet') {
-            let lastOut = 0.0, lastOut2 = 0.0;
-            for (let i = 0; i < bufferSize; i++) {
-                let white = Math.random() * 2 - 1;
-                let high = white - lastOut;
-                data[i] = high - lastOut2;
-                lastOut = white; lastOut2 = high;
-                data[i] *= 0.25;
+            let l1=0, l2=0; for (let i = 0; i < bufferSize; i++) {
+                let w = Math.random() * 2 - 1; let h = w - l1; data[i] = (h - l2) * 0.25; l1 = w; l2 = h;
             }
         }
         return buffer;
@@ -233,102 +221,76 @@
     function init() {
         if (audioCtx) return;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        masterGain = audioCtx.createGain(); masterGain.gain.value = 0.8;
+        analyser = audioCtx.createAnalyser(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.8;
         masterGain.connect(audioCtx.destination);
-
-        binauralGain = audioCtx.createGain();
-        natureMasterGain = audioCtx.createGain();
-        binauralGain.connect(analyser);
-        natureMasterGain.connect(analyser);
-        analyser.connect(masterGain);
-
+        binauralGain = audioCtx.createGain(); natureMasterGain = audioCtx.createGain();
+        binauralGain.connect(analyser); natureMasterGain.connect(analyser); analyser.connect(masterGain);
         oscL = audioCtx.createOscillator(); oscR = audioCtx.createOscillator();
         const merger = audioCtx.createChannelMerger(2);
         const pL = audioCtx.createStereoPanner(); pL.pan.value = -1;
         const pR = audioCtx.createStereoPanner(); pR.pan.value = 1;
-        oscL.connect(pL).connect(merger, 0, 0);
-        oscR.connect(pR).connect(merger, 0, 1);
-        merger.connect(binauralGain);
-        oscL.start(); oscR.start();
-
-        updateNatureSounds();
-        applyMode(); update(); draw();
+        oscL.connect(pL).connect(merger, 0, 0); oscR.connect(pR).connect(merger, 0, 1);
+        merger.connect(binauralGain); oscL.start(); oscR.start();
+        updateNatureSounds(); applyMode(); update(); draw();
     }
 
     function updateNatureSounds() {
-        // 既存のノイズ源をクリア
-        noiseSources.forEach(s => s.source.stop());
-        noiseSources = [];
-
+        noiseSources.forEach(s => s.source.stop()); noiseSources = [];
         sounds.forEach(s => {
-            const src = audioCtx.createBufferSource();
-            src.buffer = generateNoiseBuffer(noiseColor);
-            src.loop = true;
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = s.type; filter.frequency.value = s.freq; filter.Q.value = s.q;
-            const g = audioCtx.createGain();
-            const volInput = document.getElementById(`vol-${s.id}`);
-            g.gain.value = (volInput.value / 100) * 0.4;
-
+            const src = audioCtx.createBufferSource(); src.buffer = generateNoiseBuffer(noiseColor); src.loop = true;
+            const filter = audioCtx.createBiquadFilter(); filter.type = s.type; filter.frequency.value = s.freq; filter.Q.value = s.q;
+            const g = audioCtx.createGain(); const vIn = document.getElementById(`vol-${s.id}`);
+            g.gain.value = (vIn.value / 100) * 0.4;
             if (s.surge) {
                 const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.12;
-                const lg = audioCtx.createGain(); lg.gain.value = 300;
-                lfo.connect(lg).connect(filter.frequency);
-                const vg = audioCtx.createGain(); vg.gain.value = 0.2;
-                lfo.connect(vg).connect(g.gain); lfo.start();
+                const lg = audioCtx.createGain(); lg.gain.value = 300; lfo.connect(lg).connect(filter.frequency);
+                const vg = audioCtx.createGain(); vg.gain.value = 0.2; lfo.connect(vg).connect(g.gain); lfo.start();
             }
-
-            src.connect(filter).connect(g).connect(natureMasterGain);
-            src.start();
+            src.connect(filter).connect(g).connect(natureMasterGain); src.start();
             noiseSources.push({source: src, gain: g});
-
-            volInput.oninput = (e) => {
-                g.gain.setTargetAtTime((e.target.value/100) * 0.4, audioCtx.currentTime, 0.1);
-            };
+            vIn.oninput = (e) => g.gain.setTargetAtTime((e.target.value/100) * 0.4, audioCtx.currentTime, 0.1);
         });
     }
 
     window.setColor = (color) => {
-        noiseColor = color;
-        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('col-' + color).classList.add('active');
-        if (audioCtx) updateNatureSounds();
+        noiseColor = color; document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('col-' + color).classList.add('active'); if (audioCtx) updateNatureSounds();
     };
 
     window.setPreset = (type) => {
         document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-        if (event) event.target.classList.add('active');
-
+        document.getElementById('btn-' + type).classList.add('active');
+        const bSel = document.getElementById('baseSelect');
         switch(type) {
-            case 'sleep': beatHz = 2; setColor('brown'); break;
-            case 'meditation': beatHz = 6; setColor('pink'); break;
-            case 'study': beatHz = 10; setColor('pink'); break;
-            case 'focus': beatHz = 29; setColor('white'); break; // 集中：少しホワイト寄り
-            case 'brain': beatHz = 40; setColor('blue'); break; // 脳トレ用
+            case 'eidetic': beatHz = 6.3; baseHz = 852; setColor('pink'); bSel.value = "852"; break;
+            case 'speedread': beatHz = 11; baseHz = 528; setColor('pink'); bSel.value = "528"; break;
+            case 'flash': beatHz = 40; baseHz = 528; setColor('white'); bSel.value = "528"; break;
+            case 'zone': beatHz = 9; baseHz = 432; setColor('pink'); bSel.value = "432"; break;
+            case 'lang': beatHz = 5.5; baseHz = 528; setColor('pink'); bSel.value = "528"; break;
+            case 'autonomic': beatHz = 10; baseHz = 432; setColor('brown'); bSel.value = "432"; break;
+            case 'peace': beatHz = 7.8; baseHz = 174; setColor('brown'); bSel.value = "174"; break;
+            case 'multi': beatHz = 14; baseHz = 528; setColor('white'); bSel.value = "528"; break;
+            case 'sleep': beatHz = 2; baseHz = 174; setColor('brown'); bSel.value = "174"; break;
+            case 'meditation': beatHz = 6; baseHz = 432; setColor('pink'); bSel.value = "432"; break;
+            case 'study': beatHz = 10; baseHz = 528; setColor('pink'); bSel.value = "528"; break;
+            case 'focus': beatHz = 29; baseHz = 528; setColor('white'); bSel.value = "528"; break;
         }
-        document.getElementById('beatSlider').value = beatHz;
-        document.getElementById('beatDisp').innerText = beatHz;
-        update();
+        document.getElementById('beatSlider').value = beatHz; document.getElementById('beatDisp').innerText = beatHz; update();
     };
 
     function applyMode() {
-        if(!audioCtx) return;
-        const now = audioCtx.currentTime;
+        if(!audioCtx) return; const now = audioCtx.currentTime;
         binauralGain.gain.setTargetAtTime(currentMode === 'nature' ? 0 : 1, now, 0.2);
         natureMasterGain.gain.setTargetAtTime(currentMode === 'freq' ? 0 : 1, now, 0.2);
     }
 
     window.changeMode = (mode) => {
-        currentMode = mode;
-        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
-        applyMode();
+        currentMode = mode; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active'); applyMode();
     };
 
     function update() {
-        if(!audioCtx) return;
-        oscL.frequency.setTargetAtTime(baseHz, audioCtx.currentTime, 0.2);
+        if(!audioCtx) return; oscL.frequency.setTargetAtTime(baseHz, audioCtx.currentTime, 0.2);
         oscR.frequency.setTargetAtTime(baseHz + beatHz, audioCtx.currentTime, 0.2);
         document.getElementById('status').innerText = `${baseHz}Hz + ${beatHz}Hz 脳波誘導中`;
     }
@@ -336,31 +298,22 @@
     document.getElementById('beatSlider').oninput = (e) => {
         beatHz = parseFloat(e.target.value); document.getElementById('beatDisp').innerText = beatHz; update();
     };
-
     document.getElementById('baseSelect').onchange = (e) => {
         baseHz = parseFloat(e.target.value); update();
     };
-
     document.getElementById('playBtn').onclick = function() {
-        init();
-        if(audioCtx.state === 'suspended') {
+        init(); if(audioCtx.state === 'suspended') {
             audioCtx.resume(); this.innerHTML = 'Ⅱ'; isPlaying = true;
             const t = parseInt(document.getElementById('timer').value);
             if(t > 0) setTimeout(() => { masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 10); }, t * 60000);
-        } else {
-            audioCtx.suspend(); this.innerHTML = '▶'; isPlaying = false;
-        }
+        } else { audioCtx.suspend(); this.innerHTML = '▶'; isPlaying = false; }
     };
-
     function draw() {
-        requestAnimationFrame(draw);
-        const c = document.getElementById('viz'), ctx = c.getContext('2d');
-        const d = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(d);
+        requestAnimationFrame(draw); const c = document.getElementById('viz'), ctx = c.getContext('2d');
+        const d = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(d);
         ctx.clearRect(0,0,c.width,c.height);
         for(let i=0; i<60; i++) {
-            const h = (d[i]/255) * c.height;
-            ctx.fillStyle = `rgba(56, 189, 248, ${h/100 + 0.3})`;
+            const h = (d[i]/255) * c.height; ctx.fillStyle = `rgba(56, 189, 248, ${h/100 + 0.3})`;
             ctx.fillRect(i * (c.width/60), c.height - h, (c.width/60)-2, h);
         }
     }
