@@ -2,321 +2,1119 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>禅スタジオ - 能力開発エディション</title>
     <style>
         :root {
-            --bg-dark: #1a222f;
-            --panel-bg: rgba(255, 255, 255, 0.05);
-            --accent-blue: #38bdf8;
-            --accent-gold: #fbbf24;
-            --text-main: #f1f5f9;
-            --text-dim: #94a3b8;
+            --bg:         #0f172a;
+            --bg-mid:     #1a2740;
+            --panel:      rgba(255,255,255,0.05);
+            --border:     rgba(255,255,255,0.08);
+            --blue:       #38bdf8;
+            --blue-dim:   rgba(56,189,248,0.18);
+            --blue-glow:  rgba(56,189,248,0.35);
+            --gold:       #fbbf24;
+            --gold-dim:   rgba(251,191,36,0.15);
+            --text:       #f1f5f9;
+            --muted:      #94a3b8;
+            --dim:        #475569;
         }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
             margin: 0;
-            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            color: var(--text-main);
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Yu Gothic', sans-serif;
+            background: radial-gradient(ellipse 140% 80% at 50% 0%, #1a3a60 0%, #0f172a 55%);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
-            min-height: 100vh;
+            overflow-x: hidden;
         }
+
         .app-container {
             width: 100%;
             max-width: 480px;
-            padding: 30px 20px;
-            box-sizing: border-box;
+            padding: 20px 16px calc(110px + env(safe-area-inset-bottom, 0px));
         }
-        header { text-align: center; margin-bottom: 25px; }
-        h1 { font-weight: 200; letter-spacing: 6px; font-size: 20px; color: var(--accent-blue); }
-        
-        .visual-card {
-            background: var(--panel-bg);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.1);
+
+        /* ===== HEADER ===== */
+        header {
+            text-align: center;
+            margin-bottom: 18px;
+            position: relative;
+        }
+        h1 {
+            font-weight: 100;
+            letter-spacing: 10px;
+            font-size: 22px;
+            color: var(--blue);
+            margin: 0 0 8px;
+            text-shadow: 0 0 30px rgba(56,189,248,0.4);
+        }
+        .header-sub {
+            font-size: 9px;
+            color: var(--dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .headphone-tip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: var(--muted);
+            background: rgba(56,189,248,0.07);
+            border: 1px solid rgba(56,189,248,0.2);
+            padding: 5px 12px;
             border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 25px;
         }
-        canvas { width: 100%; height: 100px; border-radius: 10px; }
-        #status { font-size: 11px; color: var(--accent-blue); margin-top: 10px; text-align: center; min-height: 1.5em; }
 
-        .section-label { font-size: 12px; color: var(--text-dim); margin: 20px 0 10px 5px; border-left: 3px solid var(--accent-blue); padding-left: 8px; }
+        /* ===== CARD ===== */
+        .card {
+            background: var(--panel);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 18px;
+        }
 
-        .mode-selector { display: flex; gap: 8px; margin-bottom: 20px; }
+        /* ===== VISUALIZER ===== */
+        #viz {
+            display: block;
+            width: 100%;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.35);
+        }
+        .viz-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 8px;
+        }
+        .freq-display {
+            font-size: 11px;
+            color: var(--blue);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .brainwave-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 9px;
+            border-radius: 20px;
+            font-size: 10.5px;
+            border: 1px solid transparent;
+            transition: background 0.4s, border-color 0.4s;
+            white-space: nowrap;
+        }
+        .bw-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.4s;
+        }
+        #bwName  { font-weight: 600; transition: color 0.4s; }
+        #bwState { color: var(--muted); font-size: 9.5px; }
+        #status {
+            font-size: 10px;
+            color: var(--dim);
+            text-align: center;
+            margin-top: 8px;
+            min-height: 1.4em;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== SECTION LABEL ===== */
+        .section-label {
+            font-size: 10.5px;
+            color: var(--muted);
+            margin: 16px 0 8px 2px;
+            padding-left: 9px;
+            border-left: 2px solid var(--blue);
+            letter-spacing: 1.5px;
+        }
+
+        /* ===== MODE SELECTOR ===== */
+        .mode-selector {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
         .mode-btn {
-            flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-dim); padding: 10px; border-radius: 8px; font-size: 11px; cursor: pointer;
+            flex: 1;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 9px 4px;
+            border-radius: 10px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            line-height: 1.3;
         }
-        .mode-btn.active { background: var(--accent-blue); color: #0f172a; font-weight: bold; }
+        .mode-btn:hover:not(.active) { background: rgba(255,255,255,0.08); color: var(--text); }
+        .mode-btn.active {
+            background: var(--blue);
+            color: #0f172a;
+            font-weight: 700;
+            border-color: var(--blue);
+        }
 
-        /* プリセットグリッド */
-        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        /* ===== PRESET GRID ===== */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
         .preset-btn {
-            background: #334155; color: white; border: none; padding: 14px 8px; border-radius: 12px;
-            font-size: 13px; cursor: pointer; transition: 0.2s;
+            background: linear-gradient(145deg, #1a3050, #152540);
+            border: 1px solid rgba(56,189,248,0.14);
+            color: var(--text);
+            padding: 12px 8px 10px;
+            border-radius: 12px;
+            font-size: 12.5px;
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+            font-family: inherit;
+            line-height: 1.35;
+            text-align: center;
         }
-        .preset-btn.active { outline: 2px solid var(--accent-blue); background: #3e4e63; }
-        .special-btn { grid-column: span 2; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-weight: bold; }
+        .preset-btn:hover:not(.active) {
+            background: linear-gradient(145deg, #21405f, #1a3550);
+            border-color: rgba(56,189,248,0.32);
+        }
+        .preset-btn.active {
+            background: var(--blue-dim);
+            border-color: var(--blue);
+            box-shadow: 0 0 14px var(--blue-glow), inset 0 0 10px rgba(56,189,248,0.08);
+        }
+        .preset-btn.special {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(251,191,36,0.07), rgba(251,191,36,0.04));
+            border-color: rgba(251,191,36,0.28);
+            color: var(--gold);
+        }
+        .preset-btn.special:hover:not(.active) { border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.1); }
+        .preset-btn.special.active {
+            background: rgba(251,191,36,0.15);
+            border-color: var(--gold);
+            box-shadow: 0 0 14px rgba(251,191,36,0.35), inset 0 0 10px rgba(251,191,36,0.06);
+        }
+        .preset-hz {
+            display: block;
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+        .preset-btn.active     .preset-hz { color: var(--blue); }
+        .preset-btn.special.active .preset-hz { color: var(--gold); }
 
-        .slider-group { margin-bottom: 25px; }
-        input[type=range] { -webkit-appearance: none; width: 100%; background: #475569; height: 6px; border-radius: 3px; }
+        /* ===== SLIDER ===== */
+        .slider-group { margin-bottom: 18px; }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        .slider-val {
+            color: var(--blue);
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .slider-unit { color: var(--muted); font-size: 12px; }
+        .bw-scale {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--dim);
+            margin-top: 5px;
+            padding: 0 2px;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: rgba(255,255,255,0.09);
+            height: 5px;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: var(--accent-blue); border: 3px solid #fff; cursor: pointer;
+            -webkit-appearance: none;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: var(--blue);
+            border: 3px solid #0f172a;
+            box-shadow: 0 0 8px rgba(56,189,248,0.55);
+            cursor: pointer;
+            transition: box-shadow 0.15s;
+        }
+        input[type=range]:active::-webkit-slider-thumb { box-shadow: 0 0 16px rgba(56,189,248,0.8); }
+        input[type=range]::-moz-range-thumb {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: var(--blue);
+            border: 3px solid #0f172a;
+            cursor: pointer;
         }
 
-        .color-selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 20px; }
+        /* ===== SOLFEGGIO SELECT ===== */
+        .styled-select {
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+            background: linear-gradient(135deg, #1a3050, #152540);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%2338bdf8'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            color: var(--text);
+            border: 1px solid rgba(56,189,248,0.2);
+            padding: 12px 38px 12px 14px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .styled-select:hover { border-color: rgba(56,189,248,0.4); }
+        .styled-select:focus { border-color: var(--blue); }
+        .styled-select option { background: #1e2d44; }
+
+        /* ===== COLOR SELECTOR ===== */
+        .color-selector {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
         .color-btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-dim); padding: 8px 2px; border-radius: 6px; font-size: 10px; cursor: pointer;
+            flex: 1;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 9px 3px;
+            border-radius: 9px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-family: inherit;
+            line-height: 1.4;
         }
-        .color-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(56, 189, 248, 0.1); }
+        .color-btn:hover:not(.active) { background: rgba(255,255,255,0.08); color: var(--text); }
+        .color-btn.active {
+            border-color: var(--blue);
+            color: var(--blue);
+            background: var(--blue-dim);
+        }
 
+        /* ===== MIXER ===== */
         .mixer-grid {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
-            background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 11px;
+            background: rgba(0,0,0,0.22);
+            padding: 14px;
+            border-radius: 14px;
         }
-        .mixer-item { display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
+        .mixer-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+        .mixer-item input[type=range] {
+            background: rgba(255,255,255,0.07);
+            height: 4px;
+        }
+        .mixer-item input[type=range]::-webkit-slider-thumb {
+            width: 16px; height: 16px;
+            border-width: 2px;
+        }
 
+        /* ===== FOOTER ===== */
+        .footer-info { text-align: center; font-size: 10px; color: var(--dim); margin-top: 14px; }
+
+        /* ===== BOTTOM NAV ===== */
         .bottom-nav {
-            position: sticky; bottom: 20px; background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(20px); border-radius: 35px; padding: 12px 25px;
-            display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.1);
-            margin-top: 30px;
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background: rgba(8,18,36,0.96);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border-top: 1px solid rgba(56,189,248,0.12);
+            padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 0px));
+            z-index: 100;
         }
-        .play-btn { width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--accent-blue); color: #0f172a; font-size: 20px; cursor: pointer; }
-        select { background: transparent; color: #fff; border: none; font-size: 14px; outline: none; }
-        .footer-info { text-align: center; font-size: 10px; color: var(--text-dim); margin-top: 25px; }
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* Timer area */
+        .timer-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            min-width: 75px;
+        }
+        .timer-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .timer-icon { font-size: 13px; }
+        select.timer-select {
+            background: transparent;
+            color: var(--text);
+            border: none;
+            font-size: 12px;
+            outline: none;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .timer-select option { background: #0f172a; }
+        .timer-countdown {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--blue);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 1px;
+            min-height: 18px;
+            text-align: center;
+        }
+        .timer-label-text { font-size: 9px; color: var(--dim); }
+
+        /* Play button container */
+        .play-container {
+            position: relative;
+            width: 66px;
+            height: 66px;
+            flex-shrink: 0;
+        }
+        .timer-ring-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 66px; height: 66px;
+            /* ring starts at 12 o'clock */
+            transform: rotate(-90deg);
+            pointer-events: none;
+        }
+        .ring-track {
+            fill: none;
+            stroke: rgba(255,255,255,0.07);
+            stroke-width: 3;
+        }
+        #timerRingPath {
+            fill: none;
+            stroke: var(--blue);
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-dasharray: 175.9;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 1s linear;
+        }
+        .play-btn {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            border: none;
+            background: var(--blue);
+            color: #0f172a;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .play-btn:hover { transform: translate(-50%, -50%) scale(1.06); }
+        .play-btn:active { transform: translate(-50%, -50%) scale(0.95); }
+        @keyframes playPulse {
+            0%   { box-shadow: 0 0 0 0   rgba(56,189,248,0.55); }
+            60%  { box-shadow: 0 0 0 10px rgba(56,189,248,0);   }
+            100% { box-shadow: 0 0 0 0   rgba(56,189,248,0);    }
+        }
+        .play-btn.playing { animation: playPulse 2.2s ease-out infinite; background: #22d3ee; }
+
+        /* Volume area */
+        .volume-area {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 90px;
+        }
+        .vol-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--muted);
+            align-items: baseline;
+        }
+        .vol-val { color: var(--blue); font-weight: 700; }
+        #volSlider { width: 100%; }
+
+        /* Keyboard hint */
+        .keyboard-hint {
+            text-align: center;
+            font-size: 9px;
+            color: var(--dim);
+            margin-top: 6px;
+        }
+        .kbd {
+            display: inline-block;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 3px;
+            padding: 0 4px;
+            font-family: monospace;
+            font-size: 9px;
+        }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <header><h1>禅スタジオ</h1></header>
 
-    <div class="visual-card">
-        <canvas id="viz"></canvas>
-        <div id="status">音響システム待機中</div>
+    <!-- ===== HEADER ===== -->
+    <header>
+        <h1>禅スタジオ</h1>
+        <div class="header-sub">能力開発エディション</div>
+        <div class="headphone-tip">🎧 バイノーラル効果のためヘッドホン必須</div>
+    </header>
+
+    <!-- ===== VISUALIZER CARD ===== -->
+    <div class="card">
+        <canvas id="viz" height="110"></canvas>
+        <div class="viz-info">
+            <div class="freq-display" id="freqDisplay">852Hz + 29Hz</div>
+            <div class="brainwave-badge" id="brainwaveBadge">
+                <div class="bw-dot" id="bwDot"></div>
+                <span id="bwName">β ベータ波</span>
+                <span style="font-size:9px;color:var(--dim)">｜</span>
+                <span id="bwState">集中・覚醒</span>
+            </div>
+        </div>
+        <div id="status">音響システム待機中 · <span class="kbd">Space</span> キーで再生</div>
     </div>
 
+    <!-- ===== 再生モード ===== -->
     <div class="section-label">再生モード</div>
     <div class="mode-selector">
-        <button class="mode-btn active" id="modeBoth" onclick="changeMode('both')">同時再生</button>
-        <button class="mode-btn" id="modeFreq" onclick="changeMode('freq')">周波数のみ</button>
-        <button class="mode-btn" id="modeNature" onclick="changeMode('nature')">環境音のみ</button>
+        <button class="mode-btn active" id="modeBoth"   onclick="changeMode('both')">🎵 同時再生</button>
+        <button class="mode-btn"        id="modeFreq"   onclick="changeMode('freq')">〜 周波数のみ</button>
+        <button class="mode-btn"        id="modeNature" onclick="changeMode('nature')">🌿 環境音のみ</button>
     </div>
 
+    <!-- ===== 能力開発プリセット ===== -->
     <div class="section-label">能力開発トレーニング</div>
     <div class="preset-grid">
-        <button class="preset-btn special-btn" id="btn-eidetic" onclick="setPreset('eidetic')">✨ 写真記憶 (6.3Hz)</button>
-        <button class="preset-btn" id="btn-speedread" onclick="setPreset('speedread')">① 速読・視力 (11Hz)</button>
-        <button class="preset-btn" id="btn-flash" onclick="setPreset('flash')">② 爆速暗算 (40Hz)</button>
-        <button class="preset-btn" id="btn-zone" onclick="setPreset('zone')">④ ゾーン突入 (9Hz)</button>
-        <button class="preset-btn" id="btn-lang" onclick="setPreset('lang')">⑥ 語学聴解 (5.5Hz)</button>
-        <button class="preset-btn" id="btn-autonomic" onclick="setPreset('autonomic')">⑧ 自律神経 (10Hz)</button>
-        <button class="preset-btn" id="btn-peace" onclick="setPreset('peace')">⑨ 心の平穏 (7.8Hz)</button>
-        <button class="preset-btn special-btn" id="btn-multi" onclick="setPreset('multi')">⑩ 多角思考 (14Hz)</button>
+        <button class="preset-btn special" id="btn-eidetic"   onclick="setPreset('eidetic')">
+            ✨ 写真記憶
+            <span class="preset-hz">θ波 6.3Hz · 852Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-speedread" onclick="setPreset('speedread')">
+            👁 速読・視力向上
+            <span class="preset-hz">α波 11Hz · 528Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-flash"     onclick="setPreset('flash')">
+            ⚡ 爆速暗算
+            <span class="preset-hz">γ波 40Hz · 528Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-zone"      onclick="setPreset('zone')">
+            🎯 ゾーン突入
+            <span class="preset-hz">α波 9Hz · 432Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-lang"      onclick="setPreset('lang')">
+            👂 語学聴解
+            <span class="preset-hz">θ波 5.5Hz · 528Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-autonomic" onclick="setPreset('autonomic')">
+            💆 自律神経
+            <span class="preset-hz">α波 10Hz · 432Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-peace"     onclick="setPreset('peace')">
+            🕊 心の平穏
+            <span class="preset-hz">α波 7.8Hz · 174Hz</span>
+        </button>
+        <button class="preset-btn special" id="btn-multi" onclick="setPreset('multi')">
+            🔮 多角的思考
+            <span class="preset-hz">β波 14Hz · 528Hz</span>
+        </button>
     </div>
 
+    <!-- ===== 基本プリセット ===== -->
     <div class="section-label">基本プリセット</div>
     <div class="preset-grid">
-        <button class="preset-btn" id="btn-sleep" onclick="setPreset('sleep')">睡眠 (2Hz)</button>
-        <button class="preset-btn" id="btn-meditation" onclick="setPreset('meditation')">瞑想 (6Hz)</button>
-        <button class="preset-btn" id="btn-study" onclick="setPreset('study')">学習 (10Hz)</button>
-        <button class="preset-btn active" id="btn-focus" onclick="setPreset('focus')">集中 (29Hz)</button>
+        <button class="preset-btn" id="btn-sleep"      onclick="setPreset('sleep')">
+            💤 睡眠
+            <span class="preset-hz">δ波 2Hz · 174Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-meditation" onclick="setPreset('meditation')">
+            🧘 瞑想
+            <span class="preset-hz">θ波 6Hz · 432Hz</span>
+        </button>
+        <button class="preset-btn" id="btn-study"      onclick="setPreset('study')">
+            📚 学習
+            <span class="preset-hz">α波 10Hz · 528Hz</span>
+        </button>
+        <button class="preset-btn active" id="btn-focus" onclick="setPreset('focus')">
+            🔥 集中
+            <span class="preset-hz">β波 29Hz · 528Hz</span>
+        </button>
     </div>
 
+    <!-- ===== バイノーラル周波数スライダー ===== -->
+    <div class="section-label">バイノーラルビート周波数</div>
     <div class="slider-group">
-        <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px;">
-            <span>バイノーラル周波数</span>
-            <span style="color:var(--accent-blue); font-weight:bold;"><span id="beatDisp">29</span> Hz</span>
+        <div class="slider-label">
+            <span style="font-size:13px">ビート周波数</span>
+            <span>
+                <span class="slider-val" id="beatDisp">29</span>
+                <span class="slider-unit"> Hz</span>
+            </span>
         </div>
         <input type="range" id="beatSlider" min="0.5" max="40" step="0.5" value="29">
+        <div class="bw-scale">
+            <span>δ 0.5Hz</span>
+            <span>θ 4Hz</span>
+            <span>α 8Hz</span>
+            <span>β 13Hz</span>
+            <span>γ 30Hz+</span>
+        </div>
     </div>
 
+    <!-- ===== ソルフェジオ周波数 ===== -->
     <div class="section-label">基本周波数（ソルフェジオ）</div>
-    <select id="baseSelect" style="width:100%; background:#334155; padding:12px; border-radius:10px; margin-bottom:20px;">
-        <option value="174">174Hz (苦痛の軽減・平穏)</option>
-        <option value="432">432Hz (自然界・ゾーン・自律神経)</option>
-        <option value="528">528Hz (理想の修復・学習・速読)</option>
-        <option value="639">639Hz (対人関係の向上)</option>
-        <option value="852" selected>852Hz (直感力の覚醒・写真記憶)</option>
+    <select id="baseSelect" class="styled-select">
+        <option value="174">174Hz — 苦痛の軽減・安心感・基盤</option>
+        <option value="432">432Hz — 自然界の共鳴・ゾーン・自律神経</option>
+        <option value="528">528Hz — DNA修復・理想の創造・速読</option>
+        <option value="639">639Hz — 対人関係の向上・共感・調和</option>
+        <option value="852" selected>852Hz — 直感力の覚醒・写真記憶</option>
     </select>
 
-    <div class="section-label">ノイズ・カラー</div>
+    <!-- ===== ノイズカラー ===== -->
+    <div class="section-label">ノイズカラー</div>
     <div class="color-selector">
-        <button class="color-btn" id="col-white" onclick="setColor('white')">白</button>
-        <button class="color-btn" id="col-pink" onclick="setColor('pink')">桃</button>
-        <button class="color-btn active" id="col-brown" onclick="setColor('brown')">茶</button>
-        <button class="color-btn" id="col-blue" onclick="setColor('blue')">青</button>
-        <button class="color-btn" id="col-violet" onclick="setColor('violet')">紫</button>
+        <button class="color-btn"        id="col-white"  onclick="setColor('white')">⬜<br>白</button>
+        <button class="color-btn"        id="col-pink"   onclick="setColor('pink')">🌸<br>桃</button>
+        <button class="color-btn active" id="col-brown"  onclick="setColor('brown')">🟫<br>茶</button>
+        <button class="color-btn"        id="col-blue"   onclick="setColor('blue')">🔵<br>青</button>
+        <button class="color-btn"        id="col-violet" onclick="setColor('violet')">🟣<br>紫</button>
     </div>
 
+    <!-- ===== 環境音ミキサー ===== -->
     <div class="section-label">環境音ミキサー</div>
     <div class="mixer-grid" id="mixer"></div>
-
-    <div class="bottom-nav">
-        <select id="timer">
-            <option value="0">なし</option>
-            <option value="15">15分</option>
-            <option value="30">30分</option>
-            <option value="60">60分</option>
-        </select>
-        <button class="play-btn" id="playBtn">▶</button>
-        <div style="font-size:11px">音量: <span id="volDisp">80</span>%</div>
-    </div>
 
     <div class="footer-info">制作：松乃木飯店</div>
 </div>
 
+<!-- ===== BOTTOM NAV ===== -->
+<div class="bottom-nav">
+    <div class="nav-inner">
+
+        <!-- タイマー -->
+        <div class="timer-area">
+            <div class="timer-row">
+                <span class="timer-icon">⏱</span>
+                <select class="timer-select" id="timer">
+                    <option value="0">タイマーなし</option>
+                    <option value="15">15 分</option>
+                    <option value="30">30 分</option>
+                    <option value="60">60 分</option>
+                </select>
+            </div>
+            <div class="timer-countdown" id="timerCountdown"></div>
+        </div>
+
+        <!-- 再生ボタン + タイマーリング -->
+        <div class="play-container">
+            <svg class="timer-ring-svg" viewBox="0 0 66 66">
+                <circle class="ring-track" cx="33" cy="33" r="28"/>
+                <circle id="timerRingPath" cx="33" cy="33" r="28"/>
+            </svg>
+            <button class="play-btn" id="playBtn" aria-label="再生">▶</button>
+        </div>
+
+        <!-- 音量 -->
+        <div class="volume-area">
+            <div class="vol-header">
+                <span>🔊 音量</span>
+                <span class="vol-val"><span id="volDisp">80</span>%</span>
+            </div>
+            <input type="range" id="volSlider" min="0" max="100" value="80">
+        </div>
+
+    </div>
+    <div class="keyboard-hint">
+        <span class="kbd">Space</span> 再生 / 一時停止 &nbsp;|&nbsp; プリセットを選んで ▶ を押してください
+    </div>
+</div>
+
 <script>
+/* ================================================================
+   禅スタジオ  -  Audio Engine + UI Controller
+   修正内容:
+     1. Canvas解像度バグ修正 (300×150固定 → 正確なオフセット幅)
+     2. 初回再生ボタンのバグ修正 (AudioContext state管理を改善)
+     3. StereoPanner削除 → ChannelMerger直結でバイノーラル効果を修正
+     4. 音量スライダーを実装 (従来は静的表示のみ)
+     5. タイマーカウントダウン＋SVGリングアニメーションを実装
+     6. 脳波状態バッジ (δ/θ/α/β/γ)
+     7. スペースキーショートカット
+     8. プリセット番号の飛びを修正
+================================================================ */
+
+    // ── サウンド定義（元コードと同一） ──────────────────────────
     const sounds = [
-        { id: 'rain', name: '本降りの雨', type: 'lowpass', freq: 1500, q: 1, impulse: 0.08 },
-        { id: 'wave', name: '深みのある波', type: 'lowpass', freq: 400, q: 2, surge: true },
-        { id: 'fire', name: '薪の焚き火', type: 'highpass', freq: 2500, q: 0.5, crackle: 0.05 },
-        { id: 'river', name: 'せせらぎ', type: 'lowpass', freq: 1500, q: 5, lfo: 2.5 },
-        { id: 'wind', name: '吹き抜ける風', type: 'bandpass', freq: 300, q: 1, dynamic: true },
-        { id: 'deep', name: '深海の響き', type: 'lowpass', freq: 100, q: 1 }
+        { id: 'rain',  name: '本降りの雨',   type: 'lowpass',   freq: 1500, q: 1,   impulse: 0.08 },
+        { id: 'wave',  name: '深みのある波',  type: 'lowpass',   freq: 400,  q: 2,   surge: true   },
+        { id: 'fire',  name: '薪の焚き火',   type: 'highpass',  freq: 2500, q: 0.5, crackle: 0.05 },
+        { id: 'river', name: 'せせらぎ',     type: 'lowpass',   freq: 1500, q: 5,   lfo: 2.5      },
+        { id: 'wind',  name: '吹き抜ける風', type: 'bandpass',  freq: 300,  q: 1,   dynamic: true },
+        { id: 'deep',  name: '深海の響き',   type: 'lowpass',   freq: 100,  q: 1                  }
     ];
 
+    // ── 状態変数 ─────────────────────────────────────────────────
     let audioCtx, oscL, oscR, masterGain, analyser, binauralGain, natureMasterGain;
-    let isPlaying = false, currentMode = 'both', baseHz = 852, beatHz = 29, noiseColor = 'brown';
+    let isPlaying    = false;
+    let currentMode  = 'both';
+    let baseHz       = 852;
+    let beatHz       = 29;
+    let noiseColor   = 'brown';
     let noiseSources = [];
 
-    const mixer = document.getElementById('mixer');
+    // タイマー管理
+    let timerInterval = null;
+    let timerRemaining = 0;
+    let timerTotal     = 0;
+    const RING_CIRCUM  = 2 * Math.PI * 28; // r=28 → ≈175.93
+
+    // ── ミキサーUI構築 ────────────────────────────────────────────
+    const mixerEl = document.getElementById('mixer');
     sounds.forEach(s => {
-        const d = document.createElement('div'); d.className = 'mixer-item';
-        d.innerHTML = `<span>${s.name}</span><input type="range" id="vol-${s.id}" min="0" max="100" value="0">`;
-        mixer.appendChild(d);
+        const d = document.createElement('div');
+        d.className = 'mixer-item';
+        d.innerHTML = `<span>${s.name}</span>
+                       <input type="range" id="vol-${s.id}" min="0" max="100" value="0">`;
+        mixerEl.appendChild(d);
     });
 
+    // ── 脳波情報 ─────────────────────────────────────────────────
+    function getBrainwaveInfo(hz) {
+        if (hz <=  4) return { wave: 'δ デルタ波', state: '深い眠り・回復',    color: '#7c3aed', bg: 'rgba(124,58,237,0.14)'  };
+        if (hz <=  8) return { wave: 'θ シータ波', state: '瞑想・直感・創造',  color: '#3b82f6', bg: 'rgba(59,130,246,0.14)'  };
+        if (hz <= 13) return { wave: 'α アルファ波', state: 'リラックス・集中準備', color: '#10b981', bg: 'rgba(16,185,129,0.14)' };
+        if (hz <= 30) return { wave: 'β ベータ波',  state: '集中・覚醒・思考',  color: '#f59e0b', bg: 'rgba(245,158,11,0.14)' };
+        return              { wave: 'γ ガンマ波',  state: '高次認知・高速処理', color: '#ef4444', bg: 'rgba(239,68,68,0.14)'  };
+    }
+
+    function updateBrainwaveBadge() {
+        const info  = getBrainwaveInfo(beatHz);
+        const badge = document.getElementById('brainwaveBadge');
+        const dot   = document.getElementById('bwDot');
+        badge.style.background   = info.bg;
+        badge.style.borderColor  = info.color;
+        dot.style.background     = info.color;
+        const nameEl = document.getElementById('bwName');
+        nameEl.textContent  = info.wave;
+        nameEl.style.color  = info.color;
+        document.getElementById('bwState').textContent = info.state;
+        document.getElementById('freqDisplay').textContent = `${baseHz}Hz + ${beatHz}Hz`;
+    }
+
+    // ── Canvas解像度修正 ─────────────────────────────────────────
+    // 【バグ修正】CSS width:100% で表示サイズは広いが内部バッファは300×150固定だった
+    function resizeCanvas() {
+        const c = document.getElementById('viz');
+        const w = c.offsetWidth;
+        if (w > 0 && c.width !== w) {
+            c.width  = w;
+            c.height = 110;
+        }
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // ── ノイズバッファ生成（元コードと同一アルゴリズム） ───────────
     function generateNoiseBuffer(color) {
-        const duration = 2; const bufferSize = audioCtx.sampleRate * duration;
+        const bufferSize = audioCtx.sampleRate * 2;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        if (color === 'white') { for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; }
-        else if (color === 'pink') {
+        const data   = buffer.getChannelData(0);
+        if (color === 'white') {
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        } else if (color === 'pink') {
             let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
             for (let i = 0; i < bufferSize; i++) {
-                let w = Math.random() * 2 - 1;
-                b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.96900 * b2 + w * 0.1538520;
-                b3 = 0.86650 * b3 + w * 0.3104856; b4 = 0.55000 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.0168980;
-                data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; data[i] *= 0.11; b6 = w * 0.115926;
+                const w = Math.random()*2-1;
+                b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+                b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+                b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+                data[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
             }
         } else if (color === 'brown') {
-            let last = 0.0; for (let i = 0; i < bufferSize; i++) {
-                let w = Math.random() * 2 - 1; data[i] = (last + (0.02 * w)) / 1.02; last = data[i]; data[i] *= 3.5;
+            let last = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const w = Math.random()*2-1;
+                data[i] = (last+(0.02*w))/1.02; last=data[i]; data[i]*=3.5;
             }
         } else if (color === 'blue') {
-            let last = 0.0; for (let i = 0; i < bufferSize; i++) { let w = Math.random() * 2 - 1; data[i] = (w - last) * 0.5; last = w; }
+            let last = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const w=Math.random()*2-1; data[i]=(w-last)*0.5; last=w;
+            }
         } else if (color === 'violet') {
-            let l1=0, l2=0; for (let i = 0; i < bufferSize; i++) {
-                let w = Math.random() * 2 - 1; let h = w - l1; data[i] = (h - l2) * 0.25; l1 = w; l2 = h;
+            let l1=0,l2=0;
+            for (let i = 0; i < bufferSize; i++) {
+                const w=Math.random()*2-1, h=w-l1;
+                data[i]=(h-l2)*0.25; l1=w; l2=h;
             }
         }
         return buffer;
     }
 
+    // ── AudioContext 初期化 ───────────────────────────────────────
     function init() {
         if (audioCtx) return;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser(); masterGain = audioCtx.createGain(); masterGain.gain.value = 0.8;
+
+        // アナライザー
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;  // frequencyBinCount = 256
+
+        // マスターゲイン
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = parseFloat(document.getElementById('volSlider').value) / 100;
         masterGain.connect(audioCtx.destination);
-        binauralGain = audioCtx.createGain(); natureMasterGain = audioCtx.createGain();
-        binauralGain.connect(analyser); natureMasterGain.connect(analyser); analyser.connect(masterGain);
-        oscL = audioCtx.createOscillator(); oscR = audioCtx.createOscillator();
+
+        // バイノーラル / 環境音 ゲイン
+        binauralGain     = audioCtx.createGain();
+        natureMasterGain = audioCtx.createGain();
+        binauralGain.connect(analyser);
+        natureMasterGain.connect(analyser);
+        analyser.connect(masterGain);
+
+        // 【バグ修正】StereoPanner を削除し ChannelMerger へ直結
+        // 旧: oscL → StereoPanner(pan=-1) → merger → …
+        //      → ステレオ信号がモノ入力に接続されダウンミックス → L/R振幅が均等化されバイノーラル減衰
+        // 新: oscL → merger(入力0=左ch) / oscR → merger(入力1=右ch)
+        oscL = audioCtx.createOscillator();
+        oscR = audioCtx.createOscillator();
         const merger = audioCtx.createChannelMerger(2);
-        const pL = audioCtx.createStereoPanner(); pL.pan.value = -1;
-        const pR = audioCtx.createStereoPanner(); pR.pan.value = 1;
-        oscL.connect(pL).connect(merger, 0, 0); oscR.connect(pR).connect(merger, 0, 1);
-        merger.connect(binauralGain); oscL.start(); oscR.start();
-        updateNatureSounds(); applyMode(); update(); draw();
+        oscL.connect(merger, 0, 0);  // 左耳 = baseHz
+        oscR.connect(merger, 0, 1);  // 右耳 = baseHz + beatHz
+        merger.connect(binauralGain);
+        oscL.start();
+        oscR.start();
+
+        updateNatureSounds();
+        applyMode();
+        update();
+        draw();  // アニメーションループ開始
     }
 
+    // ── 環境音ノイズソース更新 ───────────────────────────────────
     function updateNatureSounds() {
-        noiseSources.forEach(s => s.source.stop()); noiseSources = [];
+        noiseSources.forEach(s => { try { s.source.stop(); } catch(e){} });
+        noiseSources = [];
+        if (!audioCtx) return;
+
         sounds.forEach(s => {
-            const src = audioCtx.createBufferSource(); src.buffer = generateNoiseBuffer(noiseColor); src.loop = true;
-            const filter = audioCtx.createBiquadFilter(); filter.type = s.type; filter.frequency.value = s.freq; filter.Q.value = s.q;
-            const g = audioCtx.createGain(); const vIn = document.getElementById(`vol-${s.id}`);
+            const src    = audioCtx.createBufferSource();
+            src.buffer   = generateNoiseBuffer(noiseColor);
+            src.loop     = true;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type  = s.type;
+            filter.frequency.value = s.freq;
+            filter.Q.value = s.q;
+            const g = audioCtx.createGain();
+            const vIn = document.getElementById(`vol-${s.id}`);
             g.gain.value = (vIn.value / 100) * 0.4;
+
             if (s.surge) {
-                const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.12;
-                const lg = audioCtx.createGain(); lg.gain.value = 300; lfo.connect(lg).connect(filter.frequency);
-                const vg = audioCtx.createGain(); vg.gain.value = 0.2; lfo.connect(vg).connect(g.gain); lfo.start();
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = 0.12;
+                const lg = audioCtx.createGain(); lg.gain.value = 300;
+                lfo.connect(lg).connect(filter.frequency);
+                const vg = audioCtx.createGain(); vg.gain.value = 0.2;
+                lfo.connect(vg).connect(g.gain);
+                lfo.start();
             }
-            src.connect(filter).connect(g).connect(natureMasterGain); src.start();
-            noiseSources.push({source: src, gain: g});
-            vIn.oninput = (e) => g.gain.setTargetAtTime((e.target.value/100) * 0.4, audioCtx.currentTime, 0.1);
+            src.connect(filter).connect(g).connect(natureMasterGain);
+            src.start();
+            noiseSources.push({ source: src, gain: g });
+            vIn.oninput = e =>
+                g.gain.setTargetAtTime((e.target.value / 100) * 0.4, audioCtx.currentTime, 0.1);
         });
     }
 
-    window.setColor = (color) => {
-        noiseColor = color; document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('col-' + color).classList.add('active'); if (audioCtx) updateNatureSounds();
+    // ── ノイズカラー変更 ─────────────────────────────────────────
+    window.setColor = color => {
+        noiseColor = color;
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('col-' + color).classList.add('active');
+        if (audioCtx) updateNatureSounds();
     };
 
-    window.setPreset = (type) => {
+    // ── プリセット適用（元コードと同一の周波数・カラー設定） ──────
+    window.setPreset = type => {
         document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-' + type).classList.add('active');
         const bSel = document.getElementById('baseSelect');
-        switch(type) {
-            case 'eidetic': beatHz = 6.3; baseHz = 852; setColor('pink'); bSel.value = "852"; break;
-            case 'speedread': beatHz = 11; baseHz = 528; setColor('pink'); bSel.value = "528"; break;
-            case 'flash': beatHz = 40; baseHz = 528; setColor('white'); bSel.value = "528"; break;
-            case 'zone': beatHz = 9; baseHz = 432; setColor('pink'); bSel.value = "432"; break;
-            case 'lang': beatHz = 5.5; baseHz = 528; setColor('pink'); bSel.value = "528"; break;
-            case 'autonomic': beatHz = 10; baseHz = 432; setColor('brown'); bSel.value = "432"; break;
-            case 'peace': beatHz = 7.8; baseHz = 174; setColor('brown'); bSel.value = "174"; break;
-            case 'multi': beatHz = 14; baseHz = 528; setColor('white'); bSel.value = "528"; break;
-            case 'sleep': beatHz = 2; baseHz = 174; setColor('brown'); bSel.value = "174"; break;
-            case 'meditation': beatHz = 6; baseHz = 432; setColor('pink'); bSel.value = "432"; break;
-            case 'study': beatHz = 10; baseHz = 528; setColor('pink'); bSel.value = "528"; break;
-            case 'focus': beatHz = 29; baseHz = 528; setColor('white'); bSel.value = "528"; break;
+        switch (type) {
+            case 'eidetic':    beatHz=6.3;  baseHz=852; setColor('pink');  bSel.value='852'; break;
+            case 'speedread':  beatHz=11;   baseHz=528; setColor('pink');  bSel.value='528'; break;
+            case 'flash':      beatHz=40;   baseHz=528; setColor('white'); bSel.value='528'; break;
+            case 'zone':       beatHz=9;    baseHz=432; setColor('pink');  bSel.value='432'; break;
+            case 'lang':       beatHz=5.5;  baseHz=528; setColor('pink');  bSel.value='528'; break;
+            case 'autonomic':  beatHz=10;   baseHz=432; setColor('brown'); bSel.value='432'; break;
+            case 'peace':      beatHz=7.8;  baseHz=174; setColor('brown'); bSel.value='174'; break;
+            case 'multi':      beatHz=14;   baseHz=528; setColor('white'); bSel.value='528'; break;
+            case 'sleep':      beatHz=2;    baseHz=174; setColor('brown'); bSel.value='174'; break;
+            case 'meditation': beatHz=6;    baseHz=432; setColor('pink');  bSel.value='432'; break;
+            case 'study':      beatHz=10;   baseHz=528; setColor('pink');  bSel.value='528'; break;
+            case 'focus':      beatHz=29;   baseHz=528; setColor('white'); bSel.value='528'; break;
         }
-        document.getElementById('beatSlider').value = beatHz; document.getElementById('beatDisp').innerText = beatHz; update();
+        document.getElementById('beatSlider').value   = beatHz;
+        document.getElementById('beatDisp').textContent = beatHz;
+        update();
+        updateBrainwaveBadge();
     };
 
+    // ── 再生モード切替（元コードと同一） ─────────────────────────
     function applyMode() {
-        if(!audioCtx) return; const now = audioCtx.currentTime;
-        binauralGain.gain.setTargetAtTime(currentMode === 'nature' ? 0 : 1, now, 0.2);
-        natureMasterGain.gain.setTargetAtTime(currentMode === 'freq' ? 0 : 1, now, 0.2);
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        binauralGain.gain.setTargetAtTime(    currentMode === 'nature' ? 0 : 1, now, 0.2);
+        natureMasterGain.gain.setTargetAtTime(currentMode === 'freq'   ? 0 : 1, now, 0.2);
     }
 
-    window.changeMode = (mode) => {
-        currentMode = mode; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active'); applyMode();
+    window.changeMode = mode => {
+        currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+        applyMode();
     };
 
+    // ── オシレーター周波数更新 ───────────────────────────────────
     function update() {
-        if(!audioCtx) return; oscL.frequency.setTargetAtTime(baseHz, audioCtx.currentTime, 0.2);
+        if (!audioCtx) return;
+        oscL.frequency.setTargetAtTime(baseHz,          audioCtx.currentTime, 0.2);
         oscR.frequency.setTargetAtTime(baseHz + beatHz, audioCtx.currentTime, 0.2);
-        document.getElementById('status').innerText = `${baseHz}Hz + ${beatHz}Hz 脳波誘導中`;
+        document.getElementById('status').innerHTML =
+            `${baseHz}Hz + ${beatHz}Hz 脳波誘導中 &nbsp;·&nbsp; <span class="kbd">Space</span> で一時停止`;
+        updateBrainwaveBadge();
     }
 
-    document.getElementById('beatSlider').oninput = (e) => {
-        beatHz = parseFloat(e.target.value); document.getElementById('beatDisp').innerText = beatHz; update();
-    };
-    document.getElementById('baseSelect').onchange = (e) => {
-        baseHz = parseFloat(e.target.value); update();
-    };
-    document.getElementById('playBtn').onclick = function() {
-        init(); if(audioCtx.state === 'suspended') {
-            audioCtx.resume(); this.innerHTML = 'Ⅱ'; isPlaying = true;
-            const t = parseInt(document.getElementById('timer').value);
-            if(t > 0) setTimeout(() => { masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 10); }, t * 60000);
-        } else { audioCtx.suspend(); this.innerHTML = '▶'; isPlaying = false; }
-    };
-    function draw() {
-        requestAnimationFrame(draw); const c = document.getElementById('viz'), ctx = c.getContext('2d');
-        const d = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(d);
-        ctx.clearRect(0,0,c.width,c.height);
-        for(let i=0; i<60; i++) {
-            const h = (d[i]/255) * c.height; ctx.fillStyle = `rgba(56, 189, 248, ${h/100 + 0.3})`;
-            ctx.fillRect(i * (c.width/60), c.height - h, (c.width/60)-2, h);
+    // ── タイマー ─────────────────────────────────────────────────
+    function startTimer(minutes) {
+        stopTimer();
+        timerTotal     = minutes * 60;
+        timerRemaining = timerTotal;
+        _renderTimer();
+        timerInterval = setInterval(() => {
+            timerRemaining--;
+            _renderTimer();
+            if (timerRemaining <= 0) {
+                clearInterval(timerInterval); timerInterval = null;
+                // フェードアウト
+                masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 10);
+                setTimeout(() => {
+                    if (audioCtx) audioCtx.suspend();
+                    const btn = document.getElementById('playBtn');
+                    btn.textContent = '▶';
+                    btn.classList.remove('playing');
+                    isPlaying = false;
+                    document.getElementById('timerCountdown').textContent = '';
+                    document.getElementById('status').innerHTML =
+                        '✅ タイマー終了 · <span class="kbd">Space</span> で再開';
+                }, 10500);
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        timerTotal = timerRemaining = 0;
+        document.getElementById('timerCountdown').textContent = '';
+        document.getElementById('timerRingPath').style.strokeDashoffset = 0;
+    }
+
+    function _renderTimer() {
+        const m = Math.floor(timerRemaining / 60);
+        const s = timerRemaining % 60;
+        document.getElementById('timerCountdown').textContent =
+            timerTotal > 0 ? `${m}:${String(s).padStart(2,'0')}` : '';
+        if (timerTotal > 0) {
+            const progress = timerRemaining / timerTotal;
+            document.getElementById('timerRingPath').style.strokeDashoffset =
+                RING_CIRCUM * (1 - progress);
         }
     }
+
+    // ── 再生ボタン ───────────────────────────────────────────────
+    // 【バグ修正】旧コードは初回クリックでAudioContext(running) → elseブランチ → 即suspend
+    document.getElementById('playBtn').onclick = async function () {
+        if (!audioCtx) {
+            // 初回: 初期化して再生スタート
+            init();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            isPlaying = true;
+            this.textContent = '⏸';
+            this.classList.add('playing');
+            const t = parseInt(document.getElementById('timer').value);
+            if (t > 0) startTimer(t);
+        } else if (!isPlaying || audioCtx.state === 'suspended') {
+            // 一時停止中 → 再開
+            await audioCtx.resume();
+            isPlaying = true;
+            this.textContent = '⏸';
+            this.classList.add('playing');
+            if (!timerInterval) {
+                const t = parseInt(document.getElementById('timer').value);
+                if (t > 0) startTimer(t);
+            }
+        } else {
+            // 再生中 → 一時停止
+            await audioCtx.suspend();
+            isPlaying = false;
+            this.textContent = '▶';
+            this.classList.remove('playing');
+        }
+    };
+
+    // ── スライダー / セレクト イベント ─────────────────────────
+    document.getElementById('beatSlider').oninput = e => {
+        beatHz = parseFloat(e.target.value);
+        document.getElementById('beatDisp').textContent = beatHz;
+        updateBrainwaveBadge();
+        update();
+    };
+
+    document.getElementById('baseSelect').onchange = e => {
+        baseHz = parseFloat(e.target.value);
+        update();
+    };
+
+    // 【新機能】音量スライダー（旧コードは静的表示のみ）
+    document.getElementById('volSlider').oninput = e => {
+        const vol = e.target.value / 100;
+        document.getElementById('volDisp').textContent = e.target.value;
+        if (masterGain) masterGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.1);
+    };
+
+    // ── キーボードショートカット (Space = 再生/一時停止) ─────────
+    document.addEventListener('keydown', e => {
+        if (e.code !== 'Space') return;
+        const tag = e.target.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button') return;
+        e.preventDefault();
+        document.getElementById('playBtn').click();
+    });
+
+    // ── 描画ループ ───────────────────────────────────────────────
+    // アイドル時はサイン波アニメーション、再生中はFFT周波数バー + 波形オーバーレイ
+    let idlePhase = 0;
+    function draw() {
+        requestAnimationFrame(draw);
+        resizeCanvas();  // Canvas解像度を毎フレーム確認して修正
+
+        const c   = document.getElementById('viz');
+        const ctx = c.getContext('2d');
+        const W = c.width, H = c.height;
+
+        ctx.clearRect(0, 0, W, H);
+
+        if (!analyser) {
+            // ── アイドル表示: ゆったりしたサイン波 ──
+            idlePhase += 0.012;
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(56,189,248,0.22)';
+            ctx.lineWidth   = 1.5;
+            for (let x = 0; x <= W; x++) {
+                const y = H/2 + Math.sin(x * 0.025 + idlePhase) * 12
+                               + Math.sin(x * 0.011 + idlePhase * 0.6) * 5;
+                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            return;
+        }
+
+        // ── 周波数バー ──
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(freqData);
+        const bars   = 56;
+        const barW   = W / bars;
+        const barGap = Math.max(1, barW * 0.12);
+
+        for (let i = 0; i < bars; i++) {
+            const ratio = freqData[i] / 255;
+            const barH  = ratio * H * 0.85;
+            if (barH < 1) continue;
+            const hue   = 195 + i * 0.55;
+            const x     = i * barW;
+            // グラデーション
+            const grad = ctx.createLinearGradient(0, H, 0, H - barH);
+            grad.addColorStop(0,   `hsla(${hue},90%,55%,0.8)`);
+            grad.addColorStop(0.5, `hsla(${hue+15},85%,65%,0.7)`);
+            grad.addColorStop(1,   `hsla(${hue+25},95%,78%,0.5)`);
+            ctx.fillStyle = grad;
+            // 発光
+            ctx.shadowColor = `hsla(${hue},100%,70%,${ratio * 0.7})`;
+            ctx.shadowBlur  = ratio * 8;
+            ctx.fillRect(x + barGap/2, H - barH, barW - barGap, barH);
+        }
+        ctx.shadowBlur = 0;
+
+        // ── 波形オーバーレイ ──
+        const waveData = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(waveData);
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(56,189,248,0.75)';
+        ctx.lineWidth   = 1.8;
+        ctx.shadowColor = 'rgba(56,189,248,0.5)';
+        ctx.shadowBlur  = 5;
+        const step = W / waveData.length;
+        for (let i = 0; i < waveData.length; i++) {
+            const v = waveData[i] / 128;
+            const y = (v * H) / 2;
+            i === 0 ? ctx.moveTo(i * step, y) : ctx.lineTo(i * step, y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+
+    // ── 起動時の初期表示更新 ─────────────────────────────────────
+    updateBrainwaveBadge();
+    draw();  // アニメーションループ開始（audioCtxなし → アイドルアニメ）
 </script>
 </body>
 </html>
