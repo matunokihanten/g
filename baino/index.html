@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>禅スタジオ - 能力開発エディション</title>
+    <title>禅スタジオ - 能力開発・低域サポート</title>
     <style>
         :root {
             --bg:         #0f172a;
@@ -42,7 +42,6 @@
             padding: 20px 16px calc(110px + env(safe-area-inset-bottom, 0px));
         }
 
-        /* ===== HEADER ===== */
         header {
             text-align: center;
             margin-bottom: 18px;
@@ -75,7 +74,6 @@
             border-radius: 20px;
         }
 
-        /* ===== CARD ===== */
         .card {
             background: var(--panel);
             backdrop-filter: blur(20px);
@@ -86,7 +84,6 @@
             margin-bottom: 18px;
         }
 
-        /* ===== VISUALIZER ===== */
         #viz {
             display: block;
             width: 100%;
@@ -135,7 +132,6 @@
             letter-spacing: 0.3px;
         }
 
-        /* ===== SECTION LABEL ===== */
         .section-label {
             font-size: 10.5px;
             color: var(--muted);
@@ -145,7 +141,6 @@
             letter-spacing: 1.5px;
         }
 
-        /* ===== MODE SELECTOR ===== */
         .mode-selector {
             display: flex;
             gap: 6px;
@@ -172,7 +167,6 @@
             border-color: var(--blue);
         }
         
-        /* 録音ボタン専用の点滅アニメーション */
         @keyframes recPulse {
             0%   { background: rgba(239,68,68,0.15); border-color: #ef4444; color: #ef4444; }
             50%  { background: rgba(239,68,68,0.4); border-color: #ef4444; color: #fff; }
@@ -182,7 +176,6 @@
             animation: recPulse 1.5s infinite;
         }
 
-        /* ===== PRESET GRID ===== */
         .preset-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -232,7 +225,6 @@
         .preset-btn.active     .preset-hz { color: var(--blue); }
         .preset-btn.special.active .preset-hz { color: var(--gold); }
 
-        /* ===== SLIDER ===== */
         .slider-group { margin-bottom: 18px; }
         .slider-label {
             display: flex;
@@ -284,7 +276,6 @@
             cursor: pointer;
         }
 
-        /* ===== SOLFEGGIO SELECT ===== */
         .styled-select {
             width: 100%;
             appearance: none;
@@ -308,7 +299,6 @@
         .styled-select:focus { border-color: var(--blue); }
         .styled-select option { background: #1e2d44; }
 
-        /* ===== COLOR SELECTOR ===== */
         .color-selector {
             display: flex;
             gap: 6px;
@@ -334,7 +324,6 @@
             background: var(--blue-dim);
         }
 
-        /* ===== MIXER ===== */
         .mixer-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -359,10 +348,8 @@
             border-width: 2px;
         }
 
-        /* ===== FOOTER ===== */
         .footer-info { text-align: center; font-size: 10px; color: var(--dim); margin-top: 14px; }
 
-        /* ===== BOTTOM NAV ===== */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -384,7 +371,6 @@
             gap: 10px;
         }
 
-        /* Timer area */
         .timer-area {
             display: flex;
             flex-direction: column;
@@ -430,7 +416,6 @@
             color-scheme: dark;
         }
 
-        /* Play button container */
         .play-container {
             position: relative;
             width: 66px;
@@ -479,7 +464,6 @@
         .play-btn:active { transform: translate(-50%, -50%) scale(0.95); }
         .play-btn.playing { animation: playPulse 2.2s ease-out infinite; background: #22d3ee; }
 
-        /* Volume area */
         .volume-area {
             display: flex;
             flex-direction: column;
@@ -496,7 +480,6 @@
         .vol-val { color: var(--blue); font-weight: 700; }
         #volSlider { width: 100%; }
 
-        /* Keyboard hint */
         .keyboard-hint {
             text-align: center;
             font-size: 9px;
@@ -520,8 +503,8 @@
 
     <header>
         <h1>禅スタジオ</h1>
-        <div class="header-sub">能力開発エディション</div>
-        <div class="headphone-tip">🎧 バイノーラル効果のためヘッドホン必須</div>
+        <div class="header-sub">能力開発・低域サポート</div>
+        <div class="headphone-tip">🎧 低域刺激には良質なヘッドホンを推奨</div>
     </header>
 
     <div class="card">
@@ -536,6 +519,18 @@
             </div>
         </div>
         <div id="status">音響システム待機中 · <span class="kbd">Space</span> キーで再生</div>
+    </div>
+
+    <div class="section-label">低周波サポート（125Hz〜）</div>
+    <div class="preset-grid">
+        <button class="preset-btn" id="btn-low1" onclick="setPreset('low1')">
+            🔈 低域刺激 A
+            <span class="preset-hz">125Hz (深低音域)</span>
+        </button>
+        <button class="preset-btn" id="btn-low2" onclick="setPreset('low2')">
+            🔉 低域刺激 B
+            <span class="preset-hz">250Hz (中低音域)</span>
+        </button>
     </div>
 
     <div class="section-label">再生モード</div>
@@ -638,7 +633,7 @@
                 <span class="slider-unit"> Hz</span>
             </span>
         </div>
-        <input type="range" id="beatSlider" min="0.5" max="40" step="0.5" value="29">
+        <input type="range" id="beatSlider" min="0.5" max="40" step="0.1" value="29">
         <div class="bw-scale">
             <span>δ 0.5Hz</span>
             <span>θ 4Hz</span>
@@ -648,8 +643,10 @@
         </div>
     </div>
 
-    <div class="section-label">基本周波数（ソルフェジオ）</div>
+    <div class="section-label">基本周波数</div>
     <select id="baseSelect" class="styled-select">
+        <option value="125">125Hz — 超低域（低域刺激 A）</option>
+        <option value="250">250Hz — 低域（低域刺激 B）</option>
         <option value="174">174Hz — 苦痛の軽減・安心感・基盤</option>
         <option value="432">432Hz — 自然界の共鳴・ゾーン・自律神経</option>
         <option value="528">528Hz — DNA修復・理想の創造・速読</option>
@@ -683,7 +680,6 @@
 
 <div class="bottom-nav">
     <div class="nav-inner">
-
         <div class="timer-area">
             <div class="timer-row">
                 <span class="timer-icon">⏱</span>
@@ -717,7 +713,6 @@
             </div>
             <input type="range" id="volSlider" min="0" max="100" value="80">
         </div>
-
     </div>
     <div class="keyboard-hint">
         <span class="kbd">Space</span> 再生 / 一時停止 &nbsp;|&nbsp; プリセットを選んで ▶ を押してください
@@ -725,7 +720,6 @@
 </div>
 
 <script>
-    // ── サウンド定義 ──────────────────────────
     const sounds = [
         { id: 'rain',  name: '本降りの雨',   type: 'lowpass',   freq: 1500, q: 1,   impulse: 0.08 },
         { id: 'wave',  name: '深みのある波',  type: 'lowpass',   freq: 400,  q: 2,   surge: true   },
@@ -735,7 +729,6 @@
         { id: 'deep',  name: '深海の響き',   type: 'lowpass',   freq: 100,  q: 1                  }
     ];
 
-    // ── 状態変数 ─────────────────────────────────────────────────
     let audioCtx, oscL, oscR, masterGain, analyser, binauralGain, natureMasterGain;
     let isPlaying    = false;
     let currentMode  = 'both';
@@ -743,24 +736,17 @@
     let beatHz       = 29;
     let noiseColor   = 'brown';
     let noiseSources = [];
-
-    // アラーム背景動作用
     let backgroundOsc = null;
-
-    // 録音用
     let mediaRecorder = null;
     let recordedChunks = [];
     let isRecording = false;
     let streamDest = null;
     let recordGain = null;
-
-    // タイマー管理
     let timerInterval = null;
     let timerRemaining = 0;
     let timerTotal     = 0;
     const RING_CIRCUM  = 2 * Math.PI * 28;
 
-    // ── ミキサーUI構築 ────────────────────────────────────────────
     const mixerEl = document.getElementById('mixer');
     sounds.forEach(s => {
         const d = document.createElement('div');
@@ -770,7 +756,6 @@
         mixerEl.appendChild(d);
     });
 
-    // ── 脳波情報 ─────────────────────────────────────────────────
     function getBrainwaveInfo(hz) {
         if (hz <=  4) return { wave: 'δ デルタ波', state: '深い眠り・回復',    color: '#7c3aed', bg: 'rgba(124,58,237,0.14)'  };
         if (hz <=  8) return { wave: 'θ シータ波', state: '瞑想・直感・創造',  color: '#3b82f6', bg: 'rgba(59,130,246,0.14)'  };
@@ -793,7 +778,6 @@
         document.getElementById('freqDisplay').textContent = `${baseHz}Hz + ${beatHz}Hz`;
     }
 
-    // ── Canvas解像度修正 ─────────────────────────────────────────
     function resizeCanvas() {
         const c = document.getElementById('viz');
         const w = c.offsetWidth;
@@ -804,7 +788,6 @@
     }
     window.addEventListener('resize', resizeCanvas);
 
-    // ── ノイズバッファ生成 ───────────
     function generateNoiseBuffer(color) {
         const bufferSize = audioCtx.sampleRate * 2;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -841,32 +824,25 @@
         return buffer;
     }
 
-    // ── AudioContext 初期化 ───────────────────────────────────────
     function init() {
         if (audioCtx) return;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 512;
-
         masterGain = audioCtx.createGain();
         masterGain.gain.value = parseFloat(document.getElementById('volSlider').value) / 100;
         masterGain.connect(audioCtx.destination);
-
         binauralGain     = audioCtx.createGain();
         natureMasterGain = audioCtx.createGain();
         binauralGain.connect(analyser);
         natureMasterGain.connect(analyser);
         analyser.connect(masterGain);
-        
-        // 録音用の設定
         streamDest = audioCtx.createMediaStreamDestination();
         recordGain = audioCtx.createGain();
-        recordGain.gain.value = 1.0; // 録音は常に最大音量でキャプチャ
+        recordGain.gain.value = 1.0;
         binauralGain.connect(recordGain);
         natureMasterGain.connect(recordGain);
         recordGain.connect(streamDest);
-
         oscL = audioCtx.createOscillator();
         oscR = audioCtx.createOscillator();
         const merger = audioCtx.createChannelMerger(2);
@@ -875,79 +851,54 @@
         merger.connect(binauralGain);
         oscL.start();
         oscR.start();
-
         updateNatureSounds();
         applyMode();
         update();
         draw();
     }
 
-    // ── 録音・ダウンロード機能 ───────────────────────────────────
     window.toggleRecording = () => {
         if (!audioCtx) init();
         const btn = document.getElementById('recordBtn');
-
         if (isRecording) {
-            // 録音停止
             mediaRecorder.stop();
             isRecording = false;
             btn.innerHTML = '🔴 録音を開始する（クリックで開始）';
             btn.classList.remove('recording');
             btn.style.color = 'var(--text)';
-            document.getElementById('status').innerHTML = '✅ 録音を終了し、保存処理を実行しました';
+            document.getElementById('status').innerHTML = '✅ 録音を終了しました';
         } else {
-            // 録音開始
             recordedChunks = [];
-            // 対応フォーマットの判定 (Safari向けにmp4、Chrome向けにwebm)
             let mimeType = 'audio/webm';
-            if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                mimeType = 'audio/mp4'; 
-            } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                mimeType = 'audio/webm;codecs=opus';
-            }
-
+            if (MediaRecorder.isTypeSupported('audio/mp4')) { mimeType = 'audio/mp4'; }
+            else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) { mimeType = 'audio/webm;codecs=opus'; }
             mediaRecorder = new MediaRecorder(streamDest.stream, { mimeType: mimeType });
-            
-            mediaRecorder.ondataavailable = e => {
-                if (e.data.size > 0) recordedChunks.push(e.data);
-            };
-
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
                 const blob = new Blob(recordedChunks, { type: mimeType });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                
-                // 拡張子の決定
                 const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
                 a.download = `zen_studio_audio.${ext}`;
                 document.body.appendChild(a);
                 a.click();
-                
-                setTimeout(() => { 
-                    URL.revokeObjectURL(url); 
-                    document.body.removeChild(a); 
-                }, 100);
+                setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 100);
             };
-
             mediaRecorder.start();
             isRecording = true;
             btn.innerHTML = '⏹ 録音停止 ＆ ダウンロード';
             btn.classList.add('recording');
-            
-            // 録音開始時に音が出ていなければ再生する
             if (!isPlaying) document.getElementById('playBtn').click();
-            document.getElementById('status').innerHTML = '🔴 録音中... 好きなタイミングで停止してください';
+            document.getElementById('status').innerHTML = '🔴 録音中...';
         }
     };
 
-    // ── 環境音ノイズソース更新 ───────────────────────────────────
     function updateNatureSounds() {
         noiseSources.forEach(s => { try { s.source.stop(); } catch(e){} });
         noiseSources = [];
         if (!audioCtx) return;
-
         sounds.forEach(s => {
             const src    = audioCtx.createBufferSource();
             src.buffer   = generateNoiseBuffer(noiseColor);
@@ -959,7 +910,6 @@
             const g = audioCtx.createGain();
             const vIn = document.getElementById(`vol-${s.id}`);
             g.gain.value = (vIn.value / 100) * 0.4;
-
             if (s.surge) {
                 const lfo = audioCtx.createOscillator();
                 lfo.frequency.value = 0.12;
@@ -972,25 +922,29 @@
             src.connect(filter).connect(g).connect(natureMasterGain);
             src.start();
             noiseSources.push({ source: src, gain: g });
-            vIn.oninput = e =>
-                g.gain.setTargetAtTime((e.target.value / 100) * 0.4, audioCtx.currentTime, 0.1);
+            vIn.oninput = e => g.gain.setTargetAtTime((e.target.value / 100) * 0.4, audioCtx.currentTime, 0.1);
         });
     }
 
-    // ── ノイズカラー変更 ─────────────────────────────────────────
     window.setColor = color => {
         noiseColor = color;
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('col-' + color).classList.add('active');
+        const btn = document.getElementById('col-' + color);
+        if (btn) btn.classList.add('active');
         if (audioCtx) updateNatureSounds();
     };
 
-    // ── プリセット適用 ───────────────────────────────────────────
     window.setPreset = type => {
         document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-' + type).classList.add('active');
+        const activeBtn = document.getElementById('btn-' + type);
+        if(activeBtn) activeBtn.classList.add('active');
         const bSel = document.getElementById('baseSelect');
+
         switch (type) {
+            // 新規: 低周波サポート
+            case 'low1':       beatHz=0.5;  baseHz=125; setColor('brown'); bSel.value='125'; break;
+            case 'low2':       beatHz=0.5;  baseHz=250; setColor('brown'); bSel.value='250'; break;
+            
             case 'morning':    beatHz=40;   baseHz=852; setColor('white'); bSel.value='852'; break;
             case 'awake':      beatHz=27;   baseHz=528; setColor('white'); bSel.value='528'; break;
             case 'refresh':    beatHz=15;   baseHz=528; setColor('pink');  bSel.value='528'; break;
@@ -1016,7 +970,6 @@
         updateBrainwaveBadge();
     };
 
-    // ── 再生モード切替 ───────────────────────────────────────────
     function applyMode() {
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
@@ -1031,19 +984,16 @@
         applyMode();
     };
 
-    // ── オシレーター周波数更新 ───────────────────────────────────
     function update() {
         if (!audioCtx) return;
         oscL.frequency.setTargetAtTime(baseHz,          audioCtx.currentTime, 0.2);
         oscR.frequency.setTargetAtTime(baseHz + beatHz, audioCtx.currentTime, 0.2);
         if (!isRecording && !isAlarmActive) {
-            document.getElementById('status').innerHTML =
-                `${baseHz}Hz + ${beatHz}Hz 脳波誘導中 &nbsp;·&nbsp; <span class="kbd">Space</span> で一時停止`;
+            document.getElementById('status').innerHTML = `${baseHz}Hz + ${beatHz}Hz 誘導中 &nbsp;·&nbsp; <span class="kbd">Space</span> で停止`;
         }
         updateBrainwaveBadge();
     }
 
-    // ── タイマー ─────────────────────────────────────────────────
     function startTimer(minutes) {
         stopTimer();
         timerTotal     = minutes * 60;
@@ -1058,12 +1008,9 @@
                 setTimeout(() => {
                     if (audioCtx) audioCtx.suspend();
                     const btn = document.getElementById('playBtn');
-                    btn.textContent = '▶';
-                    btn.classList.remove('playing');
+                    btn.textContent = '▶'; btn.classList.remove('playing');
                     isPlaying = false;
                     document.getElementById('timerCountdown').textContent = '';
-                    document.getElementById('status').innerHTML =
-                        '✅ タイマー終了 · <span class="kbd">Space</span> で再開';
                 }, 10500);
             }
         }, 1000);
@@ -1079,142 +1026,94 @@
     function _renderTimer() {
         const m = Math.floor(timerRemaining / 60);
         const s = timerRemaining % 60;
-        document.getElementById('timerCountdown').textContent =
-            timerTotal > 0 ? `${m}:${String(s).padStart(2,'0')}` : '';
+        document.getElementById('timerCountdown').textContent = timerTotal > 0 ? `${m}:${String(s).padStart(2,'0')}` : '';
         if (timerTotal > 0) {
             const progress = timerRemaining / timerTotal;
-            document.getElementById('timerRingPath').style.strokeDashoffset =
-                RING_CIRCUM * (1 - progress);
+            document.getElementById('timerRingPath').style.strokeDashoffset = RING_CIRCUM * (1 - progress);
         }
     }
 
-    // ── バックグラウンド維持用（無音オーディオハック） ───────────────
     function startSilentBackgroundAudio() {
         if (!audioCtx) init();
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        
         if (!backgroundOsc) {
             backgroundOsc = audioCtx.createOscillator();
             const silentGain = audioCtx.createGain();
-            silentGain.gain.value = 0.0001; // 人間には聞こえない極小の音
+            silentGain.gain.value = 0.0001;
             backgroundOsc.connect(silentGain).connect(audioCtx.destination);
             backgroundOsc.start();
         }
     }
 
     function stopSilentBackgroundAudio() {
-        if (backgroundOsc) {
-            backgroundOsc.stop();
-            backgroundOsc.disconnect();
-            backgroundOsc = null;
-        }
+        if (backgroundOsc) { backgroundOsc.stop(); backgroundOsc.disconnect(); backgroundOsc = null; }
     }
 
-    // ── アラーム機能 ─────────────────────────────────────────────
     let alarmInterval = null;
     let isAlarmActive = false;
     const alarmTimeInput = document.getElementById('alarmTime');
     const alarmToggleBtn = document.getElementById('alarmToggle');
 
     alarmToggleBtn.onclick = () => {
-        if (!alarmTimeInput.value) {
-            alert("アラームの時刻を設定してください。");
-            return;
-        }
+        if (!alarmTimeInput.value) { alert("アラームの時刻を設定してください。"); return; }
         isAlarmActive = !isAlarmActive;
         alarmToggleBtn.textContent = isAlarmActive ? 'ON' : 'OFF';
         alarmToggleBtn.style.color = isAlarmActive ? 'var(--blue)' : 'var(--muted)';
-        alarmToggleBtn.style.borderColor = isAlarmActive ? 'var(--blue)' : 'var(--border)';
-        
         if (isAlarmActive) {
-            // アラームON時：画面消灯対策として無音オーディオを起動
             startSilentBackgroundAudio();
-            
             if (!alarmInterval) alarmInterval = setInterval(checkAlarm, 1000);
-            document.getElementById('status').innerHTML = '⏰ アラーム待機中... (画面を消しても時間で起動します)';
+            document.getElementById('status').innerHTML = '⏰ アラーム待機中...';
         } else {
-            // アラームOFF時：無音オーディオを停止
             stopSilentBackgroundAudio();
             if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
-            document.getElementById('status').innerHTML = '音響システム待機中 · <span class="kbd">Space</span> キーで再生';
+            document.getElementById('status').innerHTML = '待機中';
         }
     };
 
     function checkAlarm() {
         if (!isAlarmActive || !alarmTimeInput.value) return;
         const now = new Date();
-        const currentHours = String(now.getHours()).padStart(2, '0');
-        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-        const currentTimeStr = `${currentHours}:${currentMinutes}`;
-        
-        // 設定時刻になり、秒が0になったタイミングで発火
-        if (currentTimeStr === alarmTimeInput.value && now.getSeconds() === 0) {
-            triggerAlarm();
-        }
+        const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        if (currentTimeStr === alarmTimeInput.value && now.getSeconds() === 0) triggerAlarm();
     }
 
     async function triggerAlarm() {
-        // 目覚め用の最強設定に切り替え
         setPreset('morning');
-        
-        // 再生を実行
         if (!audioCtx) init();
         if (!isPlaying || audioCtx.state === 'suspended') {
             await audioCtx.resume();
             isPlaying = true;
             const btn = document.getElementById('playBtn');
-            btn.textContent = '⏸';
-            btn.classList.add('playing');
+            btn.textContent = '⏸'; btn.classList.add('playing');
         }
-        
-        // 音量を100%にフェードイン（アラームとして気付かせるため）
-        document.getElementById('volSlider').value = 100;
-        document.getElementById('volDisp').textContent = 100;
-        if (masterGain) masterGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 1.0);
-
-        // アラーム設定を解除
-        alarmToggleBtn.click(); 
-        document.getElementById('status').innerHTML = '⏰ 覚醒モード起動！おはようございます！';
+        masterGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 1.0);
+        alarmToggleBtn.click();
     }
 
-    // ── 再生ボタン ───────────────────────────────────────────────
     document.getElementById('playBtn').onclick = async function () {
         if (!audioCtx) {
             init();
             if (audioCtx.state === 'suspended') await audioCtx.resume();
-            isPlaying = true;
-            this.textContent = '⏸';
-            this.classList.add('playing');
+            isPlaying = true; this.textContent = '⏸'; this.classList.add('playing');
             const t = parseInt(document.getElementById('timer').value);
             if (t > 0) startTimer(t);
         } else if (!isPlaying || audioCtx.state === 'suspended') {
             await audioCtx.resume();
-            isPlaying = true;
-            this.textContent = '⏸';
-            this.classList.add('playing');
-            if (!timerInterval) {
-                const t = parseInt(document.getElementById('timer').value);
-                if (t > 0) startTimer(t);
-            }
+            isPlaying = true; this.textContent = '⏸'; this.classList.add('playing');
         } else {
             await audioCtx.suspend();
-            isPlaying = false;
-            this.textContent = '▶';
-            this.classList.remove('playing');
+            isPlaying = false; this.textContent = '▶'; this.classList.remove('playing');
         }
     };
 
-    // ── スライダー / セレクト イベント ─────────────────────────
     document.getElementById('beatSlider').oninput = e => {
         beatHz = parseFloat(e.target.value);
         document.getElementById('beatDisp').textContent = beatHz;
-        updateBrainwaveBadge();
-        update();
+        updateBrainwaveBadge(); update();
     };
 
     document.getElementById('baseSelect').onchange = e => {
-        baseHz = parseFloat(e.target.value);
-        update();
+        baseHz = parseFloat(e.target.value); update();
     };
 
     document.getElementById('volSlider').oninput = e => {
@@ -1223,7 +1122,6 @@
         if (masterGain) masterGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.1);
     };
 
-    // ── キーボードショートカット (Space = 再生/一時停止) ─────────
     document.addEventListener('keydown', e => {
         if (e.code !== 'Space') return;
         const tag = e.target.tagName.toLowerCase();
@@ -1232,72 +1130,42 @@
         document.getElementById('playBtn').click();
     });
 
-    // ── 描画ループ ───────────────────────────────────────────────
     let idlePhase = 0;
     function draw() {
         requestAnimationFrame(draw);
         resizeCanvas();
-
         const c   = document.getElementById('viz');
         const ctx = c.getContext('2d');
         const W = c.width, H = c.height;
-
         ctx.clearRect(0, 0, W, H);
-
         if (!analyser) {
-            idlePhase += 0.012;
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(56,189,248,0.22)';
-            ctx.lineWidth   = 1.5;
+            idlePhase += 0.012; ctx.beginPath(); ctx.strokeStyle = 'rgba(56,189,248,0.22)';
             for (let x = 0; x <= W; x++) {
-                const y = H/2 + Math.sin(x * 0.025 + idlePhase) * 12
-                               + Math.sin(x * 0.011 + idlePhase * 0.6) * 5;
+                const y = H/2 + Math.sin(x * 0.025 + idlePhase) * 12 + Math.sin(x * 0.011 + idlePhase * 0.6) * 5;
                 x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
             }
-            ctx.stroke();
-            return;
+            ctx.stroke(); return;
         }
-
         const freqData = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(freqData);
-        const bars   = 56;
-        const barW   = W / bars;
-        const barGap = Math.max(1, barW * 0.12);
-
+        const bars = 56; const barW = W / bars;
         for (let i = 0; i < bars; i++) {
-            const ratio = freqData[i] / 255;
-            const barH  = ratio * H * 0.85;
+            const ratio = freqData[i] / 255; const barH = ratio * H * 0.85;
             if (barH < 1) continue;
-            const hue   = 195 + i * 0.55;
-            const x     = i * barW;
-            const grad = ctx.createLinearGradient(0, H, 0, H - barH);
-            grad.addColorStop(0,   `hsla(${hue},90%,55%,0.8)`);
-            grad.addColorStop(0.5, `hsla(${hue+15},85%,65%,0.7)`);
-            grad.addColorStop(1,   `hsla(${hue+25},95%,78%,0.5)`);
-            ctx.fillStyle = grad;
-            ctx.shadowColor = `hsla(${hue},100%,70%,${ratio * 0.7})`;
-            ctx.shadowBlur  = ratio * 8;
-            ctx.fillRect(x + barGap/2, H - barH, barW - barGap, barH);
+            const hue = 195 + i * 0.55;
+            ctx.fillStyle = `hsla(${hue},90%,55%,0.8)`;
+            ctx.fillRect(i * barW + 1, H - barH, barW - 2, barH);
         }
-        ctx.shadowBlur = 0;
-
         const waveData = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(waveData);
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(56,189,248,0.75)';
-        ctx.lineWidth   = 1.8;
-        ctx.shadowColor = 'rgba(56,189,248,0.5)';
-        ctx.shadowBlur  = 5;
+        ctx.beginPath(); ctx.strokeStyle = 'rgba(56,189,248,0.75)'; ctx.lineWidth = 1.8;
         const step = W / waveData.length;
         for (let i = 0; i < waveData.length; i++) {
-            const v = waveData[i] / 128;
-            const y = (v * H) / 2;
+            const y = (waveData[i] / 128 * H) / 2;
             i === 0 ? ctx.moveTo(i * step, y) : ctx.lineTo(i * step, y);
         }
         ctx.stroke();
-        ctx.shadowBlur = 0;
     }
-
     updateBrainwaveBadge();
     draw();
 </script>
