@@ -909,7 +909,8 @@
             filter.Q.value = s.q;
             const g = audioCtx.createGain();
             const vIn = document.getElementById(`vol-${s.id}`);
-            g.gain.value = (vIn.value / 100) * 0.4;
+            // 音量上限を0.4から1.5に引き上げました
+            g.gain.value = (vIn.value / 100) * 1.5;
             if (s.surge) {
                 const lfo = audioCtx.createOscillator();
                 lfo.frequency.value = 0.12;
@@ -922,7 +923,8 @@
             src.connect(filter).connect(g).connect(natureMasterGain);
             src.start();
             noiseSources.push({ source: src, gain: g });
-            vIn.oninput = e => g.gain.setTargetAtTime((e.target.value / 100) * 0.4, audioCtx.currentTime, 0.1);
+            // スライダー操作時も音量上限を1.5に引き上げました
+            vIn.oninput = e => g.gain.setTargetAtTime((e.target.value / 100) * 1.5, audioCtx.currentTime, 0.1);
         });
     }
 
@@ -941,10 +943,8 @@
         const bSel = document.getElementById('baseSelect');
 
         switch (type) {
-            // 新規: 低周波サポート
             case 'low1':       beatHz=0.5;  baseHz=125; setColor('brown'); bSel.value='125'; break;
             case 'low2':       beatHz=0.5;  baseHz=250; setColor('brown'); bSel.value='250'; break;
-            
             case 'morning':    beatHz=40;   baseHz=852; setColor('white'); bSel.value='852'; break;
             case 'awake':      beatHz=27;   baseHz=528; setColor('white'); bSel.value='528'; break;
             case 'refresh':    beatHz=15;   baseHz=528; setColor('pink');  bSel.value='528'; break;
