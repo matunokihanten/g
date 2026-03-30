@@ -1,385 +1,276 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-  <script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
-  
   <meta charset="UTF-8">
-  <title>迷路ゲーム（スワイプ＆傾き操作対応 / 解答は太い赤線）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Compact Maze Game</title>
   <style>
+    /* 全体レイアウトの最適化 */
+    :root {
+      --primary: #4a90e2;
+      --bg: #f0f2f5;
+    }
+    * { box-sizing: border-box; }
     body {
       font-family: sans-serif;
-      text-align: center;
-      background-color: #f0f0f0;
       margin: 0;
-      padding: 20px;
+      padding: 5px;
+      background-color: var(--bg);
+      height: 100dvh; /* 画面の高さぴったりに固定 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow: hidden; /* スクロールを完全に禁止 */
     }
+
+    h1 { font-size: 1rem; margin: 2px 0; color: #333; }
+
+    /* コントロールエリアの圧縮 */
+    .top-bar {
+      width: 100%;
+      max-width: 400px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      padding: 5px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    select, button {
+      font-size: 12px;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      width: 100%;
+    }
+    button { background: var(--primary); color: white; border: none; font-weight: bold; }
+    #sensorBtn { background: #95a5a6; }
+    #sensorBtn.active { background: #27ae60; }
+
+    /* キャンバスのレスポンシブ化 */
     #mazeCanvas {
-      border: 2px solid #000;
       background-color: #fff;
-      margin-top: 20px;
-      touch-action: none; /* タッチ操作によるスクロールを防止 */
+      border: 2px solid #333;
+      border-radius: 4px;
+      /* 画面幅に合わせて可変、かつ高さが溢れないように調整 */
+      width: 85vw;
+      height: 85vw;
+      max-width: 350px;
+      max-height: 350px;
+      touch-action: none;
     }
-    button, select {
-      margin-top: 20px;
-      font-size: 16px;
-      padding: 10px;
+
+    /* メッセージ */
+    #message {
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #e55039;
+      height: 1.2rem;
+      margin: 2px 0;
     }
+
+    /* 十字キー（さらにコンパクトに） */
+    .d-pad {
+      display: grid;
+      grid-template-areas: 
+        ".    up    ."
+        "left .     right"
+        ".    down  .";
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    .d-btn {
+      width: 45px;
+      height: 45px;
+      background: #34495e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .d-btn:active { background: var(--primary); }
+    .btn-up { grid-area: up; }
+    .btn-left { grid-area: left; }
+    .btn-right { grid-area: right; }
+    .btn-down { grid-area: down; }
   </style>
 </head>
 <body>
-  <h1>迷路ゲーム（スワイプ＆傾き操作対応 / 解答は太い赤線）</h1>
+  <h1>迷路ゲーム</h1>
   
-  <label for="difficulty">難易度レベル:</label>
-  <select id="difficulty">
-    <option value="easy">簡単</option>
-    <option value="medium" selected>普通</option>
-    <option value="hard">難しい</option>
-  </select>
-  <br>
-  <button id="generateBtn">新しい迷路</button>
-  <button id="solveBtn">答え</button>
-  <br>
+  <div class="top-bar">
+    <select id="difficulty">
+      <option value="easy">簡単</option>
+      <option value="medium" selected>普通</option>
+      <option value="hard">難しい</option>
+    </select>
+    <button id="generateBtn">新迷路</button>
+    <button id="solveBtn">答え</button>
+    <button id="sensorBtn">📱 センサー: OFF</button>
+  </div>
+
+  <div id="message"></div>
+  
   <canvas id="mazeCanvas" width="600" height="600"></canvas>
-  
+
+  <div class="d-pad">
+    <button class="d-btn btn-up" onpointerdown="movePlayer('up')">▲</button>
+    <button class="d-btn btn-left" onpointerdown="movePlayer('left')">◀</button>
+    <button class="d-btn btn-right" onpointerdown="movePlayer('right')">▶</button>
+    <button class="d-btn btn-down" onpointerdown="movePlayer('down')">▼</button>
+  </div>
+
   <script>
-    // グローバル変数
-    let cols, rows, cellSize;
-    let grid = [];
-    let stack = [];
-    let mazeGenerated = false;
-    let player = { col: 0, row: 0 };
-    let finish = { col: 0, row: 0 };
+    // --- 既存機能を維持したロジック ---
+    let cols, rows, cellSize, grid = [], stack = [];
+    let mazeGenerated = false, isGameOver = false, sensorActive = false;
+    let player = { col: 0, row: 0 }, finish = { col: 0, row: 0 };
+    let lastMove = 0;
 
     const canvas = document.getElementById("mazeCanvas");
     const ctx = canvas.getContext("2d");
+    const messageEl = document.getElementById("message");
+    const sensorBtn = document.getElementById("sensorBtn");
 
-    // タッチ操作用の変数
-    let touchStartX = 0;
-    let touchStartY = 0;
-
-    // セルのクラス
     class Cell {
       constructor(col, row) {
-        this.col = col;
-        this.row = row;
+        this.col = col; this.row = row;
         this.walls = { top: true, right: true, bottom: true, left: true };
         this.visited = false;
       }
-      get x() {
-        return this.col * cellSize;
-      }
-      get y() {
-        return this.row * cellSize;
-      }
-      // セルを描画（壁の描画と、訪問済みセルは薄い色で塗る）
       draw() {
-        let x = this.x;
-        let y = this.y;
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 2;
-        if (this.walls.top) {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + cellSize, y);
-          ctx.stroke();
-        }
-        if (this.walls.right) {
-          ctx.beginPath();
-          ctx.moveTo(x + cellSize, y);
-          ctx.lineTo(x + cellSize, y + cellSize);
-          ctx.stroke();
-        }
-        if (this.walls.bottom) {
-          ctx.beginPath();
-          ctx.moveTo(x + cellSize, y + cellSize);
-          ctx.lineTo(x, y + cellSize);
-          ctx.stroke();
-        }
-        if (this.walls.left) {
-          ctx.beginPath();
-          ctx.moveTo(x, y + cellSize);
-          ctx.lineTo(x, y);
-          ctx.stroke();
-        }
-        if (this.visited) {
-          ctx.fillStyle = "#d3e0ea";
-          ctx.fillRect(x, y, cellSize, cellSize);
-        }
+        let x = this.col * cellSize, y = this.row * cellSize;
+        ctx.strokeStyle = "#333"; ctx.lineWidth = 2;
+        if (this.walls.top) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + cellSize, y); ctx.stroke(); }
+        if (this.walls.right) { ctx.beginPath(); ctx.moveTo(x + cellSize, y); ctx.lineTo(x + cellSize, y + cellSize); ctx.stroke(); }
+        if (this.walls.bottom) { ctx.beginPath(); ctx.moveTo(x + cellSize, y + cellSize); ctx.lineTo(x, y + cellSize); ctx.stroke(); }
+        if (this.walls.left) { ctx.beginPath(); ctx.moveTo(x, y + cellSize); ctx.lineTo(x, y); ctx.stroke(); }
       }
-      // 未訪問の隣接セルをランダムに返す
       checkNeighbors() {
         let neighbors = [];
-        let top    = index(this.col, this.row - 1);
-        let right  = index(this.col + 1, this.row);
-        let bottom = index(this.col, this.row + 1);
-        let left   = index(this.col - 1, this.row);
-        if (top && !top.visited)    neighbors.push(top);
-        if (right && !right.visited) neighbors.push(right);
-        if (bottom && !bottom.visited) neighbors.push(bottom);
-        if (left && !left.visited)   neighbors.push(left);
-        if (neighbors.length > 0) {
-          return neighbors[Math.floor(Math.random() * neighbors.length)];
-        } else {
-          return undefined;
-        }
+        let t = index(this.col, this.row - 1), r = index(this.col + 1, this.row), b = index(this.col, this.row + 1), l = index(this.col - 1, this.row);
+        if (t && !t.visited) neighbors.push(t); if (r && !r.visited) neighbors.push(r);
+        if (b && !b.visited) neighbors.push(b); if (l && !l.visited) neighbors.push(l);
+        return neighbors.length > 0 ? neighbors[Math.floor(Math.random() * neighbors.length)] : undefined;
       }
     }
+
+    function index(c, r) { return (c<0 || r<0 || c>=cols || r>=rows) ? undefined : grid[c + r * cols]; }
     
-    // 指定された (col, row) のセルを返す。範囲外なら undefined
-    function index(col, row) {
-      if (col < 0 || row < 0 || col >= cols || row >= rows) return undefined;
-      return grid[col + row * cols];
-    }
-    
-    // 2つのセル間の壁を削除する
     function removeWalls(a, b) {
       let x = a.col - b.col;
-      if (x === 1) {
-        a.walls.left = false;
-        b.walls.right = false;
-      } else if (x === -1) {
-        a.walls.right = false;
-        b.walls.left = false;
-      }
+      if (x === 1) { a.walls.left = false; b.walls.right = false; } else if (x === -1) { a.walls.right = false; b.walls.left = false; }
       let y = a.row - b.row;
-      if (y === 1) {
-        a.walls.top = false;
-        b.walls.bottom = false;
-      } else if (y === -1) {
-        a.walls.bottom = false;
-        b.walls.top = false;
-      }
+      if (y === 1) { a.walls.top = false; b.walls.bottom = false; } else if (y === -1) { a.walls.bottom = false; b.walls.top = false; }
     }
-    
-    // 難易度に応じたセルサイズの決定（セルが小さいほど区画数が多くなる）
-    function getCellSizeByDifficulty() {
-      let difficulty = document.getElementById("difficulty").value;
-      if (difficulty === "easy")      return 40;
-      else if (difficulty === "medium") return 20;
-      else if (difficulty === "hard")   return 10;
-    }
-    
-    // 迷路を即時生成する（while ループで全セルを訪問）
+
     function generateMaze() {
-      cellSize = getCellSizeByDifficulty();
-      cols = Math.floor(canvas.width / cellSize);
-      rows = Math.floor(canvas.height / cellSize);
-      grid = [];
-      stack = [];
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          grid.push(new Cell(col, row));
-        }
-      }
-      let current = grid[0];
+      messageEl.textContent = ""; isGameOver = false;
+      let diff = document.getElementById("difficulty").value;
+      cellSize = (diff === "easy") ? 60 : (diff === "medium") ? 30 : 15;
+      cols = Math.floor(canvas.width / cellSize); rows = Math.floor(canvas.height / cellSize);
+      grid = []; stack = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) grid.push(new Cell(c, r));
+      let curr = grid[0];
       while (true) {
-        current.visited = true;
-        let next = current.checkNeighbors();
-        if (next) {
-          stack.push(current);
-          removeWalls(current, next);
-          current = next;
-        } else if (stack.length > 0) {
-          current = stack.pop();
-        } else {
-          break;
-        }
+        curr.visited = true; let next = curr.checkNeighbors();
+        if (next) { stack.push(curr); removeWalls(curr, next); curr = next; }
+        else if (stack.length > 0) curr = stack.pop(); else break;
       }
-      // プレイヤーとゴールの初期設定
-      mazeGenerated = true;
-      player = { col: 0, row: 0 };
-      finish = { col: cols - 1, row: rows - 1 };
+      mazeGenerated = true; player = { col: 0, row: 0 }; finish = { col: cols - 1, row: rows - 1 };
       drawGame();
     }
-    
-    // 各セルを描画
-    function drawMaze() {
-      for (let cell of grid) {
-        cell.draw();
-      }
-    }
-    
-    // ゴールセルを薄い緑色で描画
-    function drawFinish() {
-      let x = finish.col * cellSize;
-      let y = finish.row * cellSize;
-      ctx.fillStyle = "#badc58";
-      ctx.fillRect(x, y, cellSize, cellSize);
-    }
-    
-    // プレイヤー（赤丸）の描画
-    function drawPlayer() {
-      let x = player.col * cellSize + cellSize / 2;
-      let y = player.row * cellSize + cellSize / 2;
-      ctx.fillStyle = "#e55039";
-      ctx.beginPath();
-      ctx.arc(x, y, cellSize / 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    
-    // ゲーム全体の再描画
+
     function drawGame() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawMaze();
-      drawFinish();
-      drawPlayer();
+      for (let cell of grid) cell.draw();
+      ctx.fillStyle = "#2ecc71"; ctx.fillRect(finish.col * cellSize + 2, finish.row * cellSize + 2, cellSize - 4, cellSize - 4);
+      ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(player.col * cellSize + cellSize/2, player.row * cellSize + cellSize/2, cellSize * 0.35, 0, Math.PI * 2); ctx.fill();
     }
-    
-    // 「答え」ボタン：BFSで最短経路を求め、太い赤い線を引いて経路表示
+
+    function movePlayer(dir) {
+      if (!mazeGenerated || isGameOver) return;
+      let c = index(player.col, player.row);
+      if (dir === "up" && !c.walls.top) player.row--;
+      else if (dir === "down" && !c.walls.bottom) player.row++;
+      else if (dir === "left" && !c.walls.left) player.col--;
+      else if (dir === "right" && !c.walls.right) player.col++;
+      drawGame();
+      if (player.col === finish.col && player.row === finish.row) { isGameOver = true; messageEl.textContent = "🎉 CLEAR!"; }
+    }
+
+    // 操作イベント
+    window.addEventListener("keydown", e => {
+      if (e.key.includes("Arrow")) { e.preventDefault(); movePlayer(e.key.replace("Arrow","").toLowerCase()); }
+    }, { passive: false });
+
+    // スワイプ操作
+    let tsX, tsY;
+    canvas.addEventListener("touchstart", e => { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }, {passive: false});
+    canvas.addEventListener("touchend", e => {
+      if(isGameOver) return;
+      let dx = e.changedTouches[0].clientX - tsX, dy = e.changedTouches[0].clientY - tsY;
+      if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+        if (Math.abs(dx) > Math.abs(dy)) movePlayer(dx > 0 ? "right" : "left");
+        else movePlayer(dy > 0 ? "down" : "up");
+      }
+    }, {passive: false});
+
+    // センサー
+    function handleOrientation(e) {
+      if(isGameOver || !sensorActive) return;
+      const now = Date.now(); if (now - lastMove < 250) return;
+      if (Math.abs(e.gamma) > 15 || Math.abs(e.beta) > 15) {
+        if (Math.abs(e.gamma) > Math.abs(e.beta)) movePlayer(e.gamma > 0 ? "right" : "left");
+        else movePlayer(e.beta > 0 ? "down" : "up");
+        lastMove = now;
+      }
+    }
+
+    async function toggleSensor() {
+      if (sensorActive) {
+        sensorActive = false; sensorBtn.classList.remove("active"); sensorBtn.textContent = "📱 センサー: OFF";
+        window.removeEventListener('deviceorientation', handleOrientation);
+      } else {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const state = await DeviceOrientationEvent.requestPermission();
+          if (state !== 'granted') return;
+        }
+        sensorActive = true; sensorBtn.classList.add("active"); sensorBtn.textContent = "📱 センサー: ON";
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    }
+
     function solveMaze() {
-      if (!mazeGenerated) return;
-      const start = grid[0];
-      const goal = grid[cols * rows - 1];
-      let queue = [start];
-      let cameFrom = {};
-      cameFrom[start.col + "_" + start.row] = null;
-      
+      if (!mazeGenerated || isGameOver) return;
+      const start = grid[0], goal = grid[cols * rows - 1];
+      let queue = [start], cameFrom = {}; cameFrom[`${start.col}_${start.row}`] = null;
       while (queue.length > 0) {
-        let current = queue.shift();
-        if (current === goal) break;
-        // 上方向
-        if (!current.walls.top) {
-          let neighbor = index(current.col, current.row - 1);
-          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
-            cameFrom[neighbor.col + "_" + neighbor.row] = current;
-            queue.push(neighbor);
+        let curr = queue.shift(); if (curr === goal) break;
+        [['top',0,-1],['right',1,0],['bottom',0,1],['left',-1,0]].forEach(d => {
+          if (!curr.walls[d[0]]) {
+            let n = index(curr.col + d[1], curr.row + d[2]);
+            if (n && !(`${n.col}_${n.row}` in cameFrom)) { cameFrom[`${n.col}_${n.row}`] = curr; queue.push(n); }
           }
-        }
-        // 右方向
-        if (!current.walls.right) {
-          let neighbor = index(current.col + 1, current.row);
-          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
-            cameFrom[neighbor.col + "_" + neighbor.row] = current;
-            queue.push(neighbor);
-          }
-        }
-        // 下方向
-        if (!current.walls.bottom) {
-          let neighbor = index(current.col, current.row + 1);
-          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
-            cameFrom[neighbor.col + "_" + neighbor.row] = current;
-            queue.push(neighbor);
-          }
-        }
-        // 左方向
-        if (!current.walls.left) {
-          let neighbor = index(current.col - 1, current.row);
-          if (neighbor && !(neighbor.col + "_" + neighbor.row in cameFrom)) {
-            cameFrom[neighbor.col + "_" + neighbor.row] = current;
-            queue.push(neighbor);
-          }
-        }
+        });
       }
-      
-      // ゴールからスタートまで経路をたどり、逆順に配列化
-      let path = [];
-      let curr = goal;
-      while (curr !== null) {
-        path.push(curr);
-        curr = cameFrom[curr.col + "_" + curr.row];
-      }
-      path.reverse();
-      
-      // ゲームの描画を更新したうえで、解答経路を太い赤い線で描画
-      drawGame();
-      ctx.beginPath();
-      // 経路上の各セルの中心座標に沿って線を引く
-      ctx.moveTo(path[0].col * cellSize + cellSize/2, path[0].row * cellSize + cellSize/2);
-      for (let i = 1; i < path.length; i++) {
-        let x = path[i].col * cellSize + cellSize/2;
-        let y = path[i].row * cellSize + cellSize/2;
-        ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 4;  // 太さを指定
-      ctx.lineCap = "round";
-      ctx.stroke();
+      let path = [], c = goal; while (c !== null) { path.push(c); c = cameFrom[`${c.col}_${c.row}`]; }
+      path.reverse(); drawGame();
+      ctx.beginPath(); ctx.moveTo(path[0].col * cellSize + cellSize/2, path[0].row * cellSize + cellSize/2);
+      for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].col * cellSize + cellSize/2, path[i].row * cellSize + cellSize/2);
+      ctx.strokeStyle = "rgba(231, 76, 60, 0.7)"; ctx.lineWidth = cellSize * 0.4; ctx.lineCap = "round"; ctx.stroke();
+      messageEl.textContent = "答え表示中"; isGameOver = true;
     }
-    
-    // 共通の移動処理
-    function movePlayer(direction) {
-      let currentCell = index(player.col, player.row);
-      if (direction === "up") {
-        if (!currentCell.walls.top && player.row > 0) player.row--;
-      } else if (direction === "down") {
-        if (!currentCell.walls.bottom && player.row < rows - 1) player.row++;
-      } else if (direction === "left") {
-        if (!currentCell.walls.left && player.col > 0) player.col--;
-      } else if (direction === "right") {
-        if (!currentCell.walls.right && player.col < cols - 1) player.col++;
-      }
-      drawGame();
-      if (player.col === finish.col && player.row === finish.row) {
-        setTimeout(() => alert("クリア！"), 100);
-      }
-    }
-    
-    // キーボード操作
-    document.addEventListener("keydown", function(e) {
-      if (!mazeGenerated) return;
-      if (e.key === "ArrowUp") movePlayer("up");
-      else if (e.key === "ArrowDown") movePlayer("down");
-      else if (e.key === "ArrowLeft") movePlayer("left");
-      else if (e.key === "ArrowRight") movePlayer("right");
-    });
-    
-    // スマホ向けスワイプ操作（touchstart / touchend）
-    canvas.addEventListener("touchstart", function(e) {
-      const touch = e.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-    }, {passive: false});
-    
-    canvas.addEventListener("touchend", function(e) {
-      const touch = e.changedTouches[0];
-      const dx = touch.clientX - touchStartX;
-      const dy = touch.clientY - touchStartY;
-      const swipeThreshold = 30;
-      if (Math.abs(dx) < swipeThreshold && Math.abs(dy) < swipeThreshold) return;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 0) movePlayer("right");
-        else movePlayer("left");
-      } else {
-        if (dy > 0) movePlayer("down");
-        else movePlayer("up");
-      }
-    }, {passive: false});
-    
-    // デバイスオリエンテーションによる操作
-    let lastOrientationMove = 0;
-    const orientationInterval = 200; // ミリ秒単位の移動間隔
-    window.addEventListener("deviceorientation", function(event) {
-      const now = Date.now();
-      if (now - lastOrientationMove < orientationInterval) return;
-      const beta = event.beta;
-      const gamma = event.gamma;
-      const threshold = 15; // 15度以上の傾きで動作
-      
-      if (Math.abs(gamma) > Math.abs(beta)) {
-        if (gamma > threshold) {
-          movePlayer("right");
-          lastOrientationMove = now;
-        } else if (gamma < -threshold) {
-          movePlayer("left");
-          lastOrientationMove = now;
-        }
-      } else {
-        if (beta > threshold) {
-          movePlayer("down");
-          lastOrientationMove = now;
-        } else if (beta < -threshold) {
-          movePlayer("up");
-          lastOrientationMove = now;
-        }
-      }
-    });
-    
-    // ボタンイベント
+
     document.getElementById("generateBtn").addEventListener("click", generateMaze);
     document.getElementById("solveBtn").addEventListener("click", solveMaze);
-    
-    // ページロード時に最初の迷路生成
+    sensorBtn.addEventListener("click", toggleSensor);
     generateMaze();
   </script>
 </body>
