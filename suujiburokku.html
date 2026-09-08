@@ -46,36 +46,11 @@
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @media (max-width: 400px) { .header { padding: 8px 12px; } .score-info { gap: 10px; font-size: 12px; } .level-info { font-size: 14px; } .btn { padding: 6px 12px; font-size: 12px; } .popup h2 { font-size: 20px; } .popup p { font-size: 16px; } }
-        
-        .cell.falling {
-            transition: transform 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53);
-        }
-
-        .time-options {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: white;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .time-options input[type="radio"] {
-            display: none;
-        }
-        
-        .time-options label {
-            cursor: pointer;
-            padding: 5px 10px;
-            border-radius: 15px;
-            background: rgba(255, 255, 255, 0.2);
-            transition: background 0.2s ease;
-        }
-
-        .time-options input[type="radio"]:checked + label {
-            background: #4CAF50;
-            font-weight: bold;
-        }
+        .cell.falling { transition: transform 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53); }
+        .time-options { display: flex; align-items: center; gap: 15px; color: white; font-size: 14px; margin-bottom: 10px; }
+        .time-options input[type="radio"] { display: none; }
+        .time-options label { cursor: pointer; padding: 5px 10px; border-radius: 15px; background: rgba(255, 255, 255, 0.2); transition: background 0.2s ease; }
+        .time-options input[type="radio"]:checked + label { background: #4CAF50; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -124,7 +99,6 @@
         window.addEventListener('resize', setAppHeight); setAppHeight();
         document.getElementById('high-score-display').textContent = `ハイスコア: ${highScore}`;
         
-        // リロード問題を解決するため、タッチ操作のデフォルト動作を無効にする
         document.body.addEventListener('touchstart', (e) => {
             if (e.target.closest('.grid')) {
                 e.preventDefault();
@@ -148,8 +122,8 @@
         }
 
         function closePopup() { 
-            document.getElementById('overlay').style.display = 'none'; 
-            isProcessing = false;
+             document.getElementById('overlay').style.display = 'none'; 
+             isProcessing = false;
         }
 
         function initializeGrid() {
@@ -227,6 +201,7 @@
 
             if (selectedCells.length >= 2) {
                 if (checkMatch(selectedCells)) {
+                    isProcessing = true; // 修正: 処理中に他操作が割り込まないようロック
                     setTimeout(() => {
                         matchEffect(selectedCells);
                         updateScore(selectedCells.length * 10 * (combo + 1));
@@ -235,7 +210,7 @@
                         selectedCells = [];
                         updateUI();
                         isSelecting = false;
-                        checkGameOver();
+                        // checkGameOver(); はアニメーション終了後に行うため削除
                     }, 500);
                 } else {
                     combo = 0;
@@ -279,6 +254,7 @@
             cells.forEach(cell => {
                 cell.isMatched = true;
                 cell.element.classList.add('matched');
+                cell.element.classList.remove('selected'); // 修正: 黄色の選択色をここで必ず消す
             });
 
             setTimeout(() => {
@@ -287,8 +263,11 @@
                     cell.element.classList.add('empty');
                 });
                 
-                setTimeout(dropCells, 600);
-                checkGameOver();
+                setTimeout(() => {
+                    dropCells();
+                    checkGameOver(); // アニメーション終了後にゲームオーバー判定
+                    isProcessing = false; // 修正: 全ての処理が完了してからロック解除
+                }, 600);
 
             }, 600);
         }
@@ -306,7 +285,8 @@
                         targetCell.value = cell.value;
                         targetCell.isMatched = false;
                         targetCell.element.innerHTML = `<span class="cell-content">${targetCell.value}</span>`;
-                        targetCell.element.classList.remove('empty', 'matched', 'falling');
+                        // 修正: selected クラスも念のためここでリセット
+                        targetCell.element.classList.remove('empty', 'matched', 'falling', 'selected');
                         
                         cell.isMatched = true;
                         cell.element.textContent = '';
@@ -322,11 +302,10 @@
                     }
                 }
                 
-                // 上部に新しい数字を生成
                 for (let y = 0; y < emptyCount; y++) {
                     grid[y][x].value = Math.floor(Math.random() * 10);
                     grid[y][x].isMatched = false;
-                    grid[y][x].element.classList.remove('empty', 'matched');
+                    grid[y][x].element.classList.remove('empty', 'matched', 'selected');
                     grid[y][x].element.innerHTML = `<span class="cell-content fall-in">${grid[y][x].value}</span>`;
                 }
             }
