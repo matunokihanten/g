@@ -344,11 +344,42 @@
   const addPairInput = document.getElementById("add-pair-input");
   const addPairBtn = document.getElementById("add-pair-btn");
 
+  // 【PC超軽量化】絵文字の画像キャッシュシステム
+  const emojiCache = {};
+  
+  function getEmojiImage(icon, radius) {
+    // 既にキャッシュ（画像化）されていればそれを返す
+    if (emojiCache[icon]) return emojiCache[icon];
+
+    // まだ画像化されていなければ、裏で小さなキャンバスを作って描画する
+    const size = Math.ceil(radius * 3);
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = size;
+    offCanvas.height = size;
+    const ctx = offCanvas.getContext('2d');
+    
+    const fontSize = Math.floor(radius * 1.8);
+    ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // 影
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillText(icon, size/2, size/2 + 3);
+    // 本体
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(icon, size/2, size/2);
+    
+    // 保存して返す
+    emojiCache[icon] = offCanvas;
+    return offCanvas;
+  }
+
   function initMatter() {
     engine = Engine.create({
       gravity: { x: 0, y: 0.8 },
-      positionIterations: 8,
-      velocityIterations: 8
+      positionIterations: 4, // PCでの重さを軽減するため物理演算の反復回数を調整
+      velocityIterations: 4
     });
 
     const width = container.clientWidth;
@@ -388,16 +419,9 @@
     Composite.add(engine.world, mouseConstraint);
     render.mouse = mouse;
 
+    // 【PC超軽量化】テキスト描画(fillText)をやめ、画像(drawImage)の貼り付けに変更
     Events.on(render, 'afterRender', () => {
       const ctx = render.context;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      // 軽量化: フォントサイズの設定をループの外に出す
-      if(itemsInBox.length > 0) {
-        const fontSize = Math.floor(itemsInBox[0].radius * 1.8);
-        ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-      }
 
       itemsInBox.forEach(item => {
         if (!item.body) return;
@@ -408,12 +432,9 @@
         ctx.translate(x, y);
         ctx.rotate(angle);
 
-        // 軽量化: 重い shadowBlur をやめ、テキストの2重描画による「擬似シャドウ」に変更
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillText(item.icon, 0, 4); // 影を描画
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(item.icon, 0, 1); // 本体を描画
+        // キャッシュされた絵文字画像を取得して貼り付けるだけ（爆速）
+        const img = getEmojiImage(item.icon, item.radius);
+        ctx.drawImage(img, -img.width/2, -img.height/2);
         
         ctx.restore();
       });
