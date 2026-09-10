@@ -6,257 +6,35 @@
   <title>Match 3D風 アイコンマッチングパズル</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    body {
-      background-color: #1a1a24;
-      color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    #game-container {
-      position: relative;
-      width: 100%;
-      max-width: 440px;
-      height: 100vh;
-      max-height: 820px;
-      background: radial-gradient(circle at 50% 40%, #2f3640 0%, #181920 100%);
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 0 30px rgba(0,0,0,0.8);
-      overflow: hidden;
-    }
-
-    header {
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 10;
-      background: rgba(0,0,0,0.4);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .level-badge {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #fbc531;
-    }
-
-    .restart-btn {
-      background: #44bd32;
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 0.9rem;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      transition: transform 0.1s;
-    }
-
-    .restart-btn:active {
-      transform: scale(0.92);
-      background: #38a028;
-    }
-
-    .pairs-left {
-      font-size: 0.95rem;
-      color: #dcdde1;
-      font-weight: bold;
-    }
-
-    #add-control {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      padding: 8px;
-      background: rgba(0,0,0,0.3);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      z-index: 10;
-    }
-    #add-control input {
-      width: 50px;
-      padding: 4px;
-      border-radius: 4px;
-      border: 1px solid #487eb0;
-      background: #2f3640;
-      color: #fff;
-      text-align: center;
-      font-size: 1rem;
-    }
-    .add-btn {
-      background: #0097e6;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 0.9rem;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      transition: transform 0.1s;
-    }
-    .add-btn:active {
-      transform: scale(0.92);
-    }
-
-    #canvas-container {
-      flex: 1;
-      position: relative;
-      width: 100%;
-      touch-action: none;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    .drop-zone-container {
-      height: 140px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 10;
-      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-      pointer-events: none; 
-    }
-
-    .drop-zone {
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      border: 4px dashed #00a8ff;
-      background: rgba(0, 168, 255, 0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.3), 0 4px 15px rgba(0,0,0,0.4);
-      transition: transform 0.15s ease, border-color 0.15s ease;
-      pointer-events: auto;
-    }
-
-    .drop-zone.hovered {
-      border-color: #4cd137;
-      transform: scale(1.08);
-      background: rgba(76, 209, 55, 0.15);
-    }
-
-    .slot-item {
-      font-size: 2.2rem;
-      animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    @keyframes popIn {
-      from { transform: scale(0); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    .modal-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      backdrop-filter: blur(6px);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-card {
-      background: #2f3640;
-      padding: 30px;
-      border-radius: 20px;
-      text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      border: 2px solid #487eb0;
-      width: 80%;
-      max-width: 320px;
-    }
-
-    .modal-card h2 {
-      margin-bottom: 12px;
-      font-size: 1.8rem;
-    }
-
-    .modal-card p {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      color: #dcdde1;
-    }
-
-    #start-options {
-      margin: 20px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    #start-options label {
-      font-size: 1.1rem;
-      font-weight: bold;
-    }
-
-    #start-level {
-      padding: 6px 12px;
-      font-size: 1.1rem;
-      border-radius: 8px;
-      background-color: #1a1a24;
-      color: #fff;
-      border: 1px solid #487eb0;
-      outline: none;
-      cursor: pointer;
-    }
-
-    .btn {
-      margin-top: 10px;
-      background: linear-gradient(135deg, #00a8ff, #0097e6);
-      color: white;
-      border: none;
-      padding: 12px 28px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      border-radius: 30px;
-      cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0, 168, 255, 0.4);
-      transition: transform 0.1s;
-    }
-
-    .btn:active {
-      transform: scale(0.95);
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    body { background-color: #1a1a24; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    #game-container { position: relative; width: 100%; max-width: 440px; height: 100vh; max-height: 820px; background: radial-gradient(circle at 50% 40%, #2f3640 0%, #181920 100%); display: flex; flex-direction: column; box-shadow: 0 0 30px rgba(0,0,0,0.8); overflow: hidden; }
+    header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 10; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .level-badge { font-size: 1rem; font-weight: 700; color: #fbc531; }
+    .restart-btn { background: #44bd32; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
+    .restart-btn:active { transform: scale(0.92); background: #38a028; }
+    .pairs-left { font-size: 0.95rem; color: #dcdde1; font-weight: bold; }
+    #add-control { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 8px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10; }
+    #add-control input { width: 50px; padding: 4px; border-radius: 4px; border: 1px solid #487eb0; background: #2f3640; color: #fff; text-align: center; font-size: 1rem; }
+    .add-btn { background: #0097e6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
+    .add-btn:active { transform: scale(0.92); }
+    #canvas-container { flex: 1; position: relative; width: 100%; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .drop-zone-container { height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); pointer-events: none; }
+    .drop-zone { width: 110px; height: 110px; border-radius: 50%; border: 4px dashed #00a8ff; background: rgba(0, 168, 255, 0.08); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.3), 0 4px 15px rgba(0,0,0,0.4); transition: transform 0.15s ease, border-color 0.15s ease; pointer-events: auto; }
+    .drop-zone.hovered { border-color: #4cd137; transform: scale(1.08); background: rgba(76, 209, 55, 0.15); }
+    .slot-item { font-size: 2.2rem; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-card { background: #2f3640; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 2px solid #487eb0; width: 80%; max-width: 320px; }
+    .modal-card h2 { margin-bottom: 12px; font-size: 1.8rem; }
+    .modal-card p { font-size: 0.95rem; line-height: 1.5; color: #dcdde1; }
+    #start-options { margin: 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    #start-options label { font-size: 1.1rem; font-weight: bold; }
+    #start-level { padding: 6px 12px; font-size: 1.1rem; border-radius: 8px; background-color: #1a1a24; color: #fff; border: 1px solid #487eb0; outline: none; cursor: pointer; }
+    .btn { margin-top: 10px; background: linear-gradient(135deg, #00a8ff, #0097e6); color: white; border: none; padding: 12px 28px; font-size: 1.1rem; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 10px rgba(0, 168, 255, 0.4); transition: transform 0.1s; }
+    .btn:active { transform: scale(0.95); }
   </style>
 </head>
 <body>
@@ -269,15 +47,14 @@
   </header>
 
   <div id="add-control">
-    <label>追加: <input type="number" id="add-pair-input" value="1" min="1" max="50"> 組</label>
+    <label>追加: <input type="number" id="add-pair-input" value="10" min="1" max="50"> 組</label>
     <button id="add-pair-btn" class="add-btn">➕ 降らせる</button>
   </div>
 
   <div id="canvas-container"></div>
 
   <div class="drop-zone-container">
-    <div class="drop-zone" id="drop-zone">
-    </div>
+    <div class="drop-zone" id="drop-zone"></div>
   </div>
 
   <div class="modal-overlay active" id="modal">
@@ -328,6 +105,10 @@
   let currentMatchedSlots = [];
   let remainingPairs = 0;
   let isGameActive = false;
+  
+  // 【バグ修正用】進行状態管理・オートヒール用変数
+  let actionTimeoutId = null; 
+  let targetIconCounts = {}; 
 
   const container = document.getElementById("canvas-container");
   const dropZone = document.getElementById("drop-zone");
@@ -344,14 +125,10 @@
   const addPairInput = document.getElementById("add-pair-input");
   const addPairBtn = document.getElementById("add-pair-btn");
 
-  // 【PC超軽量化】絵文字の画像キャッシュシステム
   const emojiCache = {};
   
   function getEmojiImage(icon, radius) {
-    // 既にキャッシュ（画像化）されていればそれを返す
     if (emojiCache[icon]) return emojiCache[icon];
-
-    // まだ画像化されていなければ、裏で小さなキャンバスを作って描画する
     const size = Math.ceil(radius * 3);
     const offCanvas = document.createElement('canvas');
     offCanvas.width = size;
@@ -363,14 +140,11 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // 影
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillText(icon, size/2, size/2 + 3);
-    // 本体
     ctx.fillStyle = "#ffffff";
     ctx.fillText(icon, size/2, size/2);
     
-    // 保存して返す
     emojiCache[icon] = offCanvas;
     return offCanvas;
   }
@@ -378,7 +152,7 @@
   function initMatter() {
     engine = Engine.create({
       gravity: { x: 0, y: 0.8 },
-      positionIterations: 4, // PCでの重さを軽減するため物理演算の反復回数を調整
+      positionIterations: 4, 
       velocityIterations: 4
     });
 
@@ -388,12 +162,7 @@
     render = Render.create({
       element: container,
       engine: engine,
-      options: {
-        width: width,
-        height: height,
-        wireframes: false,
-        background: 'transparent'
-      }
+      options: { width: width, height: height, wireframes: false, background: 'transparent' }
     });
 
     Render.run(render);
@@ -411,44 +180,32 @@
     const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
-      constraint: {
-        stiffness: 0.2,
-        render: { visible: false }
-      }
+      constraint: { stiffness: 0.2, render: { visible: false } }
     });
     Composite.add(engine.world, mouseConstraint);
     render.mouse = mouse;
 
-    // 【PC超軽量化】テキスト描画(fillText)をやめ、画像(drawImage)の貼り付けに変更
     Events.on(render, 'afterRender', () => {
       const ctx = render.context;
-
       itemsInBox.forEach(item => {
         if (!item.body) return;
         const { x, y } = item.body.position;
         const angle = item.body.angle;
-
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-
-        // キャッシュされた絵文字画像を取得して貼り付けるだけ（爆速）
         const img = getEmojiImage(item.icon, item.radius);
         ctx.drawImage(img, -img.width/2, -img.height/2);
-        
         ctx.restore();
       });
     });
 
     let mousedownPos = null;
-    Events.on(mouseConstraint, 'mousedown', (e) => {
-      mousedownPos = { ...e.mouse.mousedownPosition };
-    });
+    Events.on(mouseConstraint, 'mousedown', (e) => { mousedownPos = { ...e.mouse.mousedownPosition }; });
 
     Events.on(mouseConstraint, 'mouseup', (e) => {
       if (!isGameActive) return;
       const upPos = e.mouse.mouseupPosition;
-      
       if (mousedownPos) {
         const dist = Math.hypot(upPos.x - mousedownPos.x, upPos.y - mousedownPos.y);
         if (dist < 10) { 
@@ -466,7 +223,6 @@
       if (!isGameActive) return;
       const body = event.body;
       if (!body) return;
-
       const item = itemsInBox.find(i => i.body === body);
       if (!item) return;
 
@@ -475,23 +231,51 @@
       const screenX = canvasRect.left + body.position.x;
       const screenY = canvasRect.top + body.position.y;
 
-      if (
-        screenX >= rect.left && screenX <= rect.right &&
-        screenY >= rect.top && screenY <= rect.bottom
-      ) {
+      if (screenX >= rect.left && screenX <= rect.right && screenY >= rect.top && screenY <= rect.bottom) {
         selectItem(item);
       }
     });
 
+    let frameCount = 0;
     Events.on(engine, 'beforeUpdate', () => {
+      frameCount++;
       const w = container.clientWidth;
       const h = container.clientHeight;
+
+      // 【バグ修正】オートヒール：消滅したアイコンを自動的に検知して補充
+      if (frameCount % 60 === 0 && isGameActive && currentMatchedSlots.length === 0) {
+        const currentCounts = {};
+        itemsInBox.forEach(item => {
+          currentCounts[item.icon] = (currentCounts[item.icon] || 0) + 1;
+        });
+        
+        for (const [icon, target] of Object.entries(targetIconCounts)) {
+          const actual = currentCounts[icon] || 0;
+          if (actual < target) {
+            const diff = target - actual;
+            for (let i = 0; i < diff; i++) {
+              const radius = w < 380 ? 20 : 23; 
+              const newBody = Bodies.circle(w / 2 + (Math.random() * 40 - 20), 50, radius, {
+                restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false }
+              });
+              Body.setAngularVelocity(newBody, (Math.random() - 0.5) * 0.1);
+              itemsInBox.push({
+                id: "heal_" + Date.now() + "_" + Math.random(), icon: icon, radius: radius, body: newBody
+              });
+              Composite.add(engine.world, newBody);
+            }
+          }
+        }
+      }
+
+      // 【バグ修正】画面外判定の領域を拡張（上空への吹き飛びにも対応）
       itemsInBox.forEach(item => {
         if (!item.body) return;
         const pos = item.body.position;
-        if (Number.isNaN(pos.x) || Number.isNaN(pos.y) || pos.y > h + 50 || pos.x < -50 || pos.x > w + 50) {
+        if (Number.isNaN(pos.x) || Number.isNaN(pos.y) || pos.y > h + 150 || pos.y < -1000 || pos.x < -100 || pos.x > w + 100) {
           Body.setPosition(item.body, { x: w / 2 + (Math.random() * 20 - 10), y: 50 });
           Body.setVelocity(item.body, { x: 0, y: 0 });
+          Body.setAngularVelocity(item.body, 0);
         }
       });
     });
@@ -510,30 +294,23 @@
     const itemRadius = w < 380 ? 20 : 23; 
     const spawnItems = [];
     
-    selectedIcons.forEach(icon => spawnItems.push(icon, icon));
+    selectedIcons.forEach(icon => {
+      spawnItems.push(icon, icon);
+      targetIconCounts[icon] = (targetIconCounts[icon] || 0) + 2; // 【バグ修正】補充リストに登録
+    });
     spawnItems.sort(() => 0.5 - Math.random());
     
     const cols = Math.floor(w / (itemRadius * 2.5));
-    
     spawnItems.forEach((icon, idx) => {
       const col = idx % cols;
       const x = (w / cols) * col + itemRadius + (Math.random() * 10 - 5);
       const y = -50 - (Math.random() * 150) - (idx * 10);
-
       const body = Bodies.circle(x, y, itemRadius, {
-        restitution: 0.2, 
-        friction: 0.6,
-        density: 0.005,
-        render: { visible: false }
+        restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false }
       });
-
       Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
-
       itemsInBox.push({
-        id: "added_" + Date.now() + "_" + idx + "_" + Math.random(),
-        icon: icon,
-        radius: itemRadius,
-        body: body
+        id: "added_" + Date.now() + "_" + idx + "_" + Math.random(), icon: icon, radius: itemRadius, body: body
       });
       Composite.add(engine.world, body);
     });
@@ -550,6 +327,7 @@
   });
 
   function startLevel(lvl) {
+    if (actionTimeoutId) { clearTimeout(actionTimeoutId); actionTimeoutId = null; } // 【バグ修正】古いタイマーを抹消
     isGameActive = false;
     currentLevel = lvl;
     levelDisplay.textContent = `LEVEL ${lvl}`;
@@ -562,14 +340,9 @@
       if (item.body) Composite.remove(engine.world, item.body);
     });
     itemsInBox = [];
+    targetIconCounts = {}; // リセット
 
-    let numPairs;
-    if (lvl === 10) {
-      numPairs = 100;
-    } else {
-      numPairs = Math.min(35 + (lvl - 1) * 5, ICON_CANDIDATES.length);
-    }
-    
+    let numPairs = (lvl === 10) ? 100 : Math.min(35 + (lvl - 1) * 5, ICON_CANDIDATES.length);
     remainingPairs = numPairs;
     pairsDisplay.textContent = remainingPairs;
 
@@ -580,31 +353,22 @@
     const itemRadius = w < 380 ? 20 : 23; 
     const spawnItems = [];
     
-    selectedIcons.forEach(icon => spawnItems.push(icon, icon));
+    selectedIcons.forEach(icon => {
+      spawnItems.push(icon, icon);
+      targetIconCounts[icon] = 2; // 【バグ修正】初期数を記録
+    });
     spawnItems.sort(() => 0.5 - Math.random());
     
     const cols = Math.floor(w / (itemRadius * 2.5));
-    
     spawnItems.forEach((icon, idx) => {
       const col = idx % cols;
       const x = (w / cols) * col + itemRadius + (Math.random() * 10 - 5);
       const y = -100 - (Math.random() * 300) - (idx * 8);
-
       const body = Bodies.circle(x, y, itemRadius, {
-        restitution: 0.2, 
-        friction: 0.6,
-        density: 0.005,
-        render: { visible: false }
+        restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false }
       });
-
       Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
-
-      itemsInBox.push({
-        id: idx + "_" + Math.random(),
-        icon: icon,
-        radius: itemRadius,
-        body: body
-      });
+      itemsInBox.push({ id: idx + "_" + Math.random(), icon: icon, radius: itemRadius, body: body });
       Composite.add(engine.world, body);
     });
 
@@ -614,7 +378,6 @@
   function selectItem(item) {
     if (!isGameActive) return;
     if (currentMatchedSlots.length >= 2) return;
-
     if (!itemsInBox.includes(item)) return;
     if (currentMatchedSlots.includes(item)) return;
 
@@ -634,30 +397,27 @@
         dropZone.style.borderColor = "#4cd137";
         dropZone.style.transform = "scale(1.15)";
         
-        setTimeout(() => {
+        targetIconCounts[item1.icon] -= 2; // 【バグ修正】マッチ成功時に監視リストから減算
+
+        actionTimeoutId = setTimeout(() => {
           dropZone.innerHTML = "";
           currentMatchedSlots = [];
           dropZone.style.borderColor = "#00a8ff";
           dropZone.style.transform = "scale(1)";
           
           remainingPairs--;
-          pairsDisplay.textContent = remainingPairs;
-
-          if (remainingPairs <= 0) {
-            gameClear();
-          }
+          pairsDisplay.textContent = Math.max(0, remainingPairs);
+          if (remainingPairs <= 0) gameClear();
         }, 300);
       } else {
         dropZone.style.borderColor = "#e84118";
         
-        setTimeout(() => {
+        actionTimeoutId = setTimeout(() => {
           dropZone.innerHTML = "";
           currentMatchedSlots.forEach((mItem) => {
             const w = container.clientWidth;
             const newBody = Bodies.circle(w / 2 + (Math.random() - 0.5) * 60, 50, mItem.radius, {
-              restitution: 0.2,
-              friction: 0.6,
-              render: { visible: false } 
+              restitution: 0.2, friction: 0.6, render: { visible: false } 
             });
             Body.setVelocity(newBody, { x: (Math.random() - 0.5) * 4, y: 0 });
             mItem.body = newBody;
@@ -676,9 +436,7 @@
     modal.classList.add("active");
     modalTitle.textContent = "🎉 CLEAR!";
     modalDesc.innerHTML = "すべてのペアを見つけました！<br>素晴らしい集中力です。";
-    
     startOptions.style.display = "none";
-    
     modalBtn.textContent = "次のレベルへ";
     modalBtn.onclick = () => {
       modal.classList.remove("active");
@@ -687,14 +445,11 @@
   }
 
   restartBtn.addEventListener("click", () => {
-    if(confirm("現在のレベルを最初からやり直しますか？")) {
-      startLevel(currentLevel);
-    }
+    if(confirm("現在のレベルを最初からやり直しますか？")) startLevel(currentLevel);
   });
 
   window.addEventListener('DOMContentLoaded', () => {
     initMatter();
-    
     modalBtn.onclick = () => {
       modal.classList.remove("active");
       const selectedLvl = parseInt(startLevelSelect.value, 10);
