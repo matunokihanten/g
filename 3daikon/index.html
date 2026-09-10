@@ -21,15 +21,16 @@
     #canvas-container { flex: 1; position: relative; width: 100%; touch-action: none; }
     canvas { display: block; width: 100%; height: 100%; }
     .drop-zone-container { height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); pointer-events: none; }
-    .drop-zone { width: 110px; height: 110px; border-radius: 50%; border: 4px dashed #00a8ff; background: rgba(0, 168, 255, 0.08); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.3), 0 4px 15px rgba(0,0,0,0.4); transition: transform 0.15s ease, border-color 0.15s ease; pointer-events: auto; }
+    .drop-zone { width: 110px; height: 110px; border-radius: 50%; border: 4px dashed #00a8ff; background: rgba(0, 168, 255, 0.08); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.3), 0 4px 15px rgba(0,0,0,0.4); transition: transform 0.15s ease, border-color 0.15s ease; pointer-events: auto; cursor: pointer; }
     .drop-zone.hovered { border-color: #4cd137; transform: scale(1.08); background: rgba(76, 209, 55, 0.15); }
-    .slot-item { font-size: 2.2rem; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .slot-item { font-size: 2.2rem; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; }
     @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
     .modal-overlay.active { opacity: 1; pointer-events: auto; }
     .modal-card { background: #2f3640; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 2px solid #487eb0; width: 80%; max-width: 320px; }
     .modal-card h2 { margin-bottom: 12px; font-size: 1.8rem; }
-    .modal-card p { font-size: 0.95rem; line-height: 1.5; color: #dcdde1; }
+    .modal-card p { font-size: 0.95rem; line-height: 1.5; color: #dcdde1; margin-bottom: 10px; }
+    .hint-text { font-size: 0.85rem; color: #fbc531; background: rgba(251, 197, 49, 0.1); padding: 8px; border-radius: 8px; }
     #start-options { margin: 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
     #start-options label { font-size: 1.1rem; font-weight: bold; }
     #start-level { padding: 6px 12px; font-size: 1.1rem; border-radius: 8px; background-color: #1a1a24; color: #fff; border: 1px solid #487eb0; outline: none; cursor: pointer; }
@@ -60,7 +61,12 @@
   <div class="modal-overlay active" id="modal">
     <div class="modal-card">
       <h2 id="modal-title">マッチ3D</h2>
-      <p id="modal-desc">初めから大量のアイコンが登場します！<br>時間は無制限。同じ絵柄を2つ探してタップするか、下の円へドラッグしよう！</p>
+      <p id="modal-desc">同じ絵柄を2つ探してタップするか、下の円へドラッグしよう！</p>
+      <div class="hint-text">
+        💡 <b>ヒント</b><br>
+        ・スマホを傾けるとアイコンが動きます<br>
+        ・ペアが見つからない時は、円の中に入れたアイコンを<b>3回タップ</b>で相方が降臨！
+      </div>
       
       <div id="start-options">
         <label for="start-level">開始レベル:</label>
@@ -106,9 +112,11 @@
   let remainingPairs = 0;
   let isGameActive = false;
   
-  // 【バグ修正用】進行状態管理・オートヒール用変数
   let actionTimeoutId = null; 
   let targetIconCounts = {}; 
+  
+  // 【追加】ドロップゾーンのタップ回数カウント用
+  let dropZoneTapCount = 0;
 
   const container = document.getElementById("canvas-container");
   const dropZone = document.getElementById("drop-zone");
@@ -117,11 +125,8 @@
   const restartBtn = document.getElementById("restart-btn");
   const modal = document.getElementById("modal");
   const modalTitle = document.getElementById("modal-title");
-  const modalDesc = document.getElementById("modal-desc");
   const modalBtn = document.getElementById("modal-btn");
-  const startOptions = document.getElementById("start-options");
   const startLevelSelect = document.getElementById("start-level");
-  
   const addPairInput = document.getElementById("add-pair-input");
   const addPairBtn = document.getElementById("add-pair-btn");
 
@@ -134,17 +139,14 @@
     offCanvas.width = size;
     offCanvas.height = size;
     const ctx = offCanvas.getContext('2d');
-    
     const fontSize = Math.floor(radius * 1.8);
     ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillText(icon, size/2, size/2 + 3);
     ctx.fillStyle = "#ffffff";
     ctx.fillText(icon, size/2, size/2);
-    
     emojiCache[icon] = offCanvas;
     return offCanvas;
   }
@@ -190,6 +192,7 @@
       itemsInBox.forEach(item => {
         if (!item.body) return;
         const { x, y } = item.body.position;
+        if (Number.isNaN(x) || Number.isNaN(y)) return; 
         const angle = item.body.angle;
         ctx.save();
         ctx.translate(x, y);
@@ -238,65 +241,123 @@
 
     let frameCount = 0;
     Events.on(engine, 'beforeUpdate', () => {
+      if (!isGameActive) return;
       frameCount++;
       const w = container.clientWidth;
       const h = container.clientHeight;
 
-      // 【バグ修正】オートヒール：消滅したアイコンを自動的に検知して補充
-      if (frameCount % 60 === 0 && isGameActive && currentMatchedSlots.length === 0) {
+      itemsInBox = itemsInBox.filter(item => {
+        if (!item.body) return false;
+        const pos = item.body.position;
+        if (Number.isNaN(pos.x) || Number.isNaN(pos.y) || pos.y > h + 200 || pos.y < -1000 || pos.x < -200 || pos.x > w + 200) {
+          Composite.remove(engine.world, item.body);
+          return false; 
+        }
+        return true;
+      });
+
+      if (frameCount % 60 === 0) {
         const currentCounts = {};
-        itemsInBox.forEach(item => {
-          currentCounts[item.icon] = (currentCounts[item.icon] || 0) + 1;
-        });
+        itemsInBox.forEach(item => { currentCounts[item.icon] = (currentCounts[item.icon] || 0) + 1; });
+        currentMatchedSlots.forEach(item => { currentCounts[item.icon] = (currentCounts[item.icon] || 0) + 1; });
         
         for (const [icon, target] of Object.entries(targetIconCounts)) {
           const actual = currentCounts[icon] || 0;
           if (actual < target) {
             const diff = target - actual;
             for (let i = 0; i < diff; i++) {
-              const radius = w < 380 ? 20 : 23; 
-              const newBody = Bodies.circle(w / 2 + (Math.random() * 40 - 20), 50, radius, {
-                restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false }
-              });
-              Body.setAngularVelocity(newBody, (Math.random() - 0.5) * 0.1);
-              itemsInBox.push({
-                id: "heal_" + Date.now() + "_" + Math.random(), icon: icon, radius: radius, body: newBody
-              });
-              Composite.add(engine.world, newBody);
+              spawnSingleIcon(icon, -50);
             }
           }
         }
       }
-
-      // 【バグ修正】画面外判定の領域を拡張（上空への吹き飛びにも対応）
-      itemsInBox.forEach(item => {
-        if (!item.body) return;
-        const pos = item.body.position;
-        if (Number.isNaN(pos.x) || Number.isNaN(pos.y) || pos.y > h + 150 || pos.y < -1000 || pos.x < -100 || pos.x > w + 100) {
-          Body.setPosition(item.body, { x: w / 2 + (Math.random() * 20 - 10), y: 50 });
-          Body.setVelocity(item.body, { x: 0, y: 0 });
-          Body.setAngularVelocity(item.body, 0);
-        }
-      });
     });
   }
 
+  // 【追加】特定のアイコンを上から降らせる共通関数
+  function spawnSingleIcon(icon, startY) {
+    const w = container.clientWidth;
+    const radius = w < 380 ? 20 : 23; 
+    const newBody = Bodies.circle(w / 2 + (Math.random() * 40 - 20), startY, radius, {
+      restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false }
+    });
+    Body.setAngularVelocity(newBody, (Math.random() - 0.5) * 0.1);
+    itemsInBox.push({ id: "spawn_" + Date.now() + "_" + Math.random(), icon: icon, radius: radius, body: newBody });
+    Composite.add(engine.world, newBody);
+  }
+
+  // 【追加】ジャイロセンサー（スマホの傾き）対応
+  function requestDeviceOrientation() {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(permissionState => {
+          if (permissionState === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          }
+        }).catch(console.error);
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+  }
+
+  function handleOrientation(event) {
+    if (!isGameActive) return;
+    let y = event.beta;  
+    let x = event.gamma; 
+    
+    if (x > 90) x = 90;
+    if (x < -90) x = -90;
+
+    // 傾きに応じて重力を変更（スマホを振ると中身が動く）
+    engine.gravity.x = x / 40; 
+    engine.gravity.y = y > 0 ? (y / 40) : (y / 40); // 逆さにすると上へ飛ぶ
+    
+    // 完全に平らな状態へのフェールセーフ（最低限の重力を残す）
+    if (Math.abs(engine.gravity.x) < 0.1 && Math.abs(engine.gravity.y) < 0.1) {
+       engine.gravity.y = 0.5;
+    }
+  }
+
+  // 【追加】ドロップゾーン（円）のタップで相方を強制召喚
+  dropZone.addEventListener('pointerdown', () => {
+    if (!isGameActive) return;
+    
+    // 円の中にアイコンがちょうど1個ある時だけ作動
+    if (currentMatchedSlots.length === 1) {
+      dropZoneTapCount++;
+      
+      // タップするたびに少し振動させる
+      dropZone.style.transform = `scale(1.1) rotate(${dropZoneTapCount % 2 === 0 ? 5 : -5}deg)`;
+      setTimeout(() => dropZone.style.transform = "scale(1)", 100);
+
+      // 3回タップされたら発動
+      if (dropZoneTapCount >= 3) {
+        const rescueIcon = currentMatchedSlots[0].icon;
+        
+        // 救済用のペアを上空から降らせる
+        spawnSingleIcon(rescueIcon, -50);
+        
+        // 演出：枠を光らせる
+        dropZone.style.borderColor = "#fbc531";
+        setTimeout(() => dropZone.style.borderColor = "#00a8ff", 500);
+        
+        dropZoneTapCount = 0; // カウントリセット
+      }
+    }
+  });
+
   function addPairsDuringPlay(numPairs) {
     if (!isGameActive) return;
-
     const selectedIcons = [];
     for (let i = 0; i < numPairs; i++) {
-      const randomIcon = ICON_CANDIDATES[Math.floor(Math.random() * ICON_CANDIDATES.length)];
-      selectedIcons.push(randomIcon);
+      selectedIcons.push(ICON_CANDIDATES[Math.floor(Math.random() * ICON_CANDIDATES.length)]);
     }
-
     const w = container.clientWidth;
     const itemRadius = w < 380 ? 20 : 23; 
     const spawnItems = [];
-    
     selectedIcons.forEach(icon => {
       spawnItems.push(icon, icon);
-      targetIconCounts[icon] = (targetIconCounts[icon] || 0) + 2; // 【バグ修正】補充リストに登録
+      targetIconCounts[icon] = (targetIconCounts[icon] || 0) + 2; 
     });
     spawnItems.sort(() => 0.5 - Math.random());
     
@@ -309,30 +370,26 @@
         restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false }
       });
       Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
-      itemsInBox.push({
-        id: "added_" + Date.now() + "_" + idx + "_" + Math.random(), icon: icon, radius: itemRadius, body: body
-      });
+      itemsInBox.push({ id: "added_" + Date.now() + "_" + idx + "_" + Math.random(), icon: icon, radius: itemRadius, body: body });
       Composite.add(engine.world, body);
     });
-
     remainingPairs += numPairs;
     pairsDisplay.textContent = remainingPairs;
   }
 
   addPairBtn.addEventListener("click", () => {
     const num = parseInt(addPairInput.value, 10);
-    if (!isNaN(num) && num > 0) {
-      addPairsDuringPlay(num);
-    }
+    if (!isNaN(num) && num > 0) addPairsDuringPlay(num);
   });
 
   function startLevel(lvl) {
-    if (actionTimeoutId) { clearTimeout(actionTimeoutId); actionTimeoutId = null; } // 【バグ修正】古いタイマーを抹消
+    if (actionTimeoutId) { clearTimeout(actionTimeoutId); actionTimeoutId = null; } 
     isGameActive = false;
     currentLevel = lvl;
     levelDisplay.textContent = `LEVEL ${lvl}`;
     
     currentMatchedSlots = [];
+    dropZoneTapCount = 0; // 追加：開始時にタップカウントリセット
     dropZone.innerHTML = "";
     dropZone.style.borderColor = "#00a8ff";
 
@@ -340,7 +397,11 @@
       if (item.body) Composite.remove(engine.world, item.body);
     });
     itemsInBox = [];
-    targetIconCounts = {}; // リセット
+    targetIconCounts = {}; 
+
+    // 重力リセット（スマホを水平に置いたままスタートした時用）
+    engine.gravity.x = 0;
+    engine.gravity.y = 0.8;
 
     let numPairs = (lvl === 10) ? 100 : Math.min(35 + (lvl - 1) * 5, ICON_CANDIDATES.length);
     remainingPairs = numPairs;
@@ -355,7 +416,7 @@
     
     selectedIcons.forEach(icon => {
       spawnItems.push(icon, icon);
-      targetIconCounts[icon] = 2; // 【バグ修正】初期数を記録
+      targetIconCounts[icon] = (targetIconCounts[icon] || 0) + 2; 
     });
     spawnItems.sort(() => 0.5 - Math.random());
     
@@ -385,6 +446,8 @@
     itemsInBox = itemsInBox.filter(i => i !== item);
 
     currentMatchedSlots.push(item);
+    dropZoneTapCount = 0; // 追加：アイテムが入ったらタップカウントをリセット
+
     const elem = document.createElement("div");
     elem.className = "slot-item";
     elem.textContent = item.icon;
@@ -397,9 +460,9 @@
         dropZone.style.borderColor = "#4cd137";
         dropZone.style.transform = "scale(1.15)";
         
-        targetIconCounts[item1.icon] -= 2; // 【バグ修正】マッチ成功時に監視リストから減算
-
         actionTimeoutId = setTimeout(() => {
+          targetIconCounts[item1.icon] = Math.max(0, (targetIconCounts[item1.icon] || 0) - 2);
+
           dropZone.innerHTML = "";
           currentMatchedSlots = [];
           dropZone.style.borderColor = "#00a8ff";
@@ -417,7 +480,7 @@
           currentMatchedSlots.forEach((mItem) => {
             const w = container.clientWidth;
             const newBody = Bodies.circle(w / 2 + (Math.random() - 0.5) * 60, 50, mItem.radius, {
-              restitution: 0.2, friction: 0.6, render: { visible: false } 
+              restitution: 0.2, friction: 0.6, density: 0.005, render: { visible: false } 
             });
             Body.setVelocity(newBody, { x: (Math.random() - 0.5) * 4, y: 0 });
             mItem.body = newBody;
@@ -435,8 +498,11 @@
     isGameActive = false;
     modal.classList.add("active");
     modalTitle.textContent = "🎉 CLEAR!";
-    modalDesc.innerHTML = "すべてのペアを見つけました！<br>素晴らしい集中力です。";
-    startOptions.style.display = "none";
+    
+    // 次のレベルへ進む際のUIリセット
+    const startOptions = document.getElementById("start-options");
+    if(startOptions) startOptions.style.display = "none";
+    
     modalBtn.textContent = "次のレベルへ";
     modalBtn.onclick = () => {
       modal.classList.remove("active");
@@ -451,6 +517,8 @@
   window.addEventListener('DOMContentLoaded', () => {
     initMatter();
     modalBtn.onclick = () => {
+      // ジャイロの権限リクエスト（iOS Safari等の初回タップ時に必須）
+      requestDeviceOrientation();
       modal.classList.remove("active");
       const selectedLvl = parseInt(startLevelSelect.value, 10);
       startLevel(selectedLvl);
