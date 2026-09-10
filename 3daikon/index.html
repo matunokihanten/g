@@ -79,7 +79,6 @@
       font-weight: bold;
     }
 
-    /* 【追加】ペア追加用コントロールバーのスタイル */
     #add-control {
       display: flex;
       justify-content: center;
@@ -269,7 +268,6 @@
     <div class="pairs-left">残り: <span id="pairs-display">0</span>組</div>
   </header>
 
-  <!-- 【追加】プレイ中にアイコンを追加するUI -->
   <div id="add-control">
     <label>追加: <input type="number" id="add-pair-input" value="1" min="1" max="50"> 組</label>
     <button id="add-pair-btn" class="add-btn">➕ 降らせる</button>
@@ -343,7 +341,6 @@
   const startOptions = document.getElementById("start-options");
   const startLevelSelect = document.getElementById("start-level");
   
-  // 【追加】新規UI要素の取得
   const addPairInput = document.getElementById("add-pair-input");
   const addPairBtn = document.getElementById("add-pair-btn");
 
@@ -396,6 +393,12 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
+      // 軽量化: フォントサイズの設定をループの外に出す
+      if(itemsInBox.length > 0) {
+        const fontSize = Math.floor(itemsInBox[0].radius * 1.8);
+        ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      }
+
       itemsInBox.forEach(item => {
         if (!item.body) return;
         const { x, y } = item.body.position;
@@ -405,15 +408,13 @@
         ctx.translate(x, y);
         ctx.rotate(angle);
 
-        ctx.shadowColor = "rgba(0,0,0,0.6)";
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetY = 3;
+        // 軽量化: 重い shadowBlur をやめ、テキストの2重描画による「擬似シャドウ」に変更
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillText(item.icon, 0, 4); // 影を描画
+
         ctx.fillStyle = "#ffffff";
+        ctx.fillText(item.icon, 0, 1); // 本体を描画
         
-        const fontSize = Math.floor(item.radius * 1.8);
-        ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-        
-        ctx.fillText(item.icon, 0, 2);
         ctx.restore();
       });
     });
@@ -475,11 +476,9 @@
     });
   }
 
-  // 【追加】プレイ中にペア数を追加する関数
   function addPairsDuringPlay(numPairs) {
     if (!isGameActive) return;
 
-    // 追加するアイコンの種類を候補からランダムに選ぶ
     const selectedIcons = [];
     for (let i = 0; i < numPairs; i++) {
       const randomIcon = ICON_CANDIDATES[Math.floor(Math.random() * ICON_CANDIDATES.length)];
@@ -490,7 +489,6 @@
     const itemRadius = w < 380 ? 20 : 23; 
     const spawnItems = [];
     
-    // ペア（2個ずつ）配列に格納してシャッフル
     selectedIcons.forEach(icon => spawnItems.push(icon, icon));
     spawnItems.sort(() => 0.5 - Math.random());
     
@@ -499,7 +497,6 @@
     spawnItems.forEach((icon, idx) => {
       const col = idx % cols;
       const x = (w / cols) * col + itemRadius + (Math.random() * 10 - 5);
-      // 上空から降ってくるようにY座標をマイナスに設定
       const y = -50 - (Math.random() * 150) - (idx * 10);
 
       const body = Bodies.circle(x, y, itemRadius, {
@@ -511,7 +508,6 @@
 
       Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
 
-      // アイテムを配列と物理エンジンに追加
       itemsInBox.push({
         id: "added_" + Date.now() + "_" + idx + "_" + Math.random(),
         icon: icon,
@@ -521,12 +517,10 @@
       Composite.add(engine.world, body);
     });
 
-    //UI（残りペア数）の更新
     remainingPairs += numPairs;
     pairsDisplay.textContent = remainingPairs;
   }
 
-  // 【追加】「➕ 降らせる」ボタンのクリックイベント
   addPairBtn.addEventListener("click", () => {
     const num = parseInt(addPairInput.value, 10);
     if (!isNaN(num) && num > 0) {
