@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Match 3D風 アイコンマッチングパズル</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #1a1a24;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 100vh;
+      max-height: 820px;
+      background: radial-gradient(circle at 50% 40%, #2f3640 0%, #181920 100%);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 30px rgba(0,0,0,0.8);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      background: rgba(0,0,0,0.4);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .level-badge {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fbc531;
+    }
+
+    .restart-btn {
+      background: #44bd32;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+    }
+
+    .restart-btn:active {
+      transform: scale(0.92);
+      background: #38a028;
+    }
+
+    .pairs-left {
+      font-size: 0.95rem;
+      color: #dcdde1;
+      font-weight: bold;
+    }
+
+    /* 【追加】ペア追加用コントロールバーのスタイル */
+    #add-control {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      z-index: 10;
+    }
+    #add-control input {
+      width: 50px;
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid #487eb0;
+      background: #2f3640;
+      color: #fff;
+      text-align: center;
+      font-size: 1rem;
+    }
+    .add-btn {
+      background: #0097e6;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+    }
+    .add-btn:active {
+      transform: scale(0.92);
+    }
+
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-zone-container {
+      height: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 10;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      pointer-events: none; 
+    }
+
+    .drop-zone {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      border: 4px dashed #00a8ff;
+      background: rgba(0, 168, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.3), 0 4px 15px rgba(0,0,0,0.4);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+      pointer-events: auto;
+    }
+
+    .drop-zone.hovered {
+      border-color: #4cd137;
+      transform: scale(1.08);
+      background: rgba(76, 209, 55, 0.15);
+    }
+
+    .slot-item {
+      font-size: 2.2rem;
+      animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #2f3640;
+      padding: 30px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      border: 2px solid #487eb0;
+      width: 80%;
+      max-width: 320px;
+    }
+
+    .modal-card h2 {
+      margin-bottom: 12px;
+      font-size: 1.8rem;
+    }
+
+    .modal-card p {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #dcdde1;
+    }
+
+    #start-options {
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    #start-options label {
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    #start-level {
+      padding: 6px 12px;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      background-color: #1a1a24;
+      color: #fff;
+      border: 1px solid #487eb0;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .btn {
+      margin-top: 10px;
+      background: linear-gradient(135deg, #00a8ff, #0097e6);
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 168, 255, 0.4);
+      transition: transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <header>
+    <div class="level-badge" id="level-display">LEVEL 1</div>
+    <button id="restart-btn" class="restart-btn">🔄 やり直し</button>
+    <div class="pairs-left">残り: <span id="pairs-display">0</span>組</div>
+  </header>
+
+  <!-- 【追加】プレイ中にアイコンを追加するUI -->
+  <div id="add-control">
+    <label>追加: <input type="number" id="add-pair-input" value="1" min="1" max="50"> 組</label>
+    <button id="add-pair-btn" class="add-btn">➕ 降らせる</button>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div class="drop-zone-container">
+    <div class="drop-zone" id="drop-zone">
+    </div>
+  </div>
+
+  <div class="modal-overlay active" id="modal">
+    <div class="modal-card">
+      <h2 id="modal-title">マッチ3D</h2>
+      <p id="modal-desc">初めから大量のアイコンが登場します！<br>時間は無制限。同じ絵柄を2つ探してタップするか、下の円へドラッグしよう！</p>
+      
+      <div id="start-options">
+        <label for="start-level">開始レベル:</label>
+        <select id="start-level">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10 (100組)</option>
+        </select>
+      </div>
+
+      <button class="btn" id="modal-btn">ゲーム開始</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint, Events, Body } = Matter;
+
+  const ICON_CANDIDATES = [
+    "🐶","🐱","🐼","🐸","🦁","🐵","🦄","🐧","🐷","🐰","🐻","🦊",
+    "🐔","🐦","🐤","🦇","🦉","🐺","🐗","🐴","🐝","🐛","🦋","🐌",
+    "🍎","🍋","🍉","🍇","🥑","🥕","🍔","🍕","🍩","🍰","🍓","🍒",
+    "🍖","🍗","🥓","🍟","🌭","🍿","🍳","🥘","🍲","🥣","🥗","🥪",
+    "🚗","🚀","✈️","🚁","⛵","🚜","🛵","🚓","🚑","🚒","🚲","🚤",
+    "🏀","⚽","🎾","⚾","🏈","🎱","🎁","👑","💎","⭐","🔔","🧸",
+    "👟","🎩","👓","🎒","🌂","👕","👖","🧣","🧤","🧦","👗","👘",
+    "📱","⌚","💻","📷","🎧","🎮","📚","💡","🔦","🕯️","🗑️","💸",
+    "🔨","🪓","⛏️","🗡️","🛡️","🔧","🔩","⚙️","⚖️","🔗","🔋","🔌",
+    "🌻","🌸","🌺","🌲","🌵","🍀","🍁","🍄","🌍","🌙","☀️","⚡","🔥","💧","❄️","💨"
+  ];
+
+  let engine, render, runner;
+  let currentLevel = 1;
+  let itemsInBox = [];
+  let currentMatchedSlots = [];
+  let remainingPairs = 0;
+  let isGameActive = false;
+
+  const container = document.getElementById("canvas-container");
+  const dropZone = document.getElementById("drop-zone");
+  const pairsDisplay = document.getElementById("pairs-display");
+  const levelDisplay = document.getElementById("level-display");
+  const restartBtn = document.getElementById("restart-btn");
+  const modal = document.getElementById("modal");
+  const modalTitle = document.getElementById("modal-title");
+  const modalDesc = document.getElementById("modal-desc");
+  const modalBtn = document.getElementById("modal-btn");
+  const startOptions = document.getElementById("start-options");
+  const startLevelSelect = document.getElementById("start-level");
+  
+  // 【追加】新規UI要素の取得
+  const addPairInput = document.getElementById("add-pair-input");
+  const addPairBtn = document.getElementById("add-pair-btn");
+
+  function initMatter() {
+    engine = Engine.create({
+      gravity: { x: 0, y: 0.8 },
+      positionIterations: 8,
+      velocityIterations: 8
+    });
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    render = Render.create({
+      element: container,
+      engine: engine,
+      options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: 'transparent'
+      }
+    });
+
+    Render.run(render);
+    runner = Runner.create();
+    Runner.run(runner, engine);
+
+    const wallThick = 400;
+    const walls = [
+      Bodies.rectangle(width / 2, height + wallThick / 2, width * 3, wallThick, { isStatic: true, render: { visible: false } }),
+      Bodies.rectangle(-wallThick / 2, height / 2, wallThick, height * 3, { isStatic: true, render: { visible: false } }),
+      Bodies.rectangle(width + wallThick / 2, height / 2, wallThick, height * 3, { isStatic: true, render: { visible: false } })
+    ];
+    Composite.add(engine.world, walls);
+
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      }
+    });
+    Composite.add(engine.world, mouseConstraint);
+    render.mouse = mouse;
+
+    Events.on(render, 'afterRender', () => {
+      const ctx = render.context;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      itemsInBox.forEach(item => {
+        if (!item.body) return;
+        const { x, y } = item.body.position;
+        const angle = item.body.angle;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        ctx.shadowColor = "rgba(0,0,0,0.6)";
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 3;
+        ctx.fillStyle = "#ffffff";
+        
+        const fontSize = Math.floor(item.radius * 1.8);
+        ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+        
+        ctx.fillText(item.icon, 0, 2);
+        ctx.restore();
+      });
+    });
+
+    let mousedownPos = null;
+    Events.on(mouseConstraint, 'mousedown', (e) => {
+      mousedownPos = { ...e.mouse.mousedownPosition };
+    });
+
+    Events.on(mouseConstraint, 'mouseup', (e) => {
+      if (!isGameActive) return;
+      const upPos = e.mouse.mouseupPosition;
+      
+      if (mousedownPos) {
+        const dist = Math.hypot(upPos.x - mousedownPos.x, upPos.y - mousedownPos.y);
+        if (dist < 10) { 
+          const bodies = itemsInBox.map(i => i.body);
+          const clickedBodies = Matter.Query.point(bodies, upPos);
+          if (clickedBodies.length > 0) {
+            const item = itemsInBox.find(i => i.body === clickedBodies[0]);
+            if (item) selectItem(item);
+          }
+        }
+      }
+    });
+
+    Events.on(mouseConstraint, 'enddrag', (event) => {
+      if (!isGameActive) return;
+      const body = event.body;
+      if (!body) return;
+
+      const item = itemsInBox.find(i => i.body === body);
+      if (!item) return;
+
+      const rect = dropZone.getBoundingClientRect();
+      const canvasRect = render.canvas.getBoundingClientRect();
+      const screenX = canvasRect.left + body.position.x;
+      const screenY = canvasRect.top + body.position.y;
+
+      if (
+        screenX >= rect.left && screenX <= rect.right &&
+        screenY >= rect.top && screenY <= rect.bottom
+      ) {
+        selectItem(item);
+      }
+    });
+
+    Events.on(engine, 'beforeUpdate', () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      itemsInBox.forEach(item => {
+        if (!item.body) return;
+        const pos = item.body.position;
+        if (Number.isNaN(pos.x) || Number.isNaN(pos.y) || pos.y > h + 50 || pos.x < -50 || pos.x > w + 50) {
+          Body.setPosition(item.body, { x: w / 2 + (Math.random() * 20 - 10), y: 50 });
+          Body.setVelocity(item.body, { x: 0, y: 0 });
+        }
+      });
+    });
+  }
+
+  // 【追加】プレイ中にペア数を追加する関数
+  function addPairsDuringPlay(numPairs) {
+    if (!isGameActive) return;
+
+    // 追加するアイコンの種類を候補からランダムに選ぶ
+    const selectedIcons = [];
+    for (let i = 0; i < numPairs; i++) {
+      const randomIcon = ICON_CANDIDATES[Math.floor(Math.random() * ICON_CANDIDATES.length)];
+      selectedIcons.push(randomIcon);
+    }
+
+    const w = container.clientWidth;
+    const itemRadius = w < 380 ? 20 : 23; 
+    const spawnItems = [];
+    
+    // ペア（2個ずつ）配列に格納してシャッフル
+    selectedIcons.forEach(icon => spawnItems.push(icon, icon));
+    spawnItems.sort(() => 0.5 - Math.random());
+    
+    const cols = Math.floor(w / (itemRadius * 2.5));
+    
+    spawnItems.forEach((icon, idx) => {
+      const col = idx % cols;
+      const x = (w / cols) * col + itemRadius + (Math.random() * 10 - 5);
+      // 上空から降ってくるようにY座標をマイナスに設定
+      const y = -50 - (Math.random() * 150) - (idx * 10);
+
+      const body = Bodies.circle(x, y, itemRadius, {
+        restitution: 0.2, 
+        friction: 0.6,
+        density: 0.005,
+        render: { visible: false }
+      });
+
+      Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
+
+      // アイテムを配列と物理エンジンに追加
+      itemsInBox.push({
+        id: "added_" + Date.now() + "_" + idx + "_" + Math.random(),
+        icon: icon,
+        radius: itemRadius,
+        body: body
+      });
+      Composite.add(engine.world, body);
+    });
+
+    //UI（残りペア数）の更新
+    remainingPairs += numPairs;
+    pairsDisplay.textContent = remainingPairs;
+  }
+
+  // 【追加】「➕ 降らせる」ボタンのクリックイベント
+  addPairBtn.addEventListener("click", () => {
+    const num = parseInt(addPairInput.value, 10);
+    if (!isNaN(num) && num > 0) {
+      addPairsDuringPlay(num);
+    }
+  });
+
+  function startLevel(lvl) {
+    isGameActive = false;
+    currentLevel = lvl;
+    levelDisplay.textContent = `LEVEL ${lvl}`;
+    
+    currentMatchedSlots = [];
+    dropZone.innerHTML = "";
+    dropZone.style.borderColor = "#00a8ff";
+
+    itemsInBox.forEach(item => {
+      if (item.body) Composite.remove(engine.world, item.body);
+    });
+    itemsInBox = [];
+
+    let numPairs;
+    if (lvl === 10) {
+      numPairs = 100;
+    } else {
+      numPairs = Math.min(35 + (lvl - 1) * 5, ICON_CANDIDATES.length);
+    }
+    
+    remainingPairs = numPairs;
+    pairsDisplay.textContent = remainingPairs;
+
+    const shuffledIcons = [...ICON_CANDIDATES].sort(() => 0.5 - Math.random());
+    const selectedIcons = shuffledIcons.slice(0, numPairs);
+
+    const w = container.clientWidth;
+    const itemRadius = w < 380 ? 20 : 23; 
+    const spawnItems = [];
+    
+    selectedIcons.forEach(icon => spawnItems.push(icon, icon));
+    spawnItems.sort(() => 0.5 - Math.random());
+    
+    const cols = Math.floor(w / (itemRadius * 2.5));
+    
+    spawnItems.forEach((icon, idx) => {
+      const col = idx % cols;
+      const x = (w / cols) * col + itemRadius + (Math.random() * 10 - 5);
+      const y = -100 - (Math.random() * 300) - (idx * 8);
+
+      const body = Bodies.circle(x, y, itemRadius, {
+        restitution: 0.2, 
+        friction: 0.6,
+        density: 0.005,
+        render: { visible: false }
+      });
+
+      Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.1);
+
+      itemsInBox.push({
+        id: idx + "_" + Math.random(),
+        icon: icon,
+        radius: itemRadius,
+        body: body
+      });
+      Composite.add(engine.world, body);
+    });
+
+    isGameActive = true;
+  }
+
+  function selectItem(item) {
+    if (!isGameActive) return;
+    if (currentMatchedSlots.length >= 2) return;
+
+    if (!itemsInBox.includes(item)) return;
+    if (currentMatchedSlots.includes(item)) return;
+
+    Composite.remove(engine.world, item.body);
+    itemsInBox = itemsInBox.filter(i => i !== item);
+
+    currentMatchedSlots.push(item);
+    const elem = document.createElement("div");
+    elem.className = "slot-item";
+    elem.textContent = item.icon;
+    dropZone.appendChild(elem);
+
+    if (currentMatchedSlots.length === 2) {
+      const [item1, item2] = currentMatchedSlots;
+
+      if (item1.icon === item2.icon) {
+        dropZone.style.borderColor = "#4cd137";
+        dropZone.style.transform = "scale(1.15)";
+        
+        setTimeout(() => {
+          dropZone.innerHTML = "";
+          currentMatchedSlots = [];
+          dropZone.style.borderColor = "#00a8ff";
+          dropZone.style.transform = "scale(1)";
+          
+          remainingPairs--;
+          pairsDisplay.textContent = remainingPairs;
+
+          if (remainingPairs <= 0) {
+            gameClear();
+          }
+        }, 300);
+      } else {
+        dropZone.style.borderColor = "#e84118";
+        
+        setTimeout(() => {
+          dropZone.innerHTML = "";
+          currentMatchedSlots.forEach((mItem) => {
+            const w = container.clientWidth;
+            const newBody = Bodies.circle(w / 2 + (Math.random() - 0.5) * 60, 50, mItem.radius, {
+              restitution: 0.2,
+              friction: 0.6,
+              render: { visible: false } 
+            });
+            Body.setVelocity(newBody, { x: (Math.random() - 0.5) * 4, y: 0 });
+            mItem.body = newBody;
+            itemsInBox.push(mItem);
+            Composite.add(engine.world, newBody);
+          });
+          currentMatchedSlots = [];
+          dropZone.style.borderColor = "#00a8ff";
+        }, 400);
+      }
+    }
+  }
+
+  function gameClear() {
+    isGameActive = false;
+    modal.classList.add("active");
+    modalTitle.textContent = "🎉 CLEAR!";
+    modalDesc.innerHTML = "すべてのペアを見つけました！<br>素晴らしい集中力です。";
+    
+    startOptions.style.display = "none";
+    
+    modalBtn.textContent = "次のレベルへ";
+    modalBtn.onclick = () => {
+      modal.classList.remove("active");
+      startLevel(currentLevel + 1);
+    };
+  }
+
+  restartBtn.addEventListener("click", () => {
+    if(confirm("現在のレベルを最初からやり直しますか？")) {
+      startLevel(currentLevel);
+    }
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    initMatter();
+    
+    modalBtn.onclick = () => {
+      modal.classList.remove("active");
+      const selectedLvl = parseInt(startLevelSelect.value, 10);
+      startLevel(selectedLvl);
+    };
+  });
+</script>
+</body>
+</html>
