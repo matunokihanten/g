@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>3D ジャイロ×クレーンタワー DX</title>
+  <title>3D ジャイロ×クレーンタワー DX (広い土台モード付)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -15,16 +15,13 @@
       -webkit-user-select: none;
     }
     #hud {
-      position: absolute;
-      top: 16px; left: 16px; right: 16px;
+      position: absolute; top: 16px; left: 16px; right: 16px;
       display: flex; justify-content: space-between; align-items: flex-start;
       pointer-events: none; z-index: 10;
     }
     .panel {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(8px);
-      padding: 10px 16px;
-      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px);
+      padding: 10px 16px; border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       display: flex; flex-direction: column; gap: 4px;
     }
@@ -37,7 +34,6 @@
     .center-hud {
       display: flex; flex-direction: column; align-items: center; gap: 8px;
     }
-    /* 水準器 */
     #tilt-bubble-container {
       position: relative; width: 44px; height: 44px;
       border-radius: 50%; background: rgba(15, 23, 42, 0.6);
@@ -52,25 +48,27 @@
     .bubble-cross { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.2); }
     .bubble-cross.v { width: 1px; height: 100%; }
 
-    /* 風向計 */
     #wind-indicator {
-      background: rgba(15, 23, 42, 0.6);
-      padding: 4px 12px; border-radius: 12px;
+      background: rgba(15, 23, 42, 0.6); padding: 4px 12px; border-radius: 12px;
       font-size: 13px; font-weight: bold; color: #a7f3d0;
       display: flex; align-items: center; gap: 6px;
       border: 1px solid rgba(167, 243, 208, 0.3);
     }
     #wind-arrow { display: inline-block; transition: transform 0.3s; }
 
-    /* UIボタン */
-    #sensor-btn, #reset-btn {
-      position: absolute;
+    /* オプションボタン群 */
+    .top-btns {
+      position: absolute; top: 90px; left: 16px; right: 16px;
+      display: flex; justify-content: center; gap: 10px; z-index: 15;
+    }
+    .option-btn {
       background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.2);
       color: #fff; padding: 8px 16px; font-size: 12px; font-weight: bold;
-      border-radius: 20px; cursor: pointer; z-index: 15; backdrop-filter: blur(4px);
+      border-radius: 20px; cursor: pointer; backdrop-filter: blur(4px);
     }
-    #sensor-btn { top: 90px; left: 50%; transform: translateX(-50%); background: #0284c7; display: none; }
-    #reset-btn { top: 90px; right: 16px; }
+    .option-btn:active { background: #475569; }
+    #sensor-btn { background: #0284c7; display: none; }
+    #mode-btn { background: #10b981; }
 
     /* コントロール */
     #crane-controls {
@@ -139,8 +137,11 @@
     </div>
   </div>
 
-  <button id="sensor-btn">📱 傾きセンサーON</button>
-  <button id="reset-btn">最初から</button>
+  <div class="top-btns">
+    <button id="sensor-btn" class="option-btn">📱 センサー</button>
+    <button id="mode-btn" class="option-btn">🟩 台サイズ: 通常</button>
+    <button id="reset-btn" class="option-btn">最初から</button>
+  </div>
 
   <div id="crane-controls">
     <div class="dpad-container">
@@ -157,7 +158,6 @@
   <div id="msg-popup"></div>
 
   <script>
-    // --- 音声生成 (Web Audio API) ---
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
     function playSound(type) {
@@ -187,7 +187,6 @@
       }
     }
 
-    // --- ゲーム設定 ---
     const TYPES = [
       { name: 'NORMAL', weight: 60, color: null, mass: 5, mat: 'normal' },
       { name: '🧊 ICE', weight: 15, color: 0x88ccff, mass: 4, mat: 'ice', trans: true },
@@ -204,6 +203,7 @@
     let scene, camera, renderer, world;
     let stack = [];
     let movingMesh = null;
+    let baseBlock = null;
     let nextBlockType = TYPES[0];
     let particles = [];
     
@@ -217,24 +217,25 @@
     let windForce = { x: 0, z: 0 };
     const BASE_GRAVITY_Y = -28;
 
+    let isWideMode = false;
+    const MAX_BLOCKS = 60; // 重くならないようにブロック数上限を設定
+
     const BASE_HEIGHT = 0.75;
     let towerTopY = BASE_HEIGHT;
     let maxHeight = 0.0;
     let currentFocusY = 0, targetFocusY = 0;
     const CAM_OFFSET = 26;
 
-    // Cannon Materials
     let matNormal, matIce, matSlime;
 
     const els = {
       currH: document.getElementById('current-height'), maxH: document.getElementById('max-height'),
       type: document.getElementById('next-type'), msg: document.getElementById('msg-popup'),
       windArr: document.getElementById('wind-arrow'), windSpd: document.getElementById('wind-speed'),
-      bubble: document.getElementById('tilt-bubble')
+      bubble: document.getElementById('tilt-bubble'), modeBtn: document.getElementById('mode-btn')
     };
 
     function init() {
-      // 1. Three.js
       scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
       
@@ -255,21 +256,16 @@
       dirLight.shadow.mapSize.height = 1024;
       scene.add(dirLight);
 
-      // 2. Cannon.js
       world = new CANNON.World();
       world.gravity.set(0, BASE_GRAVITY_Y, 0);
 
-      // マテリアル（摩擦・反発）の設定
       matNormal = new CANNON.Material();
       matIce = new CANNON.Material();
       matSlime = new CANNON.Material();
       
-      // ノーマル同士
       world.addContactMaterial(new CANNON.ContactMaterial(matNormal, matNormal, { friction: 0.6, restitution: 0.1 }));
-      // 氷は摩擦ほぼゼロ
       world.addContactMaterial(new CANNON.ContactMaterial(matNormal, matIce, { friction: 0.02, restitution: 0.1 }));
       world.addContactMaterial(new CANNON.ContactMaterial(matIce, matIce, { friction: 0.01, restitution: 0.1 }));
-      // スライムは跳ねる
       world.addContactMaterial(new CANNON.ContactMaterial(matNormal, matSlime, { friction: 0.5, restitution: 0.75 }));
       world.addContactMaterial(new CANNON.ContactMaterial(matSlime, matSlime, { friction: 0.5, restitution: 0.9 }));
       world.addContactMaterial(new CANNON.ContactMaterial(matIce, matSlime, { friction: 0.02, restitution: 0.7 }));
@@ -281,11 +277,34 @@
       setupInputs();
       initOrientationSensor();
       
-      // 風の定期更新
       setInterval(updateWind, 4000);
-
       window.addEventListener('resize', onResize);
       animate();
+    }
+
+    function createBase() {
+      // 既存の土台があれば削除
+      if (baseBlock) {
+        scene.remove(baseBlock.mesh);
+        world.removeBody(baseBlock.body);
+        const idx = stack.indexOf(baseBlock);
+        if (idx > -1) stack.splice(idx, 1);
+      }
+
+      // 広いモードなら200x200の広大な床にする
+      const size = isWideMode ? { x: 200, y: 1.5, z: 200 } : { x: 8, y: 1.5, z: 8 };
+      
+      // 見た目を少しチェック模様っぽくする設定（広い時のみ）
+      const mat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), mat);
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+
+      const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(size.x/2, size.y/2, size.z/2)), material: matNormal });
+      world.addBody(body);
+      
+      baseBlock = { mesh, body, size, type: TYPES[0] };
+      stack.unshift(baseBlock); // 配列の先頭に土台を置く
     }
 
     function rollNextType() {
@@ -300,10 +319,9 @@
     }
 
     function updateWind() {
-      // 高さ10mを超えるまで風は吹かない
       if (towerTopY < 10) { windForce = {x:0, z:0}; }
       else {
-        windForce.x = (Math.random() - 0.5) * 6; // -3 〜 +3
+        windForce.x = (Math.random() - 0.5) * 6;
         windForce.z = (Math.random() - 0.5) * 6;
       }
       
@@ -312,7 +330,6 @@
       
       if (speed < 0.5) { els.windArr.style.transform = `rotate(0deg)`; els.windArr.textContent = '⏸️'; }
       else {
-        // アイソメトリック視点に合わせた矢印の回転
         const angle = Math.atan2(-windForce.z, windForce.x) * (180 / Math.PI) - 45;
         els.windArr.textContent = '➡️';
         els.windArr.style.transform = `rotate(${angle}deg)`;
@@ -321,16 +338,11 @@
 
     function createParticle(x, y, z, color) {
       const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-      const mat = new THREE.MeshBasicMaterial({ color: color });
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: color }));
       mesh.position.set(x, y, z);
       scene.add(mesh);
       particles.push({
-        mesh: mesh,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: Math.random() * 0.3 + 0.1,
-        vz: (Math.random() - 0.5) * 0.4,
-        life: 1.0
+        mesh: mesh, vx: (Math.random() - 0.5) * 0.4, vy: Math.random() * 0.3 + 0.1, vz: (Math.random() - 0.5) * 0.4, life: 1.0
       });
     }
 
@@ -346,16 +358,6 @@
       scene.add(targetMarker);
     }
 
-    function createBase() {
-      const size = { x: 8, y: 1.5, z: 8 };
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshLambertMaterial({ color: 0x334155 }));
-      mesh.receiveShadow = true; scene.add(mesh);
-
-      const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(size.x/2, size.y/2, size.z/2)), material: matNormal });
-      world.addBody(body);
-      stack.push({ mesh, body, size, type: TYPES[0] });
-    }
-
     function spawnNext() {
       const type = nextBlockType;
       const size = SIZES[Math.floor(Math.random() * SIZES.length)];
@@ -364,9 +366,8 @@
 
       const matOpt = { color: color };
       if (type.trans) { matOpt.transparent = true; matOpt.opacity = 0.8; }
-      const mat = new THREE.MeshLambertMaterial(matOpt);
       
-      movingMesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), mat);
+      movingMesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshLambertMaterial(matOpt));
       movingMesh.castShadow = true;
       movingMesh.customData = { size, color, spawnY, type };
       movingMesh.position.set(cranePos.x, spawnY, cranePos.z);
@@ -393,7 +394,6 @@
         linearDamping: 0.1, angularDamping: 0.1
       });
 
-      // 着地イベントのリスナー（サウンド＆パーティクル）
       let hasLanded = false;
       body.addEventListener("collide", (e) => {
         if(!hasLanded) {
@@ -403,8 +403,6 @@
             if (data.type.mat === 'slime') playSound('bounce');
             else if (data.type.mass > 10) playSound('heavy');
             else playSound('land');
-            
-            // パーティクル散布
             for(let i=0; i<6; i++) createParticle(body.position.x, body.position.y - data.size.y/2, body.position.z, data.color);
           }
         }
@@ -414,6 +412,16 @@
       stack.push({ mesh: movingMesh, body: body, size: data.size, type: data.type });
       movingMesh = null;
 
+      // 処理落ち防止: ブロック数が上限を超えたら一番古いものを消す
+      if (stack.length > MAX_BLOCKS) {
+        const oldItem = stack[1]; // stack[0]は土台なので1番目を消す
+        if (oldItem) {
+          scene.remove(oldItem.mesh);
+          world.removeBody(oldItem.body);
+          stack.splice(1, 1);
+        }
+      }
+
       setTimeout(() => { recalcTowerTop(); spawnNext(); }, 1200);
     }
 
@@ -421,16 +429,18 @@
       let maxTop = BASE_HEIGHT;
       for (let i = 0; i < stack.length; i++) {
         const item = stack[i];
-        if (item.body.position.y > -2 && Math.abs(item.body.position.x) < 9 && Math.abs(item.body.position.z) < 9) {
+        if (item === baseBlock) continue;
+        
+        // 広大な土台の場合はX/Zが遠くても許容する
+        const boundary = isWideMode ? 100 : 9;
+        
+        if (item.body.position.y > -2 && Math.abs(item.body.position.x) < boundary && Math.abs(item.body.position.z) < boundary) {
           const top = item.body.position.y + item.size.y / 2;
           if (top > maxTop) maxTop = top;
         }
       }
       
-      // 高さが大きく伸びた時（綺麗に積めた時）ボーナスポップアップ
-      if (maxTop - towerTopY > 0.5) {
-        showPopup("NICE!");
-      }
+      if (maxTop - towerTopY > 0.5) showPopup("NICE!");
       towerTopY = maxTop;
 
       const currentH = Math.max(0, towerTopY - BASE_HEIGHT);
@@ -448,20 +458,17 @@
       setTimeout(() => els.msg.classList.remove('show'), 1000);
     }
 
-    // 高さによる昼夜（背景色）の変化
     function updateEnvironment(h) {
       let r, g, b;
-      if (h < 15) { // 昼 (87CEEB)
-        r = 135; g = 206; b = 235;
-      } else if (h < 30) { // 夕 (fb923c)
+      if (h < 15) { r = 135; g = 206; b = 235; }
+      else if (h < 30) {
         const t = (h - 15) / 15;
         r = 135 + (251 - 135)*t; g = 206 + (146 - 206)*t; b = 235 + (60 - 235)*t;
-      } else if (h < 45) { // 夜 (0b1329)
+      } else if (h < 45) {
         const t = (h - 30) / 15;
         r = 251 + (11 - 251)*t; g = 146 + (19 - 146)*t; b = 60 + (41 - 60)*t;
-      } else {
-        r = 11; g = 19; b = 41;
-      }
+      } else { r = 11; g = 19; b = 41; }
+      
       const color = new THREE.Color(`rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`);
       scene.background = color;
       scene.fog.color = color;
@@ -470,20 +477,17 @@
     function animate() {
       requestAnimationFrame(animate);
 
-      // 操作
       let dx=0, dz=0;
       if(keys.up) { dx-=SPEED; dz-=SPEED; } if(keys.down) { dx+=SPEED; dz+=SPEED; }
       if(keys.left) { dx-=SPEED; dz+=SPEED; } if(keys.right) { dx+=SPEED; dz-=SPEED; }
       cranePos.x = Math.max(-LIMIT, Math.min(LIMIT, cranePos.x + dx));
       cranePos.z = Math.max(-LIMIT, Math.min(LIMIT, cranePos.z + dz));
 
-      // 重力（傾き＋風）
       const gx = (tiltX - tiltZ) * 10.0 + windForce.x;
       const gz = (tiltX + tiltZ) * 10.0 + windForce.z;
       world.gravity.set(gx, BASE_GRAVITY_Y, gz);
       els.bubble.style.transform = `translate(${tiltX * 14}px, ${tiltZ * 14}px)`;
 
-      // クレーン描画
       if (movingMesh) {
         movingMesh.customData.spawnY = towerTopY + 5.5;
         const sy = movingMesh.customData.spawnY;
@@ -502,7 +506,7 @@
 
       world.step(1/60);
 
-      // ブロック同期と掃除
+      // ブロックが床外の奈落(Y < -15)に落ちた場合のみ削除
       for (let i = stack.length - 1; i >= 1; i--) {
         const item = stack[i];
         item.mesh.position.copy(item.body.position);
@@ -513,7 +517,6 @@
         }
       }
 
-      // パーティクルアニメ
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.mesh.position.x += p.vx; p.mesh.position.y += p.vy; p.mesh.position.z += p.vz;
@@ -522,7 +525,6 @@
         if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
       }
 
-      // カメラ追従
       targetFocusY = towerTopY + 1.5;
       currentFocusY += (targetFocusY - currentFocusY) * 0.06;
       camera.position.set(CAM_OFFSET, currentFocusY + CAM_OFFSET, CAM_OFFSET);
@@ -578,14 +580,31 @@
         el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off); el.addEventListener('pointerleave',off);
       };
       bind('dpad-up','up'); bind('dpad-down','down'); bind('dpad-left','left'); bind('dpad-right','right');
+      
       document.getElementById('drop-btn').addEventListener('pointerdown', e=>{e.preventDefault(); dropBlock();});
       
+      // 最初からリセット
       document.getElementById('reset-btn').addEventListener('click', () => {
         for(let i=1; i<stack.length; i++){ scene.remove(stack[i].mesh); world.removeBody(stack[i].body); }
         if(movingMesh) scene.remove(movingMesh);
         stack = stack.slice(0,1); movingMesh = null; cranePos = {x:0,z:0};
         towerTopY = BASE_HEIGHT; currentFocusY = targetFocusY = tiltX = tiltZ = 0;
         updateEnvironment(0); recalcTowerTop(); spawnNext();
+      });
+
+      // 土台モード切り替え
+      els.modeBtn.addEventListener('click', () => {
+        isWideMode = !isWideMode;
+        els.modeBtn.textContent = isWideMode ? '🟩 台サイズ: 特大' : '🟩 台サイズ: 通常';
+        els.modeBtn.style.background = isWideMode ? '#eab308' : '#10b981';
+        
+        // 全てリセットして再構築
+        for(let i=1; i<stack.length; i++){ scene.remove(stack[i].mesh); world.removeBody(stack[i].body); }
+        if(movingMesh) scene.remove(movingMesh);
+        stack = []; movingMesh = null; cranePos = {x:0,z:0};
+        towerTopY = BASE_HEIGHT; currentFocusY = targetFocusY = tiltX = tiltZ = 0;
+        updateEnvironment(0);
+        createBase(); spawnNext();
       });
     }
 
