@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>将棋の山崩し 3D - 安定動作版</title>
+<style>
+  html, body { margin: 0; overflow: hidden; background: #120e0c; height: 100%;
+    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; touch-action: none; outline: none; }
+
+  #ui { position: absolute; top: 15px; left: 15px; color: #fff; background: rgba(15,10,5,0.85);
+    padding: 16px 20px; border-radius: 12px; pointer-events: none; font-size: 15px; line-height: 1.8;
+    min-width: 250px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); backdrop-filter: blur(6px); border: 1px solid #3a2a18; }
+  #status { font-weight: bold; font-size: 16px; color: #fbbf24; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+  #score-box { font-size: 18px; font-weight: bold; color: #facc15; }
+  .sub { color: #a1a1aa; font-size: 13px; }
+  #log { font-size: 13px; color: #d4d4d8; margin-top: 8px; height: 75px; overflow: hidden; line-height: 1.6; }
+  #hint { font-size: 12px; color: #71717a; margin-top: 12px; border-top: 1px solid #3f3f46; padding-top: 10px; }
+
+  #reset-btn { position: absolute; top: 15px; right: 15px; padding: 12px 28px; background: #2563eb;
+    color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.2s; z-index: 20; }
+  #reset-btn:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+  #reset-btn:disabled { background: #3f3f46; color: #a1a1aa; cursor: not-allowed; box-shadow: none; }
+
+  #overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.65); z-index: 30; backdrop-filter: blur(3px); }
+  #overlay-box { background: rgba(24,18,12,0.98); border: 1px solid #785a36; padding: 35px 60px;
+    border-radius: 16px; text-align: center; color: #fff; box-shadow: 0 15px 50px rgba(0,0,0,0.8); }
+  #overlay-title { font-size: 30px; font-weight: bold; margin-bottom: 15px; }
+  #overlay-title.good { color: #facc15; }
+  #overlay-detail { font-size: 16px; color: #e4e4e7; line-height: 2.0; margin-bottom: 25px; }
+  #overlay-btn { padding: 12px 40px; background: #f59e0b; border: none; border-radius: 8px;
+    color: #1a1206; font-size: 17px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  #overlay-btn:hover { background: #d97706; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+  <div id="ui">
+    <div id="status">駒を並べています...</div>
+    <div id="score-box">スコア: <span id="score">0</span> 点</div>
+    <div class="sub">獲得 <span id="taken">0</span> 枚 ／ 残り <span id="remain">40</span> 枚<br>ベスト <span id="best">0</span> 点</div>
+    <div id="log"></div>
+    <div id="hint">
+      🖱️ 左ドラッグ：駒を引く<br>🔄 右ドラッグ / ２本指：視点操作
+    </div>
+  </div>
+  <button id="reset-btn" disabled>リセット</button>
+
+  <div id="overlay">
+    <div id="overlay-box">
+      <div id="overlay-title" class="good">🏆 完全制覇！</div>
+      <div id="overlay-detail"></div>
+      <button id="overlay-btn">もう一度遊ぶ</button>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+// --- 1. 基本セットアップ ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x110d0a);
+scene.fog = new THREE.Fog(0x110d0a, 25, 65);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 16, 18);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.mouseButtons = { MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+controls.touches = { TWO: THREE.TOUCH.DOLLY_ROTATE };
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.enablePan = false;
+controls.maxPolarAngle = Math.PI / 2 - 0.05;
+controls.minDistance = 7;
+controls.maxDistance = 40;
+controls.target.set(0, 0, 0);
+
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x221a10, 0.6));
+scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+dirLight.position.set(12, 25, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.left = -12; dirLight.shadow.camera.right = 12;
+dirLight.shadow.camera.top = 12;   dirLight.shadow.camera.bottom = -12;
+dirLight.shadow.camera.far = 50;
+dirLight.shadow.bias = -0.0005;
+scene.add(dirLight);
+
+// --- 2. 物理エンジン（フリーズ防止のため負荷最適化） ---
+const world = new CANNON.World();
+world.gravity.set(0, -30, 0);
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 50; // 150から50に下げて処理落ちを防止
+world.solver.tolerance = 0.001;
+world.allowSleep = true;
+
+const woodMaterial = new CANNON.Material('wood');
+const woodContact = new CANNON.ContactMaterial(woodMaterial, woodMaterial, {
+  friction: 0.7,
+  restitution: 0.0,
+  contactEquationStiffness: 5e7, // 少し柔らかくして反発を抑える
+  contactEquationRelaxation: 4
+});
+world.addContactMaterial(woodContact);
+
+// --- 3. 将棋盤 ---
+const BOARD_HALF = 7.5;
+function createBoardTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 1024;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#dcae6b'; ctx.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 80; i++) {
+    ctx.strokeStyle = `rgba(100,60,20,${0.03 + Math.random() * 0.04})`;
+    ctx.lineWidth = 1 + Math.random() * 4;
+    ctx.beginPath(); const y = Math.random() * 1024;
+    ctx.moveTo(0, y);
+    ctx.bezierCurveTo(300, y + (Math.random() - 0.5) * 50, 700, y + (Math.random() - 0.5) * 50, 1024, y);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(30,15,5,0.9)'; ctx.lineWidth = 3;
+  const m = 120, span = 1024 - m * 2, step = span / 8;
+  for (let i = 0; i <= 8; i++) {
+    const p = m + step * i;
+    ctx.beginPath(); ctx.moveTo(p, m); ctx.lineTo(p, 1024 - m); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(m, p); ctx.lineTo(1024 - m, p); ctx.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+const boardMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(BOARD_HALF * 2, 1.2, BOARD_HALF * 2),
+  new THREE.MeshStandardMaterial({ map: createBoardTexture(), roughness: 0.7 })
+);
+boardMesh.position.y = -0.6;
+boardMesh.receiveShadow = true;
+scene.add(boardMesh);
+
+const boardBody = new CANNON.Body({
+  mass: 0, material: woodMaterial,
+  shape: new CANNON.Box(new CANNON.Vec3(BOARD_HALF, 0.6, BOARD_HALF))
+});
+boardBody.position.y = -0.6;
+world.addBody(boardBody);
+
+// --- 4. 駒の生成 ---
+function createPieceGeometry() {
+  const shape = new THREE.Shape();
+  const wBot = 0.95, wTop = 0.72, h = 1.1, topH = 0.3;
+  shape.moveTo(-wBot / 2, -h / 2); shape.lineTo(wBot / 2, -h / 2);
+  shape.lineTo(wTop / 2, h / 2 - topH); shape.lineTo(0, h / 2);
+  shape.lineTo(-wTop / 2, h / 2 - topH); shape.closePath();
+  
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.03, bevelThickness: 0.03 });
+  geo.center(); geo.computeBoundingBox();
+  
+  const bb = geo.boundingBox;
+  const uv = geo.attributes.uv, pos = geo.attributes.position;
+  for (let i = 0; i < uv.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    let u = (x - bb.min.x) / (bb.max.x - bb.min.x);
+    let v = (y - bb.min.y) / (bb.max.y - bb.min.y);
+    if (z > 0) uv.setXY(i, u * 0.5, v);
+    else uv.setXY(i, 0.5 + (1.0 - u) * 0.5, v);
+  }
+  return geo;
+}
+
+const pieceGeometry = createPieceGeometry();
+pieceGeometry.computeBoundingBox();
+const bb = pieceGeometry.boundingBox;
+const PIECE_HALF = new CANNON.Vec3(
+  (bb.max.x - bb.min.x) / 2 * 0.95,
+  (bb.max.y - bb.min.y) / 2 * 0.95,
+  (bb.max.z - bb.min.z) / 2 * 1.05 
+);
+
+const sideCanvas = document.createElement('canvas');
+sideCanvas.width = 64; sideCanvas.height = 64;
+const sCtx = sideCanvas.getContext('2d');
+sCtx.fillStyle = '#ebd5a5'; sCtx.fillRect(0, 0, 64, 64);
+sCtx.fillStyle = 'rgba(130, 90, 45, 0.15)';
+for (let i = 0; i < 20; i++) sCtx.fillRect(0, Math.random() * 64, 64, 1 + Math.random() * 2);
+const commonSideMat = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(sideCanvas), roughness: 0.65 });
+
+function createPieceMaterials(name) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = '#ebd5a5'; ctx.fillRect(0, 0, 256, 128);
+  ctx.fillStyle = 'rgba(130, 90, 45, 0.15)';
+  for (let i = 0; i < 30; i++) ctx.fillRect(0, Math.random() * 128, 256, 1 + Math.random() * 2);
+  
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#111'; ctx.font = 'bold 44px "Hiragino Mincho ProN", serif';
+  ctx.fillText(name.charAt(0), 64, 36); ctx.fillText(name.charAt(1), 64, 92);
+  
+  const promoted = { '歩兵': 'と', '香車': '杏', '桂馬': '圭', '銀将': '全', '角行': '馬', '飛車': '龍' };
+  if (promoted[name]) {
+    ctx.fillStyle = '#c62828'; ctx.font = 'bold 54px "Hiragino Mincho ProN", serif';
+    ctx.fillText(promoted[name].charAt(0), 128 + 64, 64);
+  }
+  return [new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas), roughness: 0.65 }), commonSideMat];
+}
+
+const pieceDataList = [
+  { name: '王将', count: 1, score: 50 }, { name: '玉将', count: 1, score: 50 },
+  { name: '飛車', count: 2, score: 40 }, { name: '角行', count: 2, score: 40 },
+  { name: '金将', count: 4, score: 30 }, { name: '銀将', count: 4, score: 20 },
+  { name: '桂馬', count: 4, score: 10 }, { name: '香車', count: 4, score: 10 },
+  { name: '歩兵', count: 18, score: 5 }
+];
+
+let pieces = [];
+let gameActive = false;
+let boxWalls = [];
+let timers = [];
+let score = 0, takenCount = 0;
+
+// --- 5. 音響（フリーズ対策：再生制限の追加） ---
+let audioCtx = null;
+let lastPlayTime = 0;
+
+function ensureAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playKnock(vol, freq = 900) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  // ★フリーズ対策：音が連続して発生した場合、50ミリ秒未満の間隔では音を鳴らさない（処理負荷軽減）
+  if (now - lastPlayTime < 0.05) return;
+  lastPlayTime = now;
+
+  const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq + Math.random() * 300, now);
+  osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
+  gain.gain.setValueAtTime(Math.min(vol, 0.5), now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.1);
+}
+
+// --- 6. リアルな山の構築 ---
+function createVirtualBox() {
+  const inner = 1.4, t = 0.5, wallH = 20, wallY = 10;
+  const shapes = [
+    { x: inner+t, z: 0, s: new CANNON.Box(new CANNON.Vec3(t, wallH, inner+t)) },
+    { x: -inner-t, z: 0, s: new CANNON.Box(new CANNON.Vec3(t, wallH, inner+t)) },
+    { x: 0, z: inner+t, s: new CANNON.Box(new CANNON.Vec3(inner, wallH, t)) },
+    { x: 0, z: -inner-t, s: new CANNON.Box(new CANNON.Vec3(inner, wallH, t)) }
+  ];
+  shapes.forEach(d => {
+    const b = new CANNON.Body({ mass: 0, material: woodMaterial, shape: d.s });
+    b.position.set(d.x, wallY, d.z);
+    world.addBody(b); boxWalls.push(b);
+  });
+}
+
+function clearGame() {
+  timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = [];
+  pieces.forEach(p => {
+    scene.remove(p.mesh);
+    if(p.mesh.material[0].map) p.mesh.material[0].map.dispose();
+    p.mesh.material[0].dispose();
+    world.removeBody(p.body);
+  });
+  pieces = [];
+  boxWalls.forEach(w => world.removeBody(w)); boxWalls = [];
+  if (mouseConstraint) { world.removeConstraint(mouseConstraint); mouseConstraint = null; }
+}
+
+function initMountain() {
+  clearGame();
+  gameActive = false;
+  document.getElementById('overlay').style.display = 'none';
+  score = 0; takenCount = 0; updateHUD();
+  document.getElementById('log').innerHTML = '';
+  setStatus('駒箱に駒を詰めています...', '#facc15');
+  document.getElementById('reset-btn').disabled = true;
+
+  createVirtualBox();
+  const deck = [];
+  pieceDataList.forEach(d => { for (let i = 0; i < d.count; i++) deck.push(d); });
+  
+  deck.sort(() => Math.random() - 0.5).forEach((data, i) => {
+    const mesh = new THREE.Mesh(pieceGeometry, createPieceMaterials(data.name));
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    const body = new CANNON.Body({
+      mass: 0.3, material: woodMaterial, shape: new CANNON.Box(PIECE_HALF.clone()),
+      linearDamping: 0.9, angularDamping: 0.9,
+      allowSleep: true, sleepSpeedLimit: 1.0, sleepTimeLimit: 0.2
+    });
+    
+    const row = Math.floor(i / 4), col = i % 4;
+    const xPos = (col % 2 === 0 ? -0.5 : 0.5) + (Math.random() - 0.5) * 0.1;
+    const zPos = (col < 2 ? -0.5 : 0.5) + (Math.random() - 0.5) * 0.1;
+    
+    body.position.set(xPos, 1.5 + row * 0.7, zPos);
+    body.quaternion.setFromEuler(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+    body.addEventListener('collide', e => { if(e.contact && audioCtx) { const v = Math.abs(e.contact.getImpactVelocityAlongNormal()); if(v > 1.5) playKnock(v/25); }});
+    
+    world.addBody(body); pieces.push({ mesh, body, inPlay: true, data });
+  });
+
+  timers.push(setTimeout(() => {
+    boxWalls.forEach(w => world.removeBody(w)); boxWalls = [];
+    pieces.forEach(p => p.body.wakeUp());
+    setStatus('駒箱を引き抜きました...', '#38bdf8');
+    
+    let waitTime = 0;
+    const checkInterval = setInterval(() => {
+      waitTime += 500;
+      const isMoving = pieces.some(p => p.body.sleepState !== 2 && (p.body.velocity.norm() > 0.15 || p.body.angularVelocity.norm() > 0.15));
+      
+      // ★進行不能対策：完全に静止したか、最大4秒経過したら強制的に次へ進む
+      if (!isMoving || waitTime >= 4000) {
+        clearInterval(checkInterval);
+        pieces.forEach(p => {
+          p.body.linearDamping = 0.5; p.body.angularDamping = 0.7;
+          p.body.sleepSpeedLimit = 0.1; p.body.sleepTimeLimit = 0.5;
+          p.body.sleep(); // 強制スリープで安定させる
+        });
+        setStatus('スタート！駒を引いてください', '#4ade80');
+        document.getElementById('reset-btn').disabled = false;
+        gameActive = true;
+      }
+    }, 500);
+    timers.push(checkInterval);
+  }, 3000));
+}
+
+// --- 7. ジョイント(Constraint)によるドラッグ ---
+const raycaster = new THREE.Raycaster();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const planeHit = new THREE.Vector3();
+
+const jointBody = new CANNON.Body({ mass: 0 });
+world.addBody(jointBody);
+let mouseConstraint = null;
+let selectedPiece = null;
+let hoveredMesh = null;
+
+function getIntersect(e) {
+  const mouse = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(pieces.filter(p => p.inPlay).map(p => p.mesh));
+  return hits.length ? hits[0] : null;
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  ensureAudio();
+  if (!gameActive || (e.pointerType === 'mouse' && e.button !== 0)) return;
+
+  const hit = getIntersect(e);
+  if (!hit) return;
+  
+  selectedPiece = pieces.find(p => p.mesh === hit.object);
+  controls.enabled = false;
+  selectedPiece.body.wakeUp();
+
+  jointBody.position.copy(hit.point);
+  dragPlane.constant = -hit.point.y;
+
+  const localPivot = selectedPiece.body.pointToLocalFrame(new CANNON.Vec3(hit.point.x, hit.point.y, hit.point.z));
+  mouseConstraint = new CANNON.PointToPointConstraint(selectedPiece.body, localPivot, jointBody, new CANNON.Vec3(0,0,0));
+  mouseConstraint.equations.forEach(eq => eq.maxForce = 60); 
+  world.addConstraint(mouseConstraint);
+  
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (selectedPiece && gameActive && mouseConstraint) {
+    const mouse = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(mouse, camera);
+    if (raycaster.ray.intersectPlane(dragPlane, planeHit)) {
+      jointBody.position.copy(planeHit);
+    }
+  } else if (gameActive) {
+    const hit = getIntersect(e);
+    if (hoveredMesh) hoveredMesh.material[0].emissive.setHex(0x000000);
+    if (hit) {
+      hoveredMesh = hit.object;
+      hoveredMesh.material[0].emissive.setHex(0x3a2505);
+      renderer.domElement.style.cursor = 'pointer';
+    } else {
+      hoveredMesh = null;
+      renderer.domElement.style.cursor = 'default';
+    }
+  }
+});
+
+function endDrag() {
+  if (mouseConstraint) { world.removeConstraint(mouseConstraint); mouseConstraint = null; }
+  selectedPiece = null;
+  controls.enabled = true;
+}
+renderer.domElement.addEventListener('pointerup', endDrag);
+renderer.domElement.addEventListener('pointercancel', endDrag);
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+// --- 8. ペナルティ判定・スコア管理 ---
+function setStatus(msg, color) { document.getElementById('status').innerHTML = `<span style="color:${color}">${msg}</span>`; }
+function addLog(msg, color = '#fff') {
+  const log = document.getElementById('log');
+  log.innerHTML = `<span style="color:${color}">${msg}</span><br>` + log.innerHTML;
+}
+function updateHUD() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('taken').textContent = takenCount;
+  document.getElementById('remain').textContent = pieces.filter(p => p.inPlay).length;
+  let best = parseInt(localStorage.getItem('yamakuzushi_best') || '0', 10);
+  document.getElementById('best').textContent = Math.max(best, score);
+}
+
+const FOUL_V = 1.0, FOUL_W = 2.5; 
+function checkFoul() {
+  if (!gameActive || !selectedPiece) return;
+  for (const p of pieces) {
+    if (!p.inPlay || p === selectedPiece) continue;
+    if (p.body.velocity.norm() > FOUL_V || p.body.angularVelocity.norm() > FOUL_W) {
+      gameActive = false; 
+      endDrag(); 
+      if(hoveredMesh) hoveredMesh.material[0].emissive.setHex(0x000000);
+      playKnock(0.5, 300);
+      
+      score -= 10;
+      updateHUD();
+      setStatus('カチッ！ペナルティ（-10点）', '#ef4444');
+      addLog('他の駒が動きました！ -10点', '#ef4444');
+      
+      let waitTime = 0;
+      const checkInterval = setInterval(() => {
+        waitTime += 500;
+        // CANNON.Body.SLEEPING は 2
+        const isMoving = pieces.some(p => p.inPlay && p.body.sleepState !== 2 && (p.body.velocity.norm() > 0.1 || p.body.angularVelocity.norm() > 0.1));
+        
+        // ★進行不能対策：最大4秒で強制的に再開させる
+        if (!isMoving || waitTime >= 4000) {
+          clearInterval(checkInterval);
+          pieces.forEach(p => p.body.sleep());
+          if (pieces.some(p => p.inPlay)) { 
+            setStatus('再開！駒を引いてください', '#4ade80');
+            gameActive = true;
+          }
+        }
+      }, 500);
+      timers.push(checkInterval);
+      return;
+    }
+  }
+}
+
+function checkScoring() {
+  let changed = false;
+  pieces.forEach(p => {
+    if (p.inPlay && p.body.position.y < -5) {
+      p.inPlay = false;
+      scene.remove(p.mesh); world.removeBody(p.body);
+      score += p.data.score; takenCount++;
+      addLog(`${p.data.name} 獲得！ (+${p.data.score}点)`, '#38bdf8');
+      if (selectedPiece === p) endDrag();
+      changed = true;
+      playKnock(0.4, 1200);
+    }
+  });
+  if (changed) {
+    updateHUD();
+    if (pieces.every(p => !p.inPlay)) {
+      gameActive = false; showOverlay();
+    }
+  }
+}
+
+function showOverlay() {
+  let best = parseInt(localStorage.getItem('yamakuzushi_best') || '0', 10);
+  if (score > best) localStorage.setItem('yamakuzushi_best', String(score));
+  document.getElementById('overlay-detail').innerHTML = `最終スコア <b style="color:#facc15">${score}</b> 点 ／ 獲得 ${takenCount} 枚`;
+  document.getElementById('overlay').style.display = 'flex';
+}
+document.getElementById('reset-btn').addEventListener('click', initMountain);
+document.getElementById('overlay-btn').addEventListener('click', initMountain);
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- 9. メインループ ---
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  world.step(1/60, Math.min(clock.getDelta(), 0.05), 5);
+
+  pieces.forEach(p => {
+    if (p.inPlay) {
+      p.mesh.position.copy(p.body.position);
+      p.mesh.quaternion.copy(p.body.quaternion);
+    }
+  });
+
+  checkFoul();
+  checkScoring();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+initMountain();
+animate();
+</script>
+</body>
+</html>
