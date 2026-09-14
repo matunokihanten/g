@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>3D ジャイロ×クレーンタワー DX</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #87CEEB;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #hud {
+      position: absolute;
+      top: 16px; left: 16px; right: 16px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: none; z-index: 10;
+    }
+    .panel {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(8px);
+      padding: 10px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .text-sm { font-size: 12px; color: #cbd5e1; }
+    .text-lg { font-size: 18px; font-weight: bold; color: #fff; }
+    .highlight { color: #38bdf8; font-size: 22px; }
+    .highlight.yellow { color: #facc15; }
+
+    /* 中央のインジケーター群 */
+    .center-hud {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    /* 水準器 */
+    #tilt-bubble-container {
+      position: relative; width: 44px; height: 44px;
+      border-radius: 50%; background: rgba(15, 23, 42, 0.6);
+      border: 2px solid rgba(56, 189, 248, 0.5);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #tilt-bubble {
+      position: absolute; width: 14px; height: 14px;
+      border-radius: 50%; background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8; transition: transform 0.05s ease-out;
+    }
+    .bubble-cross { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.2); }
+    .bubble-cross.v { width: 1px; height: 100%; }
+
+    /* 風向計 */
+    #wind-indicator {
+      background: rgba(15, 23, 42, 0.6);
+      padding: 4px 12px; border-radius: 12px;
+      font-size: 13px; font-weight: bold; color: #a7f3d0;
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid rgba(167, 243, 208, 0.3);
+    }
+    #wind-arrow { display: inline-block; transition: transform 0.3s; }
+
+    /* UIボタン */
+    #sensor-btn, #reset-btn {
+      position: absolute;
+      background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff; padding: 8px 16px; font-size: 12px; font-weight: bold;
+      border-radius: 20px; cursor: pointer; z-index: 15; backdrop-filter: blur(4px);
+    }
+    #sensor-btn { top: 90px; left: 50%; transform: translateX(-50%); background: #0284c7; display: none; }
+    #reset-btn { top: 90px; right: 16px; }
+
+    /* コントロール */
+    #crane-controls {
+      position: absolute; bottom: 24px; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding: 0 20px; z-index: 10;
+    }
+    .dpad-container {
+      display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px; gap: 6px;
+    }
+    .dpad-btn {
+      background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px; color: #38bdf8; font-size: 20px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; backdrop-filter: blur(4px);
+    }
+    .dpad-btn:active, .dpad-btn.active { background: #0284c7; color: white; transform: scale(0.92); }
+    .btn-up { grid-column: 2; grid-row: 1; }
+    .btn-left { grid-column: 1; grid-row: 2; }
+    .btn-down { grid-column: 2; grid-row: 2; }
+    .btn-right { grid-column: 3; grid-row: 2; }
+
+    .action-btn {
+      background: linear-gradient(135deg, #e11d48, #f43f5e);
+      color: white; border: none; width: 95px; height: 95px; border-radius: 50%;
+      font-size: 15px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5); border: 3px solid rgba(255, 255, 255, 0.3);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .action-btn:active { transform: scale(0.92); filter: brightness(0.9); }
+    .action-btn span { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+
+    /* メッセージポップアップ */
+    #msg-popup {
+      position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+      font-size: 32px; font-weight: 900; color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      opacity: 0; pointer-events: none; z-index: 20; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    #msg-popup.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="panel">
+      <div class="text-sm">現在 / 最高</div>
+      <div class="text-lg"><span id="current-height" class="highlight">0.0</span>m / <span id="max-height" class="highlight yellow">0.0</span>m</div>
+    </div>
+    
+    <div class="center-hud">
+      <div id="tilt-bubble-container">
+        <div class="bubble-cross"></div><div class="bubble-cross v"></div>
+        <div id="tilt-bubble"></div>
+      </div>
+      <div id="wind-indicator">
+        風 <span id="wind-arrow">➡️</span> <span id="wind-speed">0.0</span>
+      </div>
+    </div>
+
+    <div class="panel" style="align-items: flex-end;">
+      <div class="text-sm">NEXT BLOCK</div>
+      <div class="text-lg" id="next-type" style="color: #cbd5e1;">NORMAL</div>
+    </div>
+  </div>
+
+  <button id="sensor-btn">📱 傾きセンサーON</button>
+  <button id="reset-btn">最初から</button>
+
+  <div id="crane-controls">
+    <div class="dpad-container">
+      <div class="dpad-btn btn-up" id="dpad-up">▲</div>
+      <div class="dpad-btn btn-left" id="dpad-left">◀</div>
+      <div class="dpad-btn btn-down" id="dpad-down">▼</div>
+      <div class="dpad-btn btn-right" id="dpad-right">▶</div>
+    </div>
+    <button class="action-btn" id="drop-btn">
+      DROP<span>SPACE</span>
+    </button>
+  </div>
+
+  <div id="msg-popup"></div>
+
+  <script>
+    // --- 音声生成 (Web Audio API) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    function playSound(type) {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+
+      if (type === 'drop') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+      } else if (type === 'land') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+      } else if (type === 'bounce') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.start(now); osc.stop(now + 0.2);
+      } else if (type === 'heavy') {
+        osc.type = 'square'; osc.frequency.setValueAtTime(80, now); osc.frequency.exponentialRampToValueAtTime(30, now + 0.2);
+        gain.gain.setValueAtTime(0.4, now); gain.gain.linearRampToValueAtTime(0, now + 0.25);
+        osc.start(now); osc.stop(now + 0.25);
+      }
+    }
+
+    // --- ゲーム設定 ---
+    const TYPES = [
+      { name: 'NORMAL', weight: 60, color: null, mass: 5, mat: 'normal' },
+      { name: '🧊 ICE', weight: 15, color: 0x88ccff, mass: 4, mat: 'ice', trans: true },
+      { name: '🟩 SLIME', weight: 15, color: 0x4ade80, mass: 3, mat: 'slime', trans: true },
+      { name: '⚙️ METAL', weight: 10, color: 0x94a3b8, mass: 20, mat: 'normal' }
+    ];
+    const SIZES = [
+      { x: 3.6, y: 1.2, z: 3.6 }, { x: 5.0, y: 1.0, z: 2.2 },
+      { x: 2.2, y: 1.0, z: 5.0 }, { x: 2.8, y: 2.2, z: 2.8 },
+      { x: 4.2, y: 1.4, z: 4.2 }, { x: 1.8, y: 2.8, z: 1.8 }
+    ];
+    const COLORS = [0xf43f5e, 0xec4899, 0xa855f7, 0x6366f1, 0x3b82f6, 0xf59e0b];
+
+    let scene, camera, renderer, world;
+    let stack = [];
+    let movingMesh = null;
+    let nextBlockType = TYPES[0];
+    let particles = [];
+    
+    let craneGantry, wireLine, targetMarker, dirLight;
+    let cranePos = { x: 0, z: 0 };
+    const SPEED = 0.18;
+    const LIMIT = 6.5;
+
+    let keys = { up: false, down: false, left: false, right: false };
+    let tiltX = 0, tiltZ = 0;
+    let windForce = { x: 0, z: 0 };
+    const BASE_GRAVITY_Y = -28;
+
+    const BASE_HEIGHT = 0.75;
+    let towerTopY = BASE_HEIGHT;
+    let maxHeight = 0.0;
+    let currentFocusY = 0, targetFocusY = 0;
+    const CAM_OFFSET = 26;
+
+    // Cannon Materials
+    let matNormal, matIce, matSlime;
+
+    const els = {
+      currH: document.getElementById('current-height'), maxH: document.getElementById('max-height'),
+      type: document.getElementById('next-type'), msg: document.getElementById('msg-popup'),
+      windArr: document.getElementById('wind-arrow'), windSpd: document.getElementById('wind-speed'),
+      bubble: document.getElementById('tilt-bubble')
+    };
+
+    function init() {
+      // 1. Three.js
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+      
+      const aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.OrthographicCamera(-16 * aspect, 16 * aspect, 16, -16, -1000, 2000);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      scene.add(dirLight);
+
+      // 2. Cannon.js
+      world = new CANNON.World();
+      world.gravity.set(0, BASE_GRAVITY_Y, 0);
+
+      // マテリアル（摩擦・反発）の設定
+      matNormal = new CANNON.Material();
+      matIce = new CANNON.Material();
+      matSlime = new CANNON.Material();
+      
+      // ノーマル同士
+      world.addContactMaterial(new CANNON.ContactMaterial(matNormal, matNormal, { friction: 0.6, restitution: 0.1 }));
+      // 氷は摩擦ほぼゼロ
+      world.addContactMaterial(new CANNON.ContactMaterial(matNormal, matIce, { friction: 0.02, restitution: 0.1 }));
+      world.addContactMaterial(new CANNON.ContactMaterial(matIce, matIce, { friction: 0.01, restitution: 0.1 }));
+      // スライムは跳ねる
+      world.addContactMaterial(new CANNON.ContactMaterial(matNormal, matSlime, { friction: 0.5, restitution: 0.75 }));
+      world.addContactMaterial(new CANNON.ContactMaterial(matSlime, matSlime, { friction: 0.5, restitution: 0.9 }));
+      world.addContactMaterial(new CANNON.ContactMaterial(matIce, matSlime, { friction: 0.02, restitution: 0.7 }));
+
+      setupCraneVisuals();
+      createBase();
+      rollNextType();
+      spawnNext();
+      setupInputs();
+      initOrientationSensor();
+      
+      // 風の定期更新
+      setInterval(updateWind, 4000);
+
+      window.addEventListener('resize', onResize);
+      animate();
+    }
+
+    function rollNextType() {
+      const rand = Math.random() * 100;
+      let sum = 0;
+      for (const t of TYPES) {
+        sum += t.weight;
+        if (rand <= sum) { nextBlockType = t; break; }
+      }
+      els.type.textContent = nextBlockType.name;
+      els.type.style.color = nextBlockType.color ? '#' + nextBlockType.color.toString(16) : '#cbd5e1';
+    }
+
+    function updateWind() {
+      // 高さ10mを超えるまで風は吹かない
+      if (towerTopY < 10) { windForce = {x:0, z:0}; }
+      else {
+        windForce.x = (Math.random() - 0.5) * 6; // -3 〜 +3
+        windForce.z = (Math.random() - 0.5) * 6;
+      }
+      
+      const speed = Math.sqrt(windForce.x**2 + windForce.z**2);
+      els.windSpd.textContent = speed.toFixed(1);
+      
+      if (speed < 0.5) { els.windArr.style.transform = `rotate(0deg)`; els.windArr.textContent = '⏸️'; }
+      else {
+        // アイソメトリック視点に合わせた矢印の回転
+        const angle = Math.atan2(-windForce.z, windForce.x) * (180 / Math.PI) - 45;
+        els.windArr.textContent = '➡️';
+        els.windArr.style.transform = `rotate(${angle}deg)`;
+      }
+    }
+
+    function createParticle(x, y, z, color) {
+      const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+      const mat = new THREE.MeshBasicMaterial({ color: color });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      scene.add(mesh);
+      particles.push({
+        mesh: mesh,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: Math.random() * 0.3 + 0.1,
+        vz: (Math.random() - 0.5) * 0.4,
+        life: 1.0
+      });
+    }
+
+    function setupCraneVisuals() {
+      craneGantry = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 1.6), new THREE.MeshLambertMaterial({ color: 0xe2e8f0 }));
+      scene.add(craneGantry);
+
+      wireLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,-1,0)]), new THREE.LineBasicMaterial({ color: 0x94a3b8, linewidth: 2 }));
+      scene.add(wireLine);
+
+      targetMarker = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.6, 32), new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+      targetMarker.rotation.x = -Math.PI / 2;
+      scene.add(targetMarker);
+    }
+
+    function createBase() {
+      const size = { x: 8, y: 1.5, z: 8 };
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshLambertMaterial({ color: 0x334155 }));
+      mesh.receiveShadow = true; scene.add(mesh);
+
+      const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(size.x/2, size.y/2, size.z/2)), material: matNormal });
+      world.addBody(body);
+      stack.push({ mesh, body, size, type: TYPES[0] });
+    }
+
+    function spawnNext() {
+      const type = nextBlockType;
+      const size = SIZES[Math.floor(Math.random() * SIZES.length)];
+      const color = type.color || COLORS[Math.floor(Math.random() * COLORS.length)];
+      const spawnY = towerTopY + 5.5;
+
+      const matOpt = { color: color };
+      if (type.trans) { matOpt.transparent = true; matOpt.opacity = 0.8; }
+      const mat = new THREE.MeshLambertMaterial(matOpt);
+      
+      movingMesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), mat);
+      movingMesh.castShadow = true;
+      movingMesh.customData = { size, color, spawnY, type };
+      movingMesh.position.set(cranePos.x, spawnY, cranePos.z);
+      scene.add(movingMesh);
+
+      targetFocusY = towerTopY + 1.5;
+      rollNextType();
+    }
+
+    function dropBlock() {
+      if (!movingMesh) return;
+      playSound('drop');
+      const data = movingMesh.customData;
+      
+      let cmat = matNormal;
+      if (data.type.mat === 'ice') cmat = matIce;
+      if (data.type.mat === 'slime') cmat = matSlime;
+
+      const body = new CANNON.Body({
+        mass: data.type.mass,
+        position: new CANNON.Vec3(movingMesh.position.x, movingMesh.position.y, movingMesh.position.z),
+        shape: new CANNON.Box(new CANNON.Vec3(data.size.x/2, data.size.y/2, data.size.z/2)),
+        material: cmat,
+        linearDamping: 0.1, angularDamping: 0.1
+      });
+
+      // 着地イベントのリスナー（サウンド＆パーティクル）
+      let hasLanded = false;
+      body.addEventListener("collide", (e) => {
+        if(!hasLanded) {
+          hasLanded = true;
+          const v = e.contact.getImpactVelocityAlongNormal();
+          if(v > 2) {
+            if (data.type.mat === 'slime') playSound('bounce');
+            else if (data.type.mass > 10) playSound('heavy');
+            else playSound('land');
+            
+            // パーティクル散布
+            for(let i=0; i<6; i++) createParticle(body.position.x, body.position.y - data.size.y/2, body.position.z, data.color);
+          }
+        }
+      });
+
+      world.addBody(body);
+      stack.push({ mesh: movingMesh, body: body, size: data.size, type: data.type });
+      movingMesh = null;
+
+      setTimeout(() => { recalcTowerTop(); spawnNext(); }, 1200);
+    }
+
+    function recalcTowerTop() {
+      let maxTop = BASE_HEIGHT;
+      for (let i = 0; i < stack.length; i++) {
+        const item = stack[i];
+        if (item.body.position.y > -2 && Math.abs(item.body.position.x) < 9 && Math.abs(item.body.position.z) < 9) {
+          const top = item.body.position.y + item.size.y / 2;
+          if (top > maxTop) maxTop = top;
+        }
+      }
+      
+      // 高さが大きく伸びた時（綺麗に積めた時）ボーナスポップアップ
+      if (maxTop - towerTopY > 0.5) {
+        showPopup("NICE!");
+      }
+      towerTopY = maxTop;
+
+      const currentH = Math.max(0, towerTopY - BASE_HEIGHT);
+      els.currH.textContent = currentH.toFixed(1);
+      if (currentH > maxHeight) {
+        maxHeight = currentH;
+        els.maxH.textContent = maxHeight.toFixed(1);
+      }
+      updateEnvironment(currentH);
+    }
+
+    function showPopup(text) {
+      els.msg.textContent = text;
+      els.msg.classList.add('show');
+      setTimeout(() => els.msg.classList.remove('show'), 1000);
+    }
+
+    // 高さによる昼夜（背景色）の変化
+    function updateEnvironment(h) {
+      let r, g, b;
+      if (h < 15) { // 昼 (87CEEB)
+        r = 135; g = 206; b = 235;
+      } else if (h < 30) { // 夕 (fb923c)
+        const t = (h - 15) / 15;
+        r = 135 + (251 - 135)*t; g = 206 + (146 - 206)*t; b = 235 + (60 - 235)*t;
+      } else if (h < 45) { // 夜 (0b1329)
+        const t = (h - 30) / 15;
+        r = 251 + (11 - 251)*t; g = 146 + (19 - 146)*t; b = 60 + (41 - 60)*t;
+      } else {
+        r = 11; g = 19; b = 41;
+      }
+      const color = new THREE.Color(`rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`);
+      scene.background = color;
+      scene.fog.color = color;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // 操作
+      let dx=0, dz=0;
+      if(keys.up) { dx-=SPEED; dz-=SPEED; } if(keys.down) { dx+=SPEED; dz+=SPEED; }
+      if(keys.left) { dx-=SPEED; dz+=SPEED; } if(keys.right) { dx+=SPEED; dz-=SPEED; }
+      cranePos.x = Math.max(-LIMIT, Math.min(LIMIT, cranePos.x + dx));
+      cranePos.z = Math.max(-LIMIT, Math.min(LIMIT, cranePos.z + dz));
+
+      // 重力（傾き＋風）
+      const gx = (tiltX - tiltZ) * 10.0 + windForce.x;
+      const gz = (tiltX + tiltZ) * 10.0 + windForce.z;
+      world.gravity.set(gx, BASE_GRAVITY_Y, gz);
+      els.bubble.style.transform = `translate(${tiltX * 14}px, ${tiltZ * 14}px)`;
+
+      // クレーン描画
+      if (movingMesh) {
+        movingMesh.customData.spawnY = towerTopY + 5.5;
+        const sy = movingMesh.customData.spawnY;
+        movingMesh.position.set(cranePos.x, sy, cranePos.z);
+        craneGantry.position.set(cranePos.x, sy + 2.6, cranePos.z);
+        
+        const posAttr = wireLine.geometry.attributes.position;
+        posAttr.setXYZ(0, cranePos.x, sy+2.6, cranePos.z);
+        posAttr.setXYZ(1, cranePos.x, sy + movingMesh.customData.size.y/2, cranePos.z);
+        posAttr.needsUpdate = true;
+        craneGantry.visible = wireLine.visible = targetMarker.visible = true;
+        targetMarker.position.set(cranePos.x, towerTopY + 0.05, cranePos.z);
+      } else {
+        craneGantry.visible = wireLine.visible = targetMarker.visible = false;
+      }
+
+      world.step(1/60);
+
+      // ブロック同期と掃除
+      for (let i = stack.length - 1; i >= 1; i--) {
+        const item = stack[i];
+        item.mesh.position.copy(item.body.position);
+        item.mesh.quaternion.copy(item.body.quaternion);
+        if (item.body.position.y < -15) {
+          scene.remove(item.mesh); world.removeBody(item.body);
+          stack.splice(i, 1); recalcTowerTop();
+        }
+      }
+
+      // パーティクルアニメ
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.mesh.position.x += p.vx; p.mesh.position.y += p.vy; p.mesh.position.z += p.vz;
+        p.vy -= 0.02; p.life -= 0.05;
+        p.mesh.scale.setScalar(p.life);
+        if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+      }
+
+      // カメラ追従
+      targetFocusY = towerTopY + 1.5;
+      currentFocusY += (targetFocusY - currentFocusY) * 0.06;
+      camera.position.set(CAM_OFFSET, currentFocusY + CAM_OFFSET, CAM_OFFSET);
+      camera.lookAt(0, currentFocusY, 0);
+
+      dirLight.position.set(20, currentFocusY + 35, 15);
+      dirLight.target.position.set(0, currentFocusY, 0);
+      dirLight.target.updateMatrixWorld();
+
+      renderer.render(scene, camera);
+    }
+
+    function initOrientationSensor() {
+      const btn = document.getElementById('sensor-btn');
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        btn.style.display = 'block';
+        btn.addEventListener('click', async () => {
+          try {
+            if (await DeviceOrientationEvent.requestPermission() === 'granted') {
+              btn.style.display = 'none'; window.addEventListener('deviceorientation', e => {
+                tiltX = Math.max(-25, Math.min(25, e.gamma||0))/25; tiltZ = Math.max(-25, Math.min(25, (e.beta||45)-45))/25;
+              });
+            }
+          } catch(e){ btn.style.display='none'; }
+        });
+      } else if (window.DeviceOrientationEvent) {
+        window.addEventListener('deviceorientation', e => {
+          tiltX = Math.max(-25, Math.min(25, e.gamma||0))/25; tiltZ = Math.max(-25, Math.min(25, (e.beta||45)-45))/25;
+        });
+      }
+    }
+
+    function setupInputs() {
+      window.addEventListener('keydown', e => {
+        if(e.altKey) {
+          if(e.code==='ArrowUp') tiltZ=-0.8; if(e.code==='ArrowDown') tiltZ=0.8;
+          if(e.code==='ArrowLeft') tiltX=-0.8; if(e.code==='ArrowRight') tiltX=0.8; return;
+        }
+        if(e.code==='ArrowUp'||e.code==='KeyW') keys.up=true; if(e.code==='ArrowDown'||e.code==='KeyS') keys.down=true;
+        if(e.code==='ArrowLeft'||e.code==='KeyA') keys.left=true; if(e.code==='ArrowRight'||e.code==='KeyD') keys.right=true;
+        if(e.code==='Space') { e.preventDefault(); dropBlock(); }
+      });
+      window.addEventListener('keyup', e => {
+        if(e.key==='Alt'){ tiltX=tiltZ=0; }
+        if(e.code==='ArrowUp'||e.code==='KeyW') keys.up=false; if(e.code==='ArrowDown'||e.code==='KeyS') keys.down=false;
+        if(e.code==='ArrowLeft'||e.code==='KeyA') keys.left=false; if(e.code==='ArrowRight'||e.code==='KeyD') keys.right=false;
+      });
+
+      const bind = (id, k) => {
+        const el = document.getElementById(id);
+        const on=e=>{e.preventDefault(); keys[k]=true; el.classList.add('active');};
+        const off=e=>{e.preventDefault(); keys[k]=false; el.classList.remove('active');};
+        el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off); el.addEventListener('pointerleave',off);
+      };
+      bind('dpad-up','up'); bind('dpad-down','down'); bind('dpad-left','left'); bind('dpad-right','right');
+      document.getElementById('drop-btn').addEventListener('pointerdown', e=>{e.preventDefault(); dropBlock();});
+      
+      document.getElementById('reset-btn').addEventListener('click', () => {
+        for(let i=1; i<stack.length; i++){ scene.remove(stack[i].mesh); world.removeBody(stack[i].body); }
+        if(movingMesh) scene.remove(movingMesh);
+        stack = stack.slice(0,1); movingMesh = null; cranePos = {x:0,z:0};
+        towerTopY = BASE_HEIGHT; currentFocusY = targetFocusY = tiltX = tiltZ = 0;
+        updateEnvironment(0); recalcTowerTop(); spawnNext();
+      });
+    }
+
+    function onResize() {
+      const aspect = window.innerWidth / window.innerHeight;
+      camera.left = -16 * aspect; camera.right = 16 * aspect; camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    init();
+  </script>
+</body>
+</html>
