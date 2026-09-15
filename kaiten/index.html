@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>MIB 催眠モード（コンパクト）</title>
+<style>
+  :root{
+    --bg:#05060a; --panel:#0b1220; --accent:#7bd389; --muted:#9aa4b2; --text:#e9eef6;
+    --gap:8px; --pad:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;overflow:hidden}
+  .app{height:100vh;display:flex;flex-direction:column;gap:var(--gap);padding:calc(var(--pad)+2px);align-items:stretch;justify-content:flex-start}
+  .header{display:flex;align-items:center;justify-content:space-between;padding:4px 6px}
+  .title{font-weight:700;color:var(--accent);font-size:14px}
+  .subtitle{font-size:11px;color:var(--muted)}
+  .main{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-start;flex:1 1 auto;min-height:0}
+  .canvasWrap{width:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#000,#071022);border-radius:10px;padding:6px;flex:0 0 55vh}
+  canvas{width:calc(100% - 12px);height:100%;border-radius:8px;background:#000;display:block;touch-action:none}
+  .controls{display:grid;grid-template-columns: repeat(4, 1fr);gap:6px;align-items:center;justify-items:stretch;background:var(--panel);padding:8px;border-radius:10px;flex:0 0 calc(45vh - 20px)}
+  .control{display:flex;flex-direction:column;gap:4px;align-items:stretch;justify-content:center;font-size:12px;color:var(--muted)}
+  .control label{font-size:11px;color:var(--muted);display:block}
+  input[type="range"]{width:100%}
+  input[type="number"]{width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);font-size:13px}
+  select{width:100%;padding:6px;border-radius:6px;background:transparent;color:var(--text);font-size:13px}
+  .btnRow{grid-column: span 4;display:flex;gap:6px;align-items:center;justify-content:space-between}
+  .btn{flex:1 1 auto;padding:8px 6px;font-size:13px;border-radius:8px;background:#071022;color:var(--text);border:1px solid rgba(255,255,255,0.04);text-align:center;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+  .smallNote{grid-column: span 4;font-size:11px;color:var(--muted);text-align:center;padding-top:2px}
+  .muted{color:var(--muted);font-size:11px}
+  .tiny{font-size:11px}
+  .hypnoRow{grid-column: span 4;display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .hypnoOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .hypnoCircle{width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,0.06);box-shadow:0 0 18px rgba(0,255,150,0.06);opacity:0.9}
+  @media (max-width:360px){
+    .controls{grid-template-columns: repeat(2, 1fr);padding:6px;gap:6px}
+    .btnRow{grid-column: span 2}
+    .canvasWrap{flex:0 0 52vh}
+    .controls{flex:0 0 calc(48vh - 16px)}
+    .title{font-size:13px}
+  }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="MIB 催眠モードデモ">
+    <header class="header">
+      <div>
+        <div class="title">MIB 催眠モード（安全設計）</div>
+        <div class="subtitle">中央を注視し、螺旋の回転に合わせて観察してください</div>
+      </div>
+      <div class="muted tiny">Space: 一時停止</div>
+    </header>
+
+    <main class="main">
+      <div class="canvasWrap" aria-hidden="false" id="canvasWrap" style="position:relative">
+        <canvas id="illusionCanvas" aria-label="錯視キャンバス"></canvas>
+        <div class="hypnoOverlay" id="hypnoOverlay" aria-hidden="true">
+          <div class="hypnoCircle" id="hypnoCircle"></div>
+        </div>
+      </div>
+
+      <section class="controls" aria-label="設定パネル">
+        <div class="control">
+          <label for="speedRange">回転速度</label>
+          <input id="speedRange" type="range" min="0" max="0.02" step="0.0005" value="0.006" />
+        </div>
+
+        <div class="control">
+          <label for="reverseCheck">逆回転</label>
+          <input id="reverseCheck" type="checkbox" aria-label="逆回転" />
+        </div>
+
+        <div class="control">
+          <label for="numTargets">黄色点の数</label>
+          <input id="numTargets" type="number" min="1" max="8" value="3" />
+        </div>
+
+        <div class="control">
+          <label for="targetSize">点サイズ</label>
+          <input id="targetSize" type="range" min="0.01" max="0.05" step="0.001" value="0.022" />
+        </div>
+
+        <div class="control">
+          <label for="hideProb">消失確率</label>
+          <input id="hideProb" type="range" min="0" max="1" step="0.01" value="0.12" />
+        </div>
+
+        <div class="control">
+          <label for="blinkRate">点滅周期(ms)</label>
+          <input id="blinkRate" type="range" min="600" max="3000" step="50" value="1200" />
+        </div>
+
+        <div class="control">
+          <label for="patternSelect">背景パターン</label>
+          <select id="patternSelect">
+            <option value="spiral" selected>螺旋（画像デザイン）</option>
+            <option value="cross">十字</option>
+            <option value="dots">ドット</option>
+            <option value="stripes">ストライプ</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="pauseOnBlur">タブ非表示で停止</label>
+          <input id="pauseOnBlur" type="checkbox" checked />
+        </div>
+
+        <div class="hypnoRow">
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="display:flex;flex-direction:column">
+              <span style="font-size:12px;color:var(--muted)">催眠モード</span>
+              <input id="hypnoToggle" type="checkbox" />
+            </label>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button id="pauseBtn" class="btn">一時停止</button>
+          <button id="resetBtn" class="btn ghost">リセット</button>
+          <button id="fullscreenBtn" class="btn ghost">フルスクリーン</button>
+          <button id="startHypnoBtn" class="btn ghost">開始</button>
+        </div>
+
+        <div class="btnRow" style="margin-top:6px">
+          <button id="lockTargetsBtn" class="btn ghost">黄色点固定解除</button>
+          <button id="stopTargetsRotationBtn" class="btn ghost">黄色点回転停止</button>
+          <div style="flex:1"></div>
+          <div style="flex:1"></div>
+        </div>
+
+        <div class="smallNote">注意：気分が悪くなったら直ちに中止してください。未成年者や運転中は使用しないでください。</div>
+      </section>
+    </main>
+  </div>
+
+<script>
+const canvas = document.getElementById('illusionCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const offCanvas = document.createElement('canvas');
+const offCtx = offCanvas.getContext('2d');
+
+const speedRange = document.getElementById('speedRange');
+const reverseCheck = document.getElementById('reverseCheck');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+const numTargetsInput = document.getElementById('numTargets');
+const targetSizeRange = document.getElementById('targetSize');
+const hideProbRange = document.getElementById('hideProb');
+const blinkRateRange = document.getElementById('blinkRate');
+const patternSelect = document.getElementById('patternSelect');
+const pauseOnBlur = document.getElementById('pauseOnBlur');
+const hypnoToggle = document.getElementById('hypnoToggle');
+const startHypnoBtn = document.getElementById('startHypnoBtn');
+const hypnoOverlay = document.getElementById('hypnoOverlay');
+const hypnoCircle = document.getElementById('hypnoCircle');
+const lockTargetsBtn = document.getElementById('lockTargetsBtn');
+const stopTargetsRotationBtn = document.getElementById('stopTargetsRotationBtn');
+
+let cx = 0, cy = 0;
+let angle = 0;
+let running = true;
+let lastTimestamp = 0;
+let targets = [];
+let gridReady = false;
+
+/* 初期状態で黄色点を固定するため true に設定 */
+let targetsLocked = true;
+
+let targetsRotationStopped = false;
+let targetsStopAngle = 0;
+
+const HYPNO = {
+  pulseHz: 0.25,
+  maxRotationMod: 0.003,
+  maxBrightnessMod: 0.18
+};
+
+function resizeCanvas(){
+  const vw = Math.min(window.innerWidth, 900);
+  const computed = Math.round(window.innerHeight * 0.55);
+  const sizeW = Math.min(vw - 12, computed);
+  canvas.width = sizeW * devicePixelRatio;
+  canvas.height = computed * devicePixelRatio;
+  canvas.style.width = (sizeW) + 'px';
+  canvas.style.height = computed + 'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+
+  offCanvas.width = Math.ceil((vw + 200) * devicePixelRatio);
+  offCanvas.height = Math.ceil((computed + 200) * devicePixelRatio);
+  offCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+
+  cx = sizeW / 2;
+  cy = computed / 2;
+  prepareBackground();
+  initTargets();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function rand(min,max){ return Math.random()*(max-min)+min }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
+
+function prepareBackground(){
+  const w = offCanvas.width / devicePixelRatio;
+  const h = offCanvas.height / devicePixelRatio;
+  offCtx.clearRect(0,0,w,h);
+  offCtx.save();
+  offCtx.translate(w/2, h/2);
+  offCtx.fillStyle = '#000';
+  offCtx.fillRect(-w/2, -h/2, w, h);
+
+  const pattern = patternSelect.value;
+
+  if (pattern === 'spiral'){
+    offCtx.strokeStyle = '#0d47a1';
+    offCtx.lineWidth = 4;
+    offCtx.lineCap = 'round';
+    
+    const maxR = Math.max(w, h) * 0.7;
+    const arms = 6;
+    for (let i = 0; i < arms; i++) {
+      offCtx.beginPath();
+      const offsetAngle = (i * 2 * Math.PI) / arms;
+      let first = true;
+      for (let r = 5; r < maxR; r += 2) {
+        const theta = r * 0.03 + offsetAngle;
+        const x = r * Math.cos(theta);
+        const y = r * Math.sin(theta);
+        if (first) {
+          offCtx.moveTo(x, y);
+          first = false;
+        } else {
+          offCtx.lineTo(x, y);
+        }
+      }
+      offCtx.stroke();
+    }
+  } else {
+    const spacing = Math.max(10, Math.floor(w * 0.085));
+    const arm = Math.max(3, Math.floor(spacing * 0.28));
+    if (pattern === 'cross'){
+      offCtx.strokeStyle = '#0d47a1';
+      offCtx.lineWidth = 1.6;
+      offCtx.lineCap = 'round';
+      for (let i=-Math.ceil(w/spacing); i<=Math.ceil(w/spacing); i++){
+        for (let j=-Math.ceil(h/spacing); j<=Math.ceil(h/spacing); j++){
+          const x = i*spacing, y = j*spacing;
+          offCtx.beginPath();
+          offCtx.moveTo(x-arm, y); offCtx.lineTo(x+arm, y);
+          offCtx.moveTo(x, y-arm); offCtx.lineTo(x, y+arm);
+          offCtx.stroke();
+        }
+      }
+    } else if (pattern === 'dots'){
+      offCtx.fillStyle = '#0d47a1';
+      for (let i=-Math.ceil(w/spacing); i<=Math.ceil(w/spacing); i++){
+        for (let j=-Math.ceil(h/spacing); j<=Math.ceil(h/spacing); j++){
+          const x = i*spacing, y = j*spacing;
+          offCtx.beginPath(); offCtx.arc(x,y, Math.max(1, arm*0.5), 0, Math.PI*2); offCtx.fill();
+        }
+      }
+    } else {
+      offCtx.fillStyle = '#0d47a1';
+      const stripeW = Math.max(6, Math.floor(spacing/2));
+      for (let x=-w; x<w; x+=stripeW*3) offCtx.fillRect(x, -h, stripeW, h*2);
+    }
+  }
+  offCtx.restore();
+  gridReady = true;
+}
+
+function initTargets(){
+  targets = [];
+  const n = clamp(parseInt(numTargetsInput.value,10) || 3, 1, 8);
+  const radius = (canvas.width / devicePixelRatio) * 0.32;
+  for (let i=0;i<n;i++){
+    const angle0 = -Math.PI/2 + (i * (2*Math.PI / n));
+    targets.push({ baseAngle: angle0, radius, visible:true, hideUntil:0, id:i, lockedX:null, lockedY:null });
+  }
+  
+  // 初期化時に固定位置を計算
+  if (targetsLocked) {
+    const vw = canvas.width / devicePixelRatio;
+    const vh = canvas.height / devicePixelRatio;
+    targets.forEach(t => {
+      const rad = t.baseAngle + angle;
+      t.lockedX = vw/2 + Math.cos(rad) * t.radius;
+      t.lockedY = vh/2 + Math.sin(rad) * t.radius;
+    });
+  }
+  
+  targetsRotationStopped = false;
+  updateLockButton();
+  updateStopRotationButton();
+}
+
+function setTargetsLocked(lock){
+  if (lock === targetsLocked) return;
+  if (lock){
+    const vw = canvas.width / devicePixelRatio;
+    const vh = canvas.height / devicePixelRatio;
+    targets.forEach(t => {
+      const rad = t.baseAngle + (targetsRotationStopped ? targetsStopAngle : angle);
+      t.lockedX = vw/2 + Math.cos(rad) * t.radius;
+      t.lockedY = vh/2 + Math.sin(rad) * t.radius;
+    });
+    targetsLocked = true;
+  } else {
+    targets.forEach(t => { t.lockedX = null; t.lockedY = null; });
+    targetsLocked = false;
+  }
+  updateLockButton();
+}
+
+function updateLockButton(){
+  lockTargetsBtn.textContent = targetsLocked ? '黄色点固定解除' : '黄色点固定';
+}
+
+function setTargetsRotationStopped(stop){
+  if (stop === targetsRotationStopped) return;
+  if (stop){
+    targetsStopAngle = angle;
+    targetsRotationStopped = true;
+  } else {
+    targetsRotationStopped = false;
+  }
+  updateStopRotationButton();
+}
+
+function updateStopRotationButton(){
+  stopTargetsRotationBtn.textContent = targetsRotationStopped ? '黄色点回転再開' : '黄色点回転停止';
+}
+
+function updateTargets(now){
+  const speed = Math.abs(parseFloat(speedRange.value));
+  const baseProb = parseFloat(hideProbRange.value);
+  const blinkOn = Math.floor(now / parseInt(blinkRateRange.value,10)) % 2 === 0;
+
+  targets.forEach(t=>{
+    if (!t.visible){
+      if (now >= t.hideUntil) { t.visible = true; }
+      return;
+    }
+    const currentAngle = t.baseAngle + angle;
+    const peripheralWeight = clamp(Math.abs(Math.cos(currentAngle)), 0, 1);
+    const prob = baseProb * (0.5 + speed * 20) * (blinkOn ? 1.1 : 0.9) * (0.4 + peripheralWeight);
+    if (Math.random() < prob * 0.016) {
+      t.visible = false;
+      t.hideUntil = now + rand(400, 1200);
+    }
+  });
+}
+
+function draw(now){
+  const vw = canvas.width / devicePixelRatio;
+  const vh = canvas.height / devicePixelRatio;
+  ctx.clearRect(0,0,vw,vh);
+
+  const hypnoOn = hypnoToggle.checked;
+  const tSec = now / 1000;
+  const pulse = hypnoOn ? (Math.sin(2*Math.PI*HYPNO.pulseHz*tSec) * 0.5 + 0.5) : 0.5;
+  const brightnessMod = 1 + (pulse - 0.5) * HYPNO.maxBrightnessMod;
+
+  if (gridReady){
+    ctx.save();
+    ctx.translate(vw/2, vh/2);
+    ctx.globalAlpha = clamp(0.9 * brightnessMod, 0.6, 1.0);
+    ctx.rotate(angle);
+    const sx = offCanvas.width / devicePixelRatio;
+    const sy = offCanvas.height / devicePixelRatio;
+    ctx.drawImage(offCanvas, -sx/2, -sy/2, sx, sy);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  const yellowRadius = Math.max(2, Math.floor(vw * parseFloat(targetSizeRange.value)));
+  ctx.fillStyle = '#ffee00';
+  ctx.shadowColor = '#ffee00';
+  ctx.shadowBlur = 6;
+
+  const angleForTargets = targetsRotationStopped ? targetsStopAngle : angle;
+
+  targets.forEach(t=>{
+    let x, y;
+    if (targetsLocked && t.lockedX !== null && t.lockedY !== null){
+      x = t.lockedX;
+      y = t.lockedY;
+    } else {
+      const rad = t.baseAngle + angleForTargets;
+      x = vw/2 + Math.cos(rad) * t.radius;
+      y = vh/2 + Math.sin(rad) * t.radius;
+    }
+    if (t.visible){
+      ctx.beginPath(); ctx.arc(x,y,yellowRadius,0,Math.PI*2); ctx.fill();
+    }
+  });
+  ctx.shadowBlur = 0;
+
+  const blinkMs = parseInt(blinkRateRange.value,10);
+  const blinkPhase = (tSec % (blinkMs/1000)) / (blinkMs/1000);
+  const centerAlpha = hypnoOn ? (0.6 + 0.4 * pulse) : (blinkPhase < 0.5 ? 1 : 0.25);
+
+  ctx.fillStyle = `rgba(0,255,102,${centerAlpha})`;
+  ctx.beginPath(); ctx.arc(vw/2, vh/2, Math.max(3, Math.floor(vw * 0.022)), 0, Math.PI*2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(vw/2 - 12, vh/2); ctx.lineTo(vw/2 + 12, vh/2);
+  ctx.moveTo(vw/2, vh/2 - 12); ctx.lineTo(vw/2, vh/2 + 12);
+  ctx.stroke();
+
+  if (hypnoOn){
+    hypnoOverlay.style.display = 'flex';
+    const minSize = 28, maxSize = 86;
+    const size = minSize + (maxSize - minSize) * pulse;
+    hypnoCircle.style.width = size + 'px';
+    hypnoCircle.style.height = size + 'px';
+    hypnoCircle.style.borderColor = `rgba(123,211,137,${0.25 + 0.5*pulse})`;
+  } else {
+    hypnoOverlay.style.display = 'none';
+  }
+}
+
+function animate(timestamp){
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const dt = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+
+  if (running){
+    const rawSpeed = parseFloat(speedRange.value);
+    const hypnoOn = hypnoToggle.checked;
+    const tSec = timestamp / 1000;
+    const mod = hypnoOn ? Math.sin(2*Math.PI*HYPNO.pulseHz*tSec) * HYPNO.maxRotationMod : 0;
+    const speed = (rawSpeed + mod) * (reverseCheck.checked ? -1 : 1);
+    angle += speed * dt;
+
+    updateTargets(timestamp);
+    draw(timestamp);
+  }
+  requestAnimationFrame(animate);
+}
+
+pauseBtn.addEventListener('click', ()=>{
+  running = !running;
+  pauseBtn.textContent = running ? '一時停止' : '再開';
+});
+resetBtn.addEventListener('click', ()=>{
+  angle = 0;
+  initTargets();
+});
+fullscreenBtn.addEventListener('click', async ()=>{
+  try{
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  }catch(e){}
+});
+window.addEventListener('keydown', (e)=>{
+  if (e.code === 'Space'){ e.preventDefault(); pauseBtn.click(); }
+  if (e.key.toLowerCase() === 'f'){ fullscreenBtn.click(); }
+  if (e.key.toLowerCase() === 'r'){ resetBtn.click(); }
+});
+
+[speedRange, reverseCheck, numTargetsInput, targetSizeRange, hideProbRange, blinkRateRange, patternSelect].forEach(el=>{
+  el.addEventListener('input', ()=>{
+    prepareBackground();
+    initTargets();
+  });
+});
+
+startHypnoBtn.addEventListener('click', ()=>{
+  hypnoToggle.checked = !hypnoToggle.checked;
+  startHypnoBtn.textContent = hypnoToggle.checked ? '停止' : '開始';
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if (pauseOnBlur.checked){
+    running = !document.hidden;
+    pauseBtn.textContent = running ? '一時停止' : '再開';
+  }
+});
+
+canvas.addEventListener('touchstart', (e)=>{
+  e.preventDefault();
+  const prev = blinkRateRange.value;
+  blinkRateRange.value = Math.min(3000, parseInt(prev,10) + 800);
+  blinkRateRange.dispatchEvent(new Event('input'));
+  setTimeout(()=> { blinkRateRange.value = prev; blinkRateRange.dispatchEvent(new Event('input')); }, 900);
+}, {passive:false});
+
+lockTargetsBtn.addEventListener('click', ()=>{
+  setTargetsLocked(!targetsLocked);
+});
+
+stopTargetsRotationBtn.addEventListener('click', ()=>{
+  setTargetsRotationStopped(!targetsRotationStopped);
+});
+
+function init(){
+  resizeCanvas();
+  initTargets();
+  requestAnimationFrame(animate);
+}
+init();
+</script>
+</body>
+</html>
