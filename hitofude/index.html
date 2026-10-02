@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>一筆書きパズル - 超人モード＆答え表示つき</title>
+<style>
+  :root {
+    --bg-color: #1a1e24;
+    --panel-bg: #272d38;
+    --accent: #4ecdc4;
+    --accent-hover: #45b7af;
+    --warn: #ff6b6b;
+    --hint: #ffaa00;
+    --text: #f7fff7;
+  }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    touch-action: none;
+  }
+  .view { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 440px; padding: 16px; }
+  .active { display: flex; }
+
+  h1 { font-size: 22px; margin: 0 0 12px; color: var(--accent); }
+
+  /* 難易度切り替えタブ */
+  .diff-tabs {
+    display: flex;
+    width: 100%;
+    gap: 4px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+  .diff-tab {
+    flex: 1;
+    min-width: 58px;
+    padding: 8px 2px;
+    font-size: 11px;
+    font-weight: bold;
+    background: #333b49;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    color: #a0aec0;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .diff-tab.active {
+    background: var(--panel-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  /* 超人タブの特別装飾 */
+  .diff-tab.tab-nightmare.active {
+    border-color: #ff3366;
+    color: #ff3366;
+  }
+
+  /* ステージ選択カード */
+  .stage-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 18px;
+  }
+  .stage-card {
+    background: var(--panel-bg);
+    border: 2px solid #3d4657;
+    border-radius: 12px;
+    padding: 14px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.2s;
+  }
+  .stage-card:active { transform: scale(0.96); }
+  .stage-card.locked { opacity: 0.45; cursor: not-allowed; border-style: dashed; }
+  .stage-card.cleared { border-color: var(--accent); }
+  .stage-title { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+  .stage-desc { font-size: 11px; color: #a0aec0; text-align: center; }
+
+  /* ゲーム画面 */
+  .header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  #status { font-size: 14px; min-height: 20px; color: #ffe66d; text-align: center; margin-bottom: 8px; }
+  canvas {
+    background-color: var(--panel-bg);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    touch-action: none;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    width: 100%;
+  }
+  button {
+    flex: 1;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    background: #3d4657;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover { background: #4d586d; }
+  button.primary { background: var(--accent); color: #1a1e24; }
+  button.primary:hover { background: var(--accent-hover); }
+  button.btn-hint { background: #8a6518; color: #fff; }
+  button.btn-hint:hover { background: #a5781a; }
+</style>
+</head>
+<body>
+
+<!-- 1. ステージ＆難易度選択ビュー -->
+<div id="view-map" class="view active">
+  <h1>一筆書きマスター</h1>
+
+  <!-- 難易度選択タブ -->
+  <div class="diff-tabs" id="diffTabs">
+    <div class="diff-tab active" onclick="switchDifficulty('easy')">かんたん</div>
+    <div class="diff-tab" onclick="switchDifficulty('normal')">ふつう</div>
+    <div class="diff-tab" onclick="switchDifficulty('hard')">むずかしい</div>
+    <div class="diff-tab" onclick="switchDifficulty('expert')">げきむず</div>
+    <div class="diff-tab tab-nightmare" onclick="switchDifficulty('nightmare')">超人🔥</div>
+  </div>
+
+  <div class="stage-grid" id="stageGrid"></div>
+  <button class="primary" style="width:100%;" onclick="startInfiniteMode()">★ この難易度で自動生成モード</button>
+</div>
+
+<!-- 2. パズルゲーム画面ビュー -->
+<div id="view-game" class="view">
+  <div class="header-bar">
+    <button style="flex:0 0 auto; padding: 6px 12px;" onclick="backToMap()">← 選択</button>
+    <div id="stageIndicator" style="font-weight:bold;">STAGE 1</div>
+    <div style="width:50px;"></div>
+  </div>
+  <div id="status">丸をドラッグしてすべて繋げてください</div>
+  <canvas id="gameCanvas" width="360" height="360"></canvas>
+  <div class="controls">
+    <button onclick="retryCurrentStage()">やり直す</button>
+    <button class="btn-hint" id="hintBtn" onclick="showAnswer()">答え表示</button>
+    <button id="nextBtn" class="primary" style="display:none;" onclick="handleNextClick()">次へ進む</button>
+  </div>
+</div>
+
+<script>
+// --- 音声シンセサイザ (Web Audio API) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, duration = 0.08) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.frequency.value = freq;
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+function playStepSound(stepIndex) {
+  const scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99];
+  const freq = scale[stepIndex % scale.length] * Math.pow(2, Math.floor(stepIndex / scale.length));
+  playTone(freq, 0.07);
+}
+function playClearSound() {
+  [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+    setTimeout(() => playTone(freq, 0.18), idx * 90);
+  });
+}
+
+// --- 難易度・ステージ設定 ---
+const DIFFICULTY_CONFIG = {
+  easy: {
+    label: "かんたん",
+    stages: [
+      { id: 1, name: "1-1", rows: 3, cols: 3, obstacles: 0, desc: "3×3 入門" },
+      { id: 2, name: "1-2", rows: 3, cols: 3, obstacles: 0, desc: "3×3 基本" },
+      { id: 3, name: "1-3", rows: 3, cols: 4, obstacles: 0, desc: "3×4 初歩" },
+      { id: 4, name: "1-4", rows: 4, cols: 4, obstacles: 0, desc: "4×4 チャレンジ" }
+    ],
+    infinite: { rows: 3, cols: 4, minObs: 0, maxObs: 0 }
+  },
+  normal: {
+    label: "ふつう",
+    stages: [
+      { id: 1, name: "2-1", rows: 4, cols: 4, obstacles: 0, desc: "4×4 スタンダード" },
+      { id: 2, name: "2-2", rows: 4, cols: 4, obstacles: 1, desc: "4×4 障害物×1" },
+      { id: 3, name: "2-3", rows: 4, cols: 4, obstacles: 2, desc: "4×4 障害物×2" },
+      { id: 4, name: "2-4", rows: 5, cols: 4, obstacles: 1, desc: "5×4 チャレンジ" }
+    ],
+    infinite: { rows: 4, cols: 4, minObs: 1, maxObs: 2 }
+  },
+  hard: {
+    label: "むずかしい",
+    stages: [
+      { id: 1, name: "3-1", rows: 5, cols: 5, obstacles: 0, desc: "5×5 クラシック" },
+      { id: 2, name: "3-2", rows: 5, cols: 5, obstacles: 2, desc: "5×5 障害物×2" },
+      { id: 3, name: "3-3", rows: 5, cols: 5, obstacles: 3, desc: "5×5 障害物×3" },
+      { id: 4, name: "3-4", rows: 5, cols: 5, obstacles: 4, desc: "5×5 障害物×4" }
+    ],
+    infinite: { rows: 5, cols: 5, minObs: 2, maxObs: 4 }
+  },
+  expert: {
+    label: "げきむず",
+    stages: [
+      { id: 1, name: "4-1", rows: 6, cols: 6, obstacles: 2, desc: "6×6 障害物×2" },
+      { id: 2, name: "4-2", rows: 6, cols: 6, obstacles: 4, desc: "6×6 障害物×4" },
+      { id: 3, name: "4-3", rows: 6, cols: 6, obstacles: 6, desc: "6×6 障害物×6" },
+      { id: 4, name: "4-4", rows: 6, cols: 6, obstacles: 8, desc: "6×6 障害物×8" }
+    ],
+    infinite: { rows: 6, cols: 6, minObs: 4, maxObs: 8 }
+  },
+  nightmare: {
+    label: "超人🔥",
+    stages: [
+      { id: 1, name: "5-1", rows: 7, cols: 7, obstacles: 4, desc: "7×7 障害物×4" },
+      { id: 2, name: "5-2", rows: 7, cols: 7, obstacles: 7, desc: "7×7 障害物×7" },
+      { id: 3, name: "5-3", rows: 7, cols: 7, obstacles: 10, desc: "7×7 障害物×10" },
+      { id: 4, name: "5-4", rows: 7, cols: 7, obstacles: 13, desc: "7×7 究極迷宮" }
+    ],
+    infinite: { rows: 7, cols: 7, minObs: 8, maxObs: 14 }
+  }
+};
+
+let currentDiffKey = 'easy';
+let currentStageIndex = 0;
+let isInfiniteMode = false;
+
+function getUnlockedStage(diffKey) {
+  return parseInt(localStorage.getItem(`unlocked_${diffKey}`) || '1', 10);
+}
+function setUnlockedStage(diffKey, val) {
+  localStorage.setItem(`unlocked_${diffKey}`, val);
+}
+
+function switchDifficulty(diffKey) {
+  currentDiffKey = diffKey;
+  const tabs = document.querySelectorAll('.diff-tab');
+  const keys = ['easy', 'normal', 'hard', 'expert', 'nightmare'];
+  tabs.forEach((tab, i) => {
+    tab.classList.toggle('active', keys[i] === diffKey);
+  });
+  renderMap();
+}
+
+// --- プロシージャル生成（正解ルートを保持） ---
+let currentSolutionPath = []; // 答え表示用
+let isShowingAnswer = false;
+let answerAnimationTimer = null;
+
+function generateSolvableBoard(rows, cols, obstacleCount) {
+  const total = rows * cols;
+  const targetLength = total - obstacleCount;
+
+  const DIRS = [
+    { dr: -1, dc: 0 },
+    { dr: 1, dc: 0 },
+    { dr: 0, dc: -1 },
+    { dr: 0, dc: 1 }
+  ];
+
+  function getNeighbors(r, c, visited) {
+    const list = [];
+    for (const d of DIRS) {
+      const nr = r + d.dr;
+      const nc = c + d.dc;
+      const nidx = nr * cols + nc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited.has(nidx)) {
+        list.push({ r: nr, c: nc, id: nidx });
+      }
+    }
+    return list.sort(() => Math.random() - 0.5);
+  }
+
+  function solve(path, visited) {
+    if (path.length === targetLength) return true;
+    const current = path[path.length - 1];
+    const neighbors = getNeighbors(current.r, current.c, visited);
+
+    for (const next of neighbors) {
+      visited.add(next.id);
+      path.push(next);
+      if (solve(path, visited)) return true;
+      path.pop();
+      visited.delete(next.id);
+    }
+    return false;
+  }
+
+  let validPath = null;
+  // サイズが大きい場合は探索試行回数を確保
+  const maxAttempts = rows >= 7 ? 120 : 60;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const startR = Math.floor(Math.random() * rows);
+    const startC = Math.floor(Math.random() * cols);
+    const startId = startR * cols + startC;
+    const path = [{ r: startR, c: startC, id: startId }];
+    const visited = new Set([startId]);
+
+    if (solve(path, visited)) {
+      validPath = path;
+      break;
+    }
+  }
+
+  // 答えのインデックス配列を保持
+  currentSolutionPath = validPath ? validPath.map(p => p.id) : [];
+
+  const activeIds = new Set(currentSolutionPath);
+  const dots = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const id = r * cols + c;
+      dots.push({ id, row: r, col: c, active: activeIds.has(id) });
+    }
+  }
+  return dots;
+}
+
+// --- ゲームロジック ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const statusText = document.getElementById('status');
+const stageIndicator = document.getElementById('stageIndicator');
+const nextBtn = document.getElementById('nextBtn');
+const hintBtn = document.getElementById('hintBtn');
+
+let boardDots = [];
+let path = [];
+let isDragging = false;
+let currentPos = { x: 0, y: 0 };
+let currentRows = 5;
+let currentCols = 5;
+let stepX = 0;
+let stepY = 0;
+const PADDING = 32;
+
+function loadStage(index) {
+  currentStageIndex = index;
+  isInfiniteMode = false;
+  const config = DIFFICULTY_CONFIG[currentDiffKey].stages[index];
+  stageIndicator.innerText = `[${DIFFICULTY_CONFIG[currentDiffKey].label}] ${config.name}`;
+  buildBoard(config.rows, config.cols, config.obstacles);
+}
+
+function startInfiniteMode() {
+  isInfiniteMode = true;
+  document.getElementById('view-map').classList.remove('active');
+  document.getElementById('view-game').classList.add('active');
+  const infConfig = DIFFICULTY_CONFIG[currentDiffKey].infinite;
+  stageIndicator.innerText = `[${DIFFICULTY_CONFIG[currentDiffKey].label}] ∞ 自動生成`;
+  const obs = Math.floor(Math.random() * (infConfig.maxObs - infConfig.minObs + 1)) + infConfig.minObs;
+  buildBoard(infConfig.rows, infConfig.cols, obs);
+}
+
+function buildBoard(rows, cols, obstacles) {
+  if (answerAnimationTimer) clearInterval(answerAnimationTimer);
+  isShowingAnswer = false;
+
+  currentRows = rows;
+  currentCols = cols;
+  stepX = (canvas.width - PADDING * 2) / (cols - 1);
+  stepY = (canvas.height - PADDING * 2) / (rows - 1);
+
+  boardDots = generateSolvableBoard(rows, cols, obstacles);
+  boardDots.forEach(d => {
+    d.x = PADDING + d.col * stepX;
+    d.y = PADDING + d.row * stepY;
+  });
+
+  resetPlayState();
+}
+
+function resetPlayState() {
+  if (answerAnimationTimer) clearInterval(answerAnimationTimer);
+  isShowingAnswer = false;
+  path = [];
+  isDragging = false;
+  nextBtn.style.display = 'none';
+  hintBtn.style.display = 'block';
+  statusText.innerText = '丸をドラッグしてすべて繋げてください';
+  draw();
+}
+
+// 答え表示アニメーション
+function showAnswer() {
+  if (isShowingAnswer || currentSolutionPath.length === 0) return;
+  isShowingAnswer = true;
+  path = [];
+  isDragging = false;
+  statusText.innerText = '答えを表示中...';
+
+  let step = 0;
+  answerAnimationTimer = setInterval(() => {
+    if (step < currentSolutionPath.length) {
+      path.push(currentSolutionPath[step]);
+      playStepSound(step);
+      draw();
+      step++;
+    } else {
+      clearInterval(answerAnimationTimer);
+      statusText.innerText = '正解ルートです。「やり直す」で再挑戦できます';
+    }
+  }, 100);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. 軌跡の描画
+  if (path.length > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = isShowingAnswer ? '#ffaa00' : '#4ecdc4';
+    ctx.lineWidth = currentRows >= 7 ? 4 : (currentRows >= 6 ? 6 : 8);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const startDot = boardDots[path[0]];
+    ctx.moveTo(startDot.x, startDot.y);
+    for (let i = 1; i < path.length; i++) {
+      const d = boardDots[path[i]];
+      ctx.lineTo(d.x, d.y);
+    }
+    const targetCount = boardDots.filter(d => d.active).length;
+    if (isDragging && path.length < targetCount) {
+      ctx.lineTo(currentPos.x, currentPos.y);
+    }
+    ctx.stroke();
+  }
+
+  // 2. ドット & 障害物の描画
+  // グリッド密度に応じてサイズを自動縮小
+  const dotRadius = currentRows >= 7 ? 8 : (currentRows >= 6 ? 11 : 14);
+  const strokeWidth = currentRows >= 7 ? 2 : 3;
+
+  boardDots.forEach(dot => {
+    if (!dot.active) {
+      // 障害物
+      ctx.fillStyle = '#2f3542';
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, currentRows >= 7 ? 3 : 5, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    const isVisited = path.includes(dot.id);
+    const isHead = path.length > 0 && path[path.length - 1] === dot.id;
+
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, dotRadius, 0, Math.PI * 2);
+
+    if (isHead) {
+      ctx.fillStyle = isShowingAnswer ? '#ffdd55' : '#ffe66d';
+      ctx.fill();
+    } else if (isVisited) {
+      ctx.fillStyle = isShowingAnswer ? '#ffaa00' : '#4ecdc4';
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = '#5a6578';
+      ctx.lineWidth = strokeWidth;
+      ctx.stroke();
+      ctx.fillStyle = '#222831';
+      ctx.fill();
+    }
+  });
+}
+
+function getDotAt(x, y) {
+  const hitRadius = currentRows >= 7 ? 16 : (currentRows >= 6 ? 20 : 25);
+  return boardDots.find(d => {
+    if (!d.active) return false;
+    const dx = d.x - x;
+    const dy = d.y - y;
+    return Math.sqrt(dx * dx + dy * dy) < hitRadius;
+  });
+}
+
+function isAdjacent(a, b) {
+  return Math.abs(a.row - b.row) + Math.abs(a.col - b.col) === 1;
+}
+
+function handleStart(x, y) {
+  if (isShowingAnswer) return; // 答え表示中は操作不可
+  const targetCount = boardDots.filter(d => d.active).length;
+  if (path.length === targetCount) return;
+
+  const target = getDotAt(x, y);
+  if (target) {
+    path = [target.id];
+    isDragging = true;
+    currentPos = { x, y };
+    playStepSound(0);
+    draw();
+  }
+}
+
+function handleMove(x, y) {
+  if (!isDragging || isShowingAnswer) return;
+  currentPos = { x, y };
+  const target = getDotAt(x, y);
+
+  if (target) {
+    const lastId = path[path.length - 1];
+    
+    // 自動巻き戻し (Undo)
+    if (path.length > 1 && path[path.length - 2] === target.id) {
+      path.pop();
+      playTone(200, 0.05);
+      draw();
+      return;
+    }
+
+    // 新しいマスへ進む
+    if (!path.includes(target.id) && isAdjacent(boardDots[lastId], target)) {
+      path.push(target.id);
+      playStepSound(path.length - 1);
+
+      const targetCount = boardDots.filter(d => d.active).length;
+      if (path.length === targetCount) {
+        handleClear();
+      }
+    }
+  }
+  draw();
+}
+
+function handleEnd() {
+  if (isDragging) {
+    isDragging = false;
+    const targetCount = boardDots.filter(d => d.active).length;
+    if (path.length < targetCount) {
+      statusText.innerText = `失敗 (${path.length}/${targetCount})。再挑戦してください`;
+    }
+    draw();
+  }
+}
+
+function handleClear() {
+  isDragging = false;
+  playClearSound();
+  statusText.innerText = '★ クリア！お見事！';
+  nextBtn.style.display = 'block';
+
+  // 自力クリアした場合のみアンロック進行
+  if (!isInfiniteMode && !isShowingAnswer) {
+    const unlocked = getUnlockedStage(currentDiffKey);
+    const currentStages = DIFFICULTY_CONFIG[currentDiffKey].stages;
+    if (currentStageIndex + 2 > unlocked) {
+      const nextUnlocked = Math.min(currentStages.length, currentStageIndex + 2);
+      setUnlockedStage(currentDiffKey, nextUnlocked);
+    }
+  }
+}
+
+function handleNextClick() {
+  if (isInfiniteMode) {
+    startInfiniteMode();
+  } else {
+    const currentStages = DIFFICULTY_CONFIG[currentDiffKey].stages;
+    if (currentStageIndex + 1 < currentStages.length) {
+      loadStage(currentStageIndex + 1);
+    } else {
+      backToMap();
+    }
+  }
+}
+
+function retryCurrentStage() {
+  resetPlayState();
+}
+
+// ポインタ・タッチイベント
+canvas.addEventListener('mousedown', e => {
+  const r = canvas.getBoundingClientRect();
+  handleStart(e.clientX - r.left, e.clientY - r.top);
+});
+window.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  handleMove(e.clientX - r.left, e.clientY - r.top);
+});
+window.addEventListener('mouseup', handleEnd);
+
+canvas.addEventListener('touchstart', e => {
+  const r = canvas.getBoundingClientRect();
+  handleStart(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+});
+window.addEventListener('touchmove', e => {
+  const r = canvas.getBoundingClientRect();
+  handleMove(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+});
+window.addEventListener('touchend', handleEnd);
+
+// --- 画面表示更新 ---
+function renderMap() {
+  const grid = document.getElementById('stageGrid');
+  grid.innerHTML = '';
+  const currentStages = DIFFICULTY_CONFIG[currentDiffKey].stages;
+  const unlocked = getUnlockedStage(currentDiffKey);
+
+  currentStages.forEach((stage, idx) => {
+    const isLocked = (idx + 1) > unlocked;
+    const isCleared = (idx + 1) < unlocked;
+    const card = document.createElement('div');
+    card.className = `stage-card ${isLocked ? 'locked' : ''} ${isCleared ? 'cleared' : ''}`;
+    card.innerHTML = `
+      <div class="stage-title">${stage.name}</div>
+      <div class="stage-desc">${isLocked ? '🔒 ロック' : stage.desc}</div>
+    `;
+    if (!isLocked) {
+      card.onclick = () => {
+        document.getElementById('view-map').classList.remove('active');
+        document.getElementById('view-game').classList.add('active');
+        loadStage(idx);
+      };
+    }
+    grid.appendChild(card);
+  });
+}
+
+function backToMap() {
+  if (answerAnimationTimer) clearInterval(answerAnimationTimer);
+  document.getElementById('view-game').classList.remove('active');
+  document.getElementById('view-map').classList.add('active');
+  renderMap();
+}
+
+// 初回レンダリング
+renderMap();
+</script>
+</body>
+</html>
