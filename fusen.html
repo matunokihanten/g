@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
     <title>タイマー付き付箋</title>
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="90" height="90" x="5" y="5" rx="16" fill="%23fffa65"/></svg>'>
     <style>
         :root {
             --bg-color-start: #1a1a2e;
@@ -27,12 +29,16 @@
             color: #ecf0f1;
         }
 
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+        }
+
         #toolbar {
-            position: fixed;
-            top: 0;
-            left: 0;
+            position: relative;
+            flex: 0 0 auto;
             width: 100%;
-            height: auto;
             min-height: 60px;
             background: var(--toolbar-bg);
             color: var(--toolbar-color);
@@ -52,14 +58,16 @@
             align-items: center;
             gap: 6px;
         }
-        #toolbar .group:last-child {
-            margin-left: auto;
-        }
         @media (max-width: 600px) {
             #toolbar .group:last-child {
                 margin-left: 0;
             }
+            #searchInput {
+                flex-grow: 1;
+                min-width: 100px;
+            }
         }
+
         #toolbar input[type="text"],
         #toolbar button,
         #toolbar select {
@@ -75,7 +83,7 @@
         }
 
         #timerInput {
-            width: 70px;
+            width: 76px;
             text-align: center;
         }
         #toolbar input[type="text"] {
@@ -141,19 +149,27 @@
             transform: translateY(2px);
             border-bottom: none;
         }
+        .icon-btn {
+            padding: 8px 10px !important;
+            min-width: 38px;
+        }
+        #zoomLabel {
+            min-width: 56px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
 
         #wrapper {
-            position: absolute;
-            top: 60px;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: relative;
+            flex: 1 1 auto;
             overflow: hidden;
             cursor: grab;
             touch-action: none;
             user-select: none;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1.5px, transparent 1.5px);
+            background-size: 28px 28px;
         }
-        
+
         #board {
             position: absolute;
             top: 0;
@@ -171,7 +187,7 @@
             resize: both;
             overflow: auto;
             cursor: move;
-            transition: box-shadow 0.3s ease, transform 0.3s ease, background 0.5s;
+            transition: box-shadow 0.3s ease, transform 0.3s ease, background 0.5s, opacity 0.3s ease;
             min-width: 140px;
             min-height: 100px;
             box-sizing: border-box;
@@ -184,15 +200,28 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.6);
             transform: translateY(-5px);
         }
+        .note.new {
+            animation: pop 0.25s ease;
+        }
+        @keyframes pop {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .note.dim {
+            opacity: 0.22;
+        }
+        .note.hit {
+            box-shadow: 0 0 0 3px #3498db, var(--note-shadow);
+        }
         .note.alert {
             background: #e74c3c !important;
             color: #fff;
-            animation: pulse 1s infinite;
+            animation: alertPulse 1s infinite;
         }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
+        /* transform を使わない脈動アニメ(hover の transform と干渉しない) */
+        @keyframes alertPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.8), var(--note-shadow); }
+            50% { box-shadow: 0 0 0 16px rgba(231, 76, 60, 0), var(--note-shadow); }
         }
 
         .note-content {
@@ -204,10 +233,11 @@
             outline: none;
             box-sizing: border-box;
             font-size: 14px;
+            user-select: text;
         }
         .note-content:empty::before {
             content: "ここに記入…";
-            color: #ccc;
+            color: #999;
         }
 
         .close-btn {
@@ -223,16 +253,32 @@
         .close-btn:hover {
             color: rgba(0,0,0,0.8);
         }
-        .note.alert .close-btn {
+        .color-btn {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            font-size: 13px;
+            color: rgba(0,0,0,0.4);
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.3s ease, transform 0.2s ease;
+        }
+        .color-btn:hover {
+            color: rgba(0,0,0,0.8);
+            transform: scale(1.2);
+        }
+        .note.alert .close-btn,
+        .note.alert .color-btn {
             color: rgba(255,255,255,0.7);
         }
-        .note.alert .close-btn:hover {
+        .note.alert .close-btn:hover,
+        .note.alert .color-btn:hover {
             color: #fff;
         }
 
         .timer-info {
             position: absolute;
-            bottom: 8px;
+            bottom: 14px;
             left: 15px;
             right: 15px;
             display: flex;
@@ -248,6 +294,33 @@
             color: rgba(0,0,0,0.6);
             font-weight: bold;
             letter-spacing: 0.5px;
+            font-variant-numeric: tabular-nums;
+        }
+        .timer-info.low .timer-display {
+            color: #c0392b;
+        }
+        .timer-progress {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 5px;
+            background: rgba(0,0,0,0.12);
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .timer-progress-fill {
+            height: 100%;
+            width: 100%;
+            background: #27ae60;
+            transition: width 0.25s linear, background 0.3s;
+        }
+        .timer-info.low .timer-progress-fill {
+            background: #e74c3c;
+        }
+        .note.alert .timer-progress-fill {
+            background: #fff;
         }
         .timer-btn {
             font-size: 12px;
@@ -273,197 +346,445 @@
             box-shadow: none;
             transform: translateY(1px);
         }
+
+        /* ステータスバー */
+        #statusbar {
+            position: absolute;
+            left: 12px;
+            bottom: 10px;
+            z-index: 1500;
+            pointer-events: none;
+            background: rgba(0,0,0,0.3);
+            color: rgba(255,255,255,0.75);
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 空状態のガイド */
+        #emptyState {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 17px;
+            line-height: 1.9;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #emptyState small {
+            font-size: 12px;
+            color: rgba(255,255,255,0.3);
+        }
+
+        /* トースト通知 */
+        #toasts {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            z-index: 3500;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(20, 25, 40, 0.95);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #ecf0f1;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            pointer-events: auto;
+            animation: toastIn 0.25s ease;
+            transition: opacity 0.3s ease;
+            max-width: 86vw;
+        }
+        @keyframes toastIn {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .toast button {
+            background: var(--button-bg);
+            border: none;
+            color: #fff;
+            border-radius: 6px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        /* モーダル */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            animation: toastIn 0.2s ease;
+        }
+        .modal {
+            background: var(--toolbar-bg);
+            color: var(--toolbar-color);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            width: 420px;
+            max-width: 92vw;
+            max-height: 80vh;
+            overflow: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+        }
+        .modal p {
+            margin: 0 0 18px;
+            font-size: 13px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .modal-actions button {
+            padding: 8px 16px;
+            font-size: 13px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+        }
+        .btn-primary { background: var(--button-bg); }
+        .btn-danger { background: #e74c3c; }
+        .btn-plain { background: #34495e; }
+
+        :focus-visible {
+            outline: 2px solid #9ad1f5;
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="toolbar">
-        <div class="group">
-            <input type="text" id="timerInput" placeholder="00:00">
-            <button id="addHourBtn" class="time-btn">+1h</button>
-            <button id="addMinuteBtn" class="time-btn">+1分</button>
-            <button id="addSecondBtn" class="time-btn">+1秒</button>
+        <div class="group" role="group" aria-label="タイマー時間の指定">
+            <input type="text" id="timerInput" placeholder="00:00" maxlength="8" inputmode="numeric" aria-label="タイマー時間(例: 1:30 は1分30秒)" title="例: 90 = 90秒 / 1:30 = 1分30秒 / 1:00:00 = 1時間">
+            <button id="addHourBtn" class="time-btn" title="1時間追加">+1時間</button>
+            <button id="addMinuteBtn" class="time-btn" title="1分追加">+1分</button>
+            <button id="addSecondBtn" class="time-btn" title="1秒追加">+1秒</button>
         </div>
         <div class="group">
-            <button id="resetTimerBtn" title="タイマーをリセット">リセット</button>
+            <button id="resetTimerBtn" title="タイマー指定をクリア">リセット</button>
             <button id="addBtn" title="新しい付箋を追加">付箋を追加</button>
+        </div>
+        <div class="group">
+            <input type="text" id="searchInput" placeholder="🔍 検索" aria-label="付箋を検索" title="Ctrl+F で検索 / Enter で次へ / Esc で解除">
+        </div>
+        <div class="group" role="group" aria-label="ズーム操作">
+            <button id="zoomOutBtn" class="icon-btn" title="ズームアウト ( - キー )" aria-label="ズームアウト">－</button>
+            <button id="zoomLabel" class="icon-btn" title="100%にリセット">100%</button>
+            <button id="zoomInBtn" class="icon-btn" title="ズームイン ( + キー )" aria-label="ズームイン">＋</button>
+            <button id="fitBtn" class="icon-btn" title="全体表示 ( 0 キー )" aria-label="全体表示">⛶</button>
         </div>
         <div class="group">
             <button id="alignBtn" title="付箋を整列">整列</button>
             <button id="exportBtn" title="付箋データをエクスポート">エクスポート</button>
             <button id="importBtn" title="付箋データをインポート">インポート</button>
-            <input type="file" id="importFile" accept=".json" style="display:none">
+            <button id="soundBtn" class="icon-btn" title="アラーム音のオン/オフ" aria-label="アラーム音の切り替え">🔊</button>
+            <button id="helpBtn" class="icon-btn" title="使い方を見る" aria-label="ヘルプ">?</button>
         </div>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none">
     </div>
 
     <div id="wrapper">
         <div id="board"></div>
+        <div id="statusbar"><span id="statusText">付箋 0件</span></div>
+        <div id="emptyState">
+            付箋がありません<br>
+            <small>盤面をダブルクリックか「付箋を追加」で作成 / 空白ドラッグで移動 / Ctrl+ホイールでズーム</small>
+        </div>
     </div>
+
+    <div id="toasts" aria-live="polite"></div>
 
     <script>
         (function() {
-            // State
-            let notes = [];
-            let scale = 1, translateX = 0, translateY = 0;
-            let isPanning = false, panStartX = 0, panStartY = 0;
-            let timerInterval;
+            'use strict';
 
-            // DOM Elements
-            const wrapper = document.getElementById('wrapper');
-            const board = document.getElementById('board');
-            const addBtn = document.getElementById('addBtn');
-            const timerInput = document.getElementById('timerInput');
-            const resetTimerBtn = document.getElementById('resetTimerBtn');
-            const addHourBtn = document.getElementById('addHourBtn');
-            const addMinuteBtn = document.getElementById('addMinuteBtn');
-            const addSecondBtn = document.getElementById('addSecondBtn');
-            const alignBtn = document.getElementById('alignBtn');
-            const exportBtn = document.getElementById('exportBtn');
-            const importBtn = document.getElementById('importBtn');
-            const importFile = document.getElementById('importFile');
-            const noteColors = ['#fffa65', '#ff9ff3', '#feca57', '#48dbfb', '#1dd1a1', '#7bed9f'];
-            const alarmSound = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+            // ================= 定数 =================
+            var STORAGE_KEY = 'stickynotes';
+            var VIEW_KEY = 'stickynotes_view';
+            var SOUND_KEY = 'stickynotes_sound';
+            var MIN_SCALE = 0.2;
+            var MAX_SCALE = 3;
+            var noteColors = ['#fffa65', '#ff9ff3', '#feca57', '#48dbfb', '#1dd1a1', '#7bed9f'];
 
-            // --- Core Functions ---
-            function init() {
-                setupEventListeners();
-                loadNotes();
-                renderAll();
-                startTimerCheck();
-                if (Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
+            // ================= 状態 =================
+            var notes = [];
+            var scale = 1, translateX = 0, translateY = 0;
+            var isPanning = false, panStartX = 0, panStartY = 0;
+            var pinchState = null;
+            var timerInterval = null;
+            var undoStack = [];
+            var searchQuery = '';
+            var searchHits = [];
+            var searchIndex = 0;
+            var soundOn = true;
+            var audioCtx = null;
+            var viewSaveTimer = null;
+
+            // ================= DOM =================
+            function $(id) { return document.getElementById(id); }
+            var wrapper = $('wrapper');
+            var board = $('board');
+            var addBtn = $('addBtn');
+            var timerInput = $('timerInput');
+            var resetTimerBtn = $('resetTimerBtn');
+            var addHourBtn = $('addHourBtn');
+            var addMinuteBtn = $('addMinuteBtn');
+            var addSecondBtn = $('addSecondBtn');
+            var alignBtn = $('alignBtn');
+            var exportBtn = $('exportBtn');
+            var importBtn = $('importBtn');
+            var importFile = $('importFile');
+            var searchInput = $('searchInput');
+            var zoomInBtn = $('zoomInBtn');
+            var zoomOutBtn = $('zoomOutBtn');
+            var zoomLabel = $('zoomLabel');
+            var fitBtn = $('fitBtn');
+            var soundBtn = $('soundBtn');
+            var helpBtn = $('helpBtn');
+            var statusText = $('statusText');
+            var emptyState = $('emptyState');
+            var toasts = $('toasts');
+
+            // ================= ユーティリティ =================
+            function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+            function qS(sel) { return document.querySelector(sel); }
+
+            function fmtClock(totalSeconds) {
+                var h = Math.floor(totalSeconds / 3600);
+                var m = Math.floor((totalSeconds % 3600) / 60);
+                var s = totalSeconds % 60;
+                var mm = String(m).padStart(2, '0');
+                var ss = String(s).padStart(2, '0');
+                return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
             }
 
-            function setupEventListeners() {
-                wrapper.addEventListener('mousedown', startPan);
-                document.addEventListener('mousemove', doPan);
-                document.addEventListener('mouseup', endPan);
-                wrapper.addEventListener('touchstart', startPanTouch, { passive: false });
-                document.addEventListener('touchmove', doPanTouch, { passive: false });
-                document.addEventListener('touchend', endPanTouch);
-
-                addBtn.addEventListener('click', () => {
-                    const timerSeconds = parseTimerInput(timerInput.value);
-                    addNote('', timerSeconds);
-                });
-                resetTimerBtn.addEventListener('click', () => timerInput.value = '');
-                addHourBtn.addEventListener('click', () => adjustTimer(3600));
-                addMinuteBtn.addEventListener('click', () => adjustTimer(60));
-                addSecondBtn.addEventListener('click', () => adjustTimer(1));
-                alignBtn.addEventListener('click', alignNotes);
-
-                timerInput.addEventListener('focus', () => {
-                    if (timerInput.value === '') {
-                        timerInput.value = '00:00';
-                    }
-                });
-                timerInput.addEventListener('blur', () => {
-                    if (timerInput.value === '00:00') {
-                        timerInput.value = '';
-                    }
-                });
-                timerInput.addEventListener('input', formatTimerInput);
-
-                exportBtn.addEventListener('click', exportNotes);
-                importBtn.addEventListener('click', () => importFile.click());
-                importFile.addEventListener('change', importNotes);
+            function noteTitle(note) {
+                var c = (note.content || '').trim();
+                if (!c) return '無題の付箋';
+                c = c.split('\n')[0];
+                return c.length > 20 ? c.substring(0, 20) + '…' : c;
             }
 
-            function adjustTimer(secondsToAdd) {
-                let totalSeconds = parseTimerInput(timerInput.value);
-                totalSeconds += secondsToAdd;
-                if (totalSeconds < 0) totalSeconds = 0;
-                
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
-                
-                let displayValue = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                if (hours > 0) {
-                    displayValue = `${hours}:${displayValue}`;
+            function isTyping(e) {
+                var t = e.target;
+                return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+            }
+
+            function pad2(n) { return String(n).padStart(2, '0'); }
+
+            function dateStamp(d) {
+                return '' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+            }
+
+            // ================= データ保存 =================
+            function sanitizeNote(raw) {
+                if (!raw || typeof raw !== 'object') return null;
+                var num = function(v, d) { v = Number(v); return isFinite(v) ? v : d; };
+                var id = (raw.id != null ? String(raw.id) : 'n' + Date.now() + Math.random().toString(36).slice(2, 7));
+                var color = (noteColors.indexOf(raw.color) !== -1 || (typeof raw.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(raw.color))) ? raw.color : noteColors[0];
+                var n = {
+                    id: id,
+                    content: typeof raw.content === 'string' ? raw.content : '',
+                    x: num(raw.x, 0),
+                    y: num(raw.y, 0),
+                    width: clamp(num(raw.width, 150), 120, 2000),
+                    height: clamp(num(raw.height, 100), 80, 2000),
+                    color: color,
+                    zIndex: num(raw.zIndex, 1) || 1,
+                    timer: null
+                };
+                var t = raw.timer;
+                if (t && Number(t.initialSeconds) > 0) {
+                    var init = Number(t.initialSeconds);
+                    var endTime = Number(t.endTime);
+                    var remaining = Number(t.remainingTime);
+                    if (!isFinite(endTime) || endTime <= 0) endTime = Date.now() + init * 1000;
+                    if (!isFinite(remaining)) remaining = clamp(endTime - Date.now(), 0, init * 1000);
+                    remaining = clamp(remaining, 0, init * 1000);
+                    n.timer = {
+                        initialSeconds: init,
+                        endTime: endTime,
+                        remainingTime: remaining,
+                        isStopped: !!t.isStopped,
+                        isAlerted: !!t.isAlerted
+                    };
                 }
-                timerInput.value = displayValue;
+                return n;
             }
 
             function loadNotes() {
-                notes = JSON.parse(localStorage.getItem('stickynotes') || '[]');
+                notes = [];
+                try {
+                    var data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                    var arr = Array.isArray(data) ? data : (data && Array.isArray(data.notes) ? data.notes : null);
+                    if (arr) notes = arr.map(sanitizeNote).filter(Boolean);
+                } catch (e) {
+                    notes = [];
+                    showToast('保存データの読み込みに失敗しました。初期状態で起動します。');
+                }
             }
 
             function saveNotes() {
-                localStorage.setItem('stickynotes', JSON.stringify(notes));
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+                } catch (e) {
+                    showToast('保存に失敗しました。ストレージ容量を確認してください。');
+                }
             }
 
+            function loadView() {
+                try {
+                    var v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null');
+                    if (v && typeof v === 'object') {
+                        scale = clamp(Number(v.scale) || 1, MIN_SCALE, MAX_SCALE);
+                        translateX = Number(v.tx) || 0;
+                        translateY = Number(v.ty) || 0;
+                    }
+                } catch (e) { /* デフォルト値のまま */ }
+            }
+
+            function saveView() {
+                try {
+                    localStorage.setItem(VIEW_KEY, JSON.stringify({ scale: scale, tx: translateX, ty: translateY }));
+                } catch (e) { /* 無視 */ }
+            }
+
+            function saveViewSoon() {
+                if (viewSaveTimer) clearTimeout(viewSaveTimer);
+                viewSaveTimer = setTimeout(saveView, 300);
+            }
+
+            // ================= 描画 =================
             function renderAll() {
                 board.innerHTML = '';
-                notes.forEach(renderNote);
-                updateTransform();
+                notes.forEach(function(n) { renderNote(n); });
+                applySearch();
+                updateEmptyState();
             }
 
-            function renderNote(n, focusOnCreate = false) {
-                const el = document.createElement('div');
-                el.className = 'note';
+            function renderNote(n, focusOnCreate, isNew) {
+                var el = document.createElement('div');
+                el.className = 'note' + (isNew ? ' new' : '');
                 el.dataset.id = n.id;
+                if (isNew) {
+                    el.addEventListener('animationend', function() { el.classList.remove('new'); }, { once: true });
+                }
                 applyStyle(el, n);
 
-                const contentDiv = document.createElement('div');
+                var contentDiv = document.createElement('div');
                 contentDiv.className = 'note-content';
                 contentDiv.contentEditable = true;
-                contentDiv.innerText = n.content;
+                contentDiv.textContent = n.content;
                 el.appendChild(contentDiv);
 
-                const closeBtn = document.createElement('span');
+                var closeBtn = document.createElement('span');
                 closeBtn.className = 'close-btn';
-                closeBtn.innerText = '✕';
-                closeBtn.onclick = (e) => {
+                closeBtn.textContent = '✕';
+                closeBtn.setAttribute('role', 'button');
+                closeBtn.setAttribute('aria-label', 'この付箋を削除');
+                closeBtn.title = '削除';
+                closeBtn.onclick = function(e) {
                     e.stopPropagation();
-                    deleteNote(n.id, el);
+                    deleteNote(n.id);
                 };
                 el.appendChild(closeBtn);
 
-                if (n.timer && n.timer.initialSeconds) {
-                    const timerInfoDiv = document.createElement('div');
+                var colorBtn = document.createElement('span');
+                colorBtn.className = 'color-btn';
+                colorBtn.textContent = '🎨';
+                colorBtn.setAttribute('role', 'button');
+                colorBtn.setAttribute('aria-label', '付箋の色を変更');
+                colorBtn.title = '色を変更';
+                colorBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    cycleColor(n, el);
+                };
+                el.appendChild(colorBtn);
+
+                if (n.timer) {
+                    var progress = document.createElement('div');
+                    progress.className = 'timer-progress';
+                    var fill = document.createElement('div');
+                    fill.className = 'timer-progress-fill';
+                    progress.appendChild(fill);
+                    el.appendChild(progress);
+
+                    var timerInfoDiv = document.createElement('div');
                     timerInfoDiv.className = 'timer-info';
-                    
-                    const timerDisplay = document.createElement('div');
+
+                    var timerDisplay = document.createElement('div');
                     timerDisplay.className = 'timer-display';
                     timerInfoDiv.appendChild(timerDisplay);
 
-                    const timerControlsDiv = document.createElement('div');
+                    var timerControlsDiv = document.createElement('div');
                     timerControlsDiv.className = 'timer-controls';
 
-                    const startBtn = document.createElement('button');
+                    var startBtn = document.createElement('button');
                     startBtn.className = 'timer-btn start';
-                    startBtn.innerText = '▶';
-                    startBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        startNoteTimer(n.id);
-                    };
+                    startBtn.textContent = '▶';
+                    startBtn.title = 'タイマー開始/再開';
+                    startBtn.setAttribute('aria-label', 'タイマー開始');
+                    startBtn.onclick = function(e) { e.stopPropagation(); startNoteTimer(n.id); };
                     timerControlsDiv.appendChild(startBtn);
 
-                    const stopBtn = document.createElement('button');
+                    var stopBtn = document.createElement('button');
                     stopBtn.className = 'timer-btn stop';
-                    stopBtn.innerText = '■';
-                    stopBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        stopNoteTimer(n.id);
-                    };
+                    stopBtn.textContent = '■';
+                    stopBtn.title = 'タイマー停止';
+                    stopBtn.setAttribute('aria-label', 'タイマー停止');
+                    stopBtn.onclick = function(e) { e.stopPropagation(); stopNoteTimer(n.id); };
                     timerControlsDiv.appendChild(stopBtn);
-                    
-                    const resetBtn = document.createElement('button');
+
+                    var resetBtn = document.createElement('button');
                     resetBtn.className = 'timer-btn reset';
-                    resetBtn.innerText = '↺';
-                    resetBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        resetNoteTimer(n.id);
-                    };
+                    resetBtn.textContent = '↺';
+                    resetBtn.title = 'タイマーリセット';
+                    resetBtn.setAttribute('aria-label', 'タイマーリセット');
+                    resetBtn.onclick = function(e) { e.stopPropagation(); resetNoteTimer(n.id); };
                     timerControlsDiv.appendChild(resetBtn);
-                    
+
                     timerInfoDiv.appendChild(timerControlsDiv);
                     el.appendChild(timerInfoDiv);
-                    
+
                     updateTimerDisplay(el, n);
-                    if (Date.now() >= n.timer.endTime) {
-                         el.classList.add('alert');
+                    if (n.timer.isAlerted && !n.timer.isStopped) {
+                        el.classList.add('alert');
                     }
                 }
 
@@ -477,46 +798,6 @@
                     contentDiv.focus();
                 }
             }
-            
-            function startNoteTimer(id) {
-                const note = notes.find(n => n.id === id);
-                if (!note || !note.timer) return;
-                
-                if (note.timer.isStopped) {
-                    note.timer.endTime = Date.now() + note.timer.remainingTime;
-                    note.timer.isStopped = false;
-                    note.timer.isAlerted = false;
-                    saveNotes();
-                    const el = document.querySelector(`.note[data-id="${note.id}"]`);
-                    el.classList.remove('alert');
-                }
-            }
-
-            function stopNoteTimer(id) {
-                const note = notes.find(n => n.id === id);
-                if (!note || !note.timer || note.timer.isStopped) return;
-
-                note.timer.remainingTime = note.timer.endTime - Date.now();
-                note.timer.isStopped = true;
-                saveNotes();
-            }
-
-            function resetNoteTimer(id) {
-                const note = notes.find(n => n.id === id);
-                if (!note || !note.timer) return;
-                
-                note.timer.endTime = Date.now() + note.timer.initialSeconds * 1000;
-                note.timer.remainingTime = note.timer.initialSeconds * 1000;
-                note.timer.isStopped = true;
-                note.timer.isAlerted = false;
-                saveNotes();
-                
-                const el = document.querySelector(`.note[data-id="${note.id}"]`);
-                if (el) {
-                    el.classList.remove('alert');
-                    updateTimerDisplay(el, note);
-                }
-            }
 
             function applyStyle(el, n) {
                 el.style.left = n.x + 'px';
@@ -527,51 +808,37 @@
                 el.style.zIndex = n.zIndex || 1;
             }
 
-            function parseTimerInput(value) {
-                const parts = value.split(':');
-                let totalSeconds = 0;
-                if (parts.length === 3) {
-                    const hours = parseInt(parts[0], 10);
-                    const minutes = parseInt(parts[1], 10);
-                    const seconds = parseInt(parts[2], 10);
-                    totalSeconds = (isNaN(hours) ? 0 : hours * 3600) + (isNaN(minutes) ? 0 : minutes * 60) + (isNaN(seconds) ? 0 : seconds);
-                } else if (parts.length === 2) {
-                    const minutes = parseInt(parts[0], 10);
-                    const seconds = parseInt(parts[1], 10);
-                    totalSeconds = (isNaN(minutes) ? 0 : minutes * 60) + (isNaN(seconds) ? 0 : seconds);
-                }
-                return totalSeconds;
+            function cycleColor(n, el) {
+                var idx = noteColors.indexOf(n.color);
+                n.color = noteColors[(idx + 1) % noteColors.length];
+                applyStyle(el, n);
+                saveNotes();
             }
 
-            function formatTimerInput() {
-                let value = timerInput.value.replace(/[^0-9:]/g, '');
-                const parts = value.split(':');
-                if (parts.length === 3) {
-                    let hours = parts[0];
-                    let minutes = parts[1];
-                    let seconds = parts[2];
-                    if (hours.length > 2) hours = hours.substring(0, 2);
-                    if (minutes.length > 2) minutes = minutes.substring(0, 2);
-                    if (seconds.length > 2) seconds = seconds.substring(0, 2);
-                    timerInput.value = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
-                } else if (parts.length === 2) {
-                    let minutes = parts[0];
-                    let seconds = parts[1];
-                    if (minutes.length > 2) minutes = minutes.substring(0, 2);
-                    if (seconds.length > 2) seconds = seconds.substring(0, 2);
-                    timerInput.value = `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
-                } else {
-                    timerInput.value = value;
-                }
+            function updateEmptyState() {
+                emptyState.style.display = notes.length ? 'none' : 'block';
             }
 
+            function updateStatus() {
+                var txt = '付箋 ' + notes.length + '件';
+                if (searchQuery) {
+                    txt += ' ・ 一致 ' + searchHits.length + '件';
+                }
+                statusText.textContent = txt;
+            }
+
+            // ================= 付箋の追加・削除 =================
             function addNote(content, timerSeconds) {
-                const color = noteColors[Math.floor(Math.random() * noteColors.length)];
-                const note = {
+                var rect = wrapper.getBoundingClientRect();
+                // 盤面中央(パン・ズームを考慮した盤面座標)に出す
+                var cx = (rect.width / 2 - translateX) / scale;
+                var cy = (rect.height / 2 - translateY) / scale;
+                var color = noteColors[Math.floor(Math.random() * noteColors.length)];
+                var note = {
                     id: Date.now().toString(),
-                    content: content,
-                    x: (wrapper.clientWidth / 2) / scale - 75,
-                    y: (wrapper.clientHeight / 2) / scale - 50,
+                    content: content || '',
+                    x: cx - 75,
+                    y: cy - 50,
                     width: 150,
                     height: 100,
                     color: color,
@@ -581,19 +848,19 @@
 
                 if (timerSeconds && timerSeconds > 0) {
                     note.timer = {
-                        seconds: timerSeconds,
                         initialSeconds: timerSeconds,
                         endTime: Date.now() + timerSeconds * 1000,
                         remainingTime: timerSeconds * 1000,
                         isStopped: false,
                         isAlerted: false
                     };
+                    ensureNotifyPermission();
                 }
 
-                const initialX = note.x;
-                const initialY = note.y;
-                const maxAttempts = 100;
-                let attempts = 0;
+                var initialX = note.x;
+                var initialY = note.y;
+                var maxAttempts = 100;
+                var attempts = 0;
                 while (isOverlapping(note) && attempts < maxAttempts) {
                     note.x += 10;
                     note.y += 10;
@@ -606,30 +873,27 @@
 
                 notes.push(note);
                 saveNotes();
-                renderNote(note, true);
+                renderNote(note, true, true);
+                applySearch();
+                updateEmptyState();
                 timerInput.value = '';
             }
 
             function isOverlapping(newNote) {
-                const newRect = {
+                var newRect = {
                     left: newNote.x,
                     top: newNote.y,
                     right: newNote.x + newNote.width,
                     bottom: newNote.y + newNote.height
                 };
-
-                for (const existingNote of notes) {
-                    const existingRect = {
-                        left: existingNote.x,
-                        top: existingNote.y,
-                        right: existingNote.x + existingNote.width,
-                        bottom: existingNote.y + existingNote.height
-                    };
+                for (var i = 0; i < notes.length; i++) {
+                    var ex = notes[i];
+                    if (ex.id === newNote.id) continue;
                     if (
-                        newRect.left < existingRect.right &&
-                        newRect.right > existingRect.left &&
-                        newRect.top < existingRect.bottom &&
-                        newRect.bottom > existingRect.top
+                        newRect.left < ex.x + ex.width &&
+                        newRect.right > ex.x &&
+                        newRect.top < ex.y + ex.height &&
+                        newRect.bottom > ex.y
                     ) {
                         return true;
                     }
@@ -637,53 +901,101 @@
                 return false;
             }
 
+            function deleteNote(id) {
+                var note = notes.find(function(n) { return n.id === id; });
+                if (!note) return;
+                showModal({
+                    title: '付箋の削除',
+                    body: 'この付箋を削除しますか？\n\n「' + noteTitle(note) + '」',
+                    buttons: [
+                        { label: '削除', value: 'ok', className: 'btn-danger' },
+                        { label: 'キャンセル', value: null, className: 'btn-plain' }
+                    ]
+                }).then(function(result) {
+                    if (result !== 'ok') return;
+                    notes = notes.filter(function(n) { return n.id !== id; });
+                    saveNotes();
+                    var el = qS('.note[data-id="' + id + '"]');
+                    if (el) el.remove();
+                    undoStack.push(note);
+                    applySearch();
+                    updateEmptyState();
+                    showToast('付箋を削除しました', { label: '元に戻す', action: function() { restoreDeleted(note); }, duration: 6000 });
+                });
+            }
+
+            function restoreDeleted(note) {
+                undoStack = undoStack.filter(function(n) { return n !== note; });
+                notes.push(note);
+                saveNotes();
+                renderNote(note);
+                applySearch();
+                updateEmptyState();
+            }
+
+            function restoreLastDeleted() {
+                var note = undoStack.pop();
+                if (note) {
+                    restoreDeleted(note);
+                    showToast('削除を元に戻しました');
+                } else {
+                    showToast('元に戻せる削除はありません');
+                }
+            }
+
+            function bringToFront(note) {
+                var maxZ = notes.reduce(function(m, x) { return Math.max(m, x.zIndex || 1); }, 1);
+                if ((note.zIndex || 1) < maxZ) note.zIndex = maxZ + 1;
+            }
+
+            function updateNote(el, props) {
+                var id = el.dataset.id;
+                var note = notes.find(function(n) { return n.id === id; });
+                if (!note) return;
+                Object.assign(note, props);
+                saveNotes();
+            }
+
+            // ================= ドラッグ =================
             function makeDraggable(el) {
-                let ox, oy, sx, sy;
+                var ox, oy, sx, sy;
                 el.addEventListener('mousedown', startDrag);
                 el.addEventListener('touchstart', startDragTouch, { passive: false });
 
                 function startDrag(e) {
-                    if (e.target.closest('.note-content, .close-btn, .timer-info')) return;
+                    if (e.target.closest('.note-content, .close-btn, .color-btn, .timer-info')) return;
                     e.stopPropagation();
-                    isPanning = false;
 
-                    const currentNote = notes.find(n => n.id === el.dataset.id);
+                    var currentNote = notes.find(function(n) { return n.id === el.dataset.id; });
                     if (!currentNote) return;
-
-                    notes.forEach(n => {
-                        if (n.id === el.dataset.id) n.zIndex = ++n.zIndex;
-                    });
+                    bringToFront(currentNote);
                     el.style.zIndex = currentNote.zIndex;
                     saveNotes();
 
                     ox = e.clientX / scale;
                     oy = e.clientY / scale;
-                    sx = parseInt(el.style.left);
-                    sy = parseInt(el.style.top);
+                    sx = parseInt(el.style.left, 10);
+                    sy = parseInt(el.style.top, 10);
 
                     document.addEventListener('mousemove', move);
                     document.addEventListener('mouseup', drop, { once: true });
                 }
 
                 function startDragTouch(e) {
-                     if (e.target.closest('.note-content, .close-btn, .timer-info')) return;
+                    if (e.target.closest('.note-content, .close-btn, .color-btn, .timer-info')) return;
                     e.stopPropagation();
-                    isPanning = false;
 
-                    const touch = e.touches[0];
-                    const currentNote = notes.find(n => n.id === el.dataset.id);
+                    var touch = e.touches[0];
+                    var currentNote = notes.find(function(n) { return n.id === el.dataset.id; });
                     if (!currentNote) return;
-
-                    notes.forEach(n => {
-                        if (n.id === el.dataset.id) n.zIndex = ++n.zIndex;
-                    });
+                    bringToFront(currentNote);
                     el.style.zIndex = currentNote.zIndex;
                     saveNotes();
 
                     ox = touch.clientX / scale;
                     oy = touch.clientY / scale;
-                    sx = parseInt(el.style.left);
-                    sy = parseInt(el.style.top);
+                    sx = parseInt(el.style.left, 10);
+                    sy = parseInt(el.style.top, 10);
 
                     document.addEventListener('touchmove', moveTouch, { passive: false });
                     document.addEventListener('touchend', dropTouch, { once: true });
@@ -696,7 +1008,7 @@
 
                 function moveTouch(e) {
                     e.preventDefault();
-                    const touch = e.touches[0];
+                    var touch = e.touches[0];
                     el.style.left = sx + (touch.clientX / scale - ox) + 'px';
                     el.style.top = sy + (touch.clientY / scale - oy) + 'px';
                 }
@@ -704,84 +1016,345 @@
                 function drop() {
                     document.removeEventListener('mousemove', move);
                     updateNote(el, {
-                        x: parseInt(el.style.left),
-                        y: parseInt(el.style.top)
+                        x: parseInt(el.style.left, 10),
+                        y: parseInt(el.style.top, 10)
                     });
                 }
+
                 function dropTouch() {
                     document.removeEventListener('touchmove', moveTouch);
                     updateNote(el, {
-                        x: parseInt(el.style.left),
-                        y: parseInt(el.style.top)
+                        x: parseInt(el.style.left, 10),
+                        y: parseInt(el.style.top, 10)
                     });
                 }
             }
 
             function makeEditable(el, contentDiv) {
-                contentDiv.addEventListener('input', () => {
-                    updateNote(el, { content: contentDiv.innerText });
+                contentDiv.addEventListener('input', function() {
+                    updateNote(el, { content: contentDiv.textContent });
+                    // 検索中は一致状態を更新
+                    if (searchQuery) applySearch();
                 });
             }
 
+            // ================= リサイズ監視 =================
             function observeResize(el) {
-                new ResizeObserver(entries => {
-                    entries.forEach(entry => {
-                        updateNote(el, {
-                            width: Math.round(entry.contentRect.width),
-                            height: Math.round(entry.contentRect.height)
-                        });
-                    });
-                }).observe(el);
-            }
-
-            function updateNote(el, props) {
-                const id = el.dataset.id;
-                const note = notes.find(n => n.id === id);
-                if (!note) return;
-                Object.assign(note, props);
-                saveNotes();
-            }
-
-            function deleteNote(id, el) {
-                if (!confirm('本当にこの付箋を削除しますか？')) return;
-                notes = notes.filter(n => n.id !== id);
-                saveNotes();
-                board.removeChild(el);
-            }
-
-            function exportNotes() {
-                const data = JSON.stringify(notes, null, 2);
-                const blob = new Blob([data], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `stickynotes.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-
-            function importNotes(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    try {
-                        const importedNotes = JSON.parse(ev.target.result);
-                        if (!Array.isArray(importedNotes)) throw new Error('Invalid JSON format');
-                        notes = importedNotes;
-                        saveNotes();
-                        renderAll();
-                        alert(`付箋をインポートしました。`);
-                    } catch (error) {
-                        alert('JSON形式が不正です。付箋データのインポートに失敗しました。');
+                if (typeof ResizeObserver === 'undefined') return;
+                var ro = new ResizeObserver(function(entries) {
+                    var entry = entries[entries.length - 1];
+                    if (!entry) return;
+                    var w, h;
+                    var bb = entry.borderBoxSize; // padding 込みのサイズ(縮小ループを防ぐ)
+                    if (bb) {
+                        var box = Array.isArray(bb) ? bb[0] : bb;
+                        w = box.inlineSize;
+                        h = box.blockSize;
+                    } else {
+                        w = el.offsetWidth;
+                        h = el.offsetHeight;
                     }
-                };
-                reader.readAsText(file);
-                e.target.value = '';
+                    var note = notes.find(function(n) { return n.id === el.dataset.id; });
+                    if (!note) return;
+                    if (Math.abs((note.width || 0) - w) > 1 || Math.abs((note.height || 0) - h) > 1) {
+                        updateNote(el, { width: Math.round(w), height: Math.round(h) });
+                    }
+                });
+                ro.observe(el);
             }
 
+            // ================= タイマー =================
+            function startNoteTimer(id) {
+                var note = notes.find(function(n) { return n.id === id; });
+                if (!note || !note.timer) return;
+                var t = note.timer;
+                if (!t.isStopped) return;
+
+                if (t.remainingTime > 0) {
+                    // 一時停止からの再開
+                    t.endTime = Date.now() + t.remainingTime;
+                } else {
+                    // 時間切れ後の再開は最初からやり直す(負の残り時間で即アラートになるバグを修正)
+                    t.endTime = Date.now() + t.initialSeconds * 1000;
+                    t.remainingTime = t.initialSeconds * 1000;
+                }
+                t.isStopped = false;
+                t.isAlerted = false;
+                saveNotes();
+                var el = qS('.note[data-id="' + id + '"]');
+                if (el) {
+                    el.classList.remove('alert');
+                    updateTimerDisplay(el, note);
+                }
+            }
+
+            function stopNoteTimer(id) {
+                var note = notes.find(function(n) { return n.id === id; });
+                if (!note || !note.timer || note.timer.isStopped) return;
+
+                note.timer.remainingTime = Math.max(0, note.timer.endTime - Date.now());
+                note.timer.isStopped = true;
+                saveNotes();
+                var el = qS('.note[data-id="' + id + '"]');
+                if (el) {
+                    el.classList.remove('alert');
+                    updateTimerDisplay(el, note);
+                }
+            }
+
+            function resetNoteTimer(id) {
+                var note = notes.find(function(n) { return n.id === id; });
+                if (!note || !note.timer) return;
+
+                note.timer.endTime = Date.now() + note.timer.initialSeconds * 1000;
+                note.timer.remainingTime = note.timer.initialSeconds * 1000;
+                note.timer.isStopped = true;
+                note.timer.isAlerted = false;
+                saveNotes();
+
+                var el = qS('.note[data-id="' + id + '"]');
+                if (el) {
+                    el.classList.remove('alert');
+                    updateTimerDisplay(el, note);
+                }
+            }
+
+            function startTimerCheck() {
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(function() {
+                    var now = Date.now();
+                    notes.forEach(function(note) {
+                        var t = note.timer;
+                        if (!t) return;
+                        if (!t.isStopped && !t.isAlerted && now >= t.endTime) {
+                            t.isAlerted = true;
+                            saveNotes();
+                            var el = qS('.note[data-id="' + note.id + '"]');
+                            if (el) el.classList.add('alert');
+                            triggerNotification(note);
+                            playAlertBeeps();
+                            showToast('⏰ タイマー終了：' + noteTitle(note), {
+                                label: '表示',
+                                action: function() {
+                                    var e2 = qS('.note[data-id="' + note.id + '"]');
+                                    if (e2) centerNote(e2);
+                                },
+                                duration: 8000
+                            });
+                        }
+                        if (el = qS('.note[data-id="' + note.id + '"]')) {
+                            updateTimerDisplay(el, note);
+                        }
+                    });
+                }, 250);
+            }
+
+            function updateTimerDisplay(el, note) {
+                var t = note.timer;
+                if (!t) return;
+                var ms;
+                if (t.isStopped) {
+                    ms = Math.max(0, t.remainingTime);
+                } else {
+                    ms = Math.max(0, t.endTime - Date.now());
+                }
+                var totalSeconds = Math.floor(ms / 1000);
+
+                var display = el.querySelector('.timer-display');
+                if (display) {
+                    display.textContent = t.isAlerted ? '時間切れ' : fmtClock(totalSeconds);
+                }
+
+                var info = el.querySelector('.timer-info');
+                if (info) {
+                    info.classList.toggle('low', !t.isAlerted && totalSeconds > 0 && totalSeconds <= 10);
+                }
+
+                var fill = el.querySelector('.timer-progress-fill');
+                if (fill) {
+                    var pct = clamp((ms / 1000) / t.initialSeconds, 0, 1) * 100;
+                    fill.style.width = pct + '%';
+                }
+            }
+
+            function ensureNotifyPermission() {
+                try {
+                    if ('Notification' in window && Notification.permission === 'default') {
+                        Notification.requestPermission().catch(function() {});
+                    }
+                } catch (e) { /* 通知非対応環境 */ }
+            }
+
+            function triggerNotification(note) {
+                try {
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('時間切れです', {
+                            body: '付箋「' + noteTitle(note) + '」のタイマーが終了しました。'
+                        });
+                    }
+                } catch (e) { /* 通知失敗は無視 */ }
+            }
+
+            // ================= アラーム音(Web Audio 生成音) =================
+            function getAudioCtx() {
+                if (!audioCtx) {
+                    try {
+                        var Ctx = window.AudioContext || window.webkitAudioContext;
+                        if (Ctx) audioCtx = new Ctx();
+                    } catch (e) { return null; }
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(function() {});
+                }
+                return audioCtx;
+            }
+
+            function playAlertBeeps() {
+                if (!soundOn) return;
+                var ctx = getAudioCtx();
+                if (!ctx) return;
+                var t0 = ctx.currentTime;
+                for (var i = 0; i < 3; i++) {
+                    var o = ctx.createOscillator();
+                    var g = ctx.createGain();
+                    o.type = 'sine';
+                    o.frequency.value = 880;
+                    o.connect(g);
+                    g.connect(ctx.destination);
+                    var s = t0 + i * 0.3;
+                    g.gain.setValueAtTime(0.0001, s);
+                    g.gain.exponentialRampToValueAtTime(0.4, s + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.0001, s + 0.25);
+                    o.start(s);
+                    o.stop(s + 0.3);
+                }
+            }
+
+            function updateSoundBtn() {
+                soundBtn.textContent = soundOn ? '🔊' : '🔇';
+                soundBtn.title = soundOn ? 'アラーム音: オン(クリックでオフ)' : 'アラーム音: オフ(クリックでオン)';
+            }
+
+            // ================= タイマー入力 =================
+            function parseTimerInput(value) {
+                var parts = String(value || '').split(':');
+                var total = 0;
+                if (parts.length === 3) {
+                    var h = parseInt(parts[0], 10);
+                    var m = parseInt(parts[1], 10);
+                    var s = parseInt(parts[2], 10);
+                    total = (isFinite(h) ? h : 0) * 3600 + (isFinite(m) ? m : 0) * 60 + (isFinite(s) ? s : 0);
+                } else if (parts.length === 2) {
+                    var m2 = parseInt(parts[0], 10);
+                    var s2 = parseInt(parts[1], 10);
+                    total = (isFinite(m2) ? m2 : 0) * 60 + (isFinite(s2) ? s2 : 0);
+                } else {
+                    var s3 = parseInt(parts[0], 10);
+                    total = isFinite(s3) ? s3 : 0;
+                }
+                return Math.max(0, total);
+            }
+
+            function formatTimerInput() {
+                var value = timerInput.value.replace(/[^0-9:]/g, '');
+                var parts = value.split(':');
+                if (parts.length === 3) {
+                    var h = parts[0].substring(0, 2);
+                    var m = parts[1].substring(0, 2);
+                    var s = parts[2].substring(0, 2);
+                    timerInput.value = h.padStart(2, '0') + ':' + m.padStart(2, '0') + ':' + s.padStart(2, '0');
+                } else if (parts.length === 2) {
+                    var m2 = parts[0].substring(0, 2);
+                    var s2 = parts[1].substring(0, 2);
+                    timerInput.value = m2.padStart(2, '0') + ':' + s2.padStart(2, '0');
+                } else {
+                    timerInput.value = value;
+                }
+            }
+
+            function adjustTimer(secondsToAdd) {
+                var totalSeconds = parseTimerInput(timerInput.value);
+                totalSeconds += secondsToAdd;
+                if (totalSeconds < 0) totalSeconds = 0;
+
+                var hours = Math.floor(totalSeconds / 3600);
+                var minutes = Math.floor((totalSeconds % 3600) / 60);
+                var seconds = totalSeconds % 60;
+
+                var displayValue = pad2(minutes) + ':' + pad2(seconds);
+                if (hours > 0) {
+                    displayValue = hours + ':' + displayValue;
+                }
+                timerInput.value = displayValue;
+            }
+
+            // ================= パン・ズーム =================
+            function updateTransform() {
+                board.style.transform = 'translate(' + translateX + 'px, ' + translateY + 'px) scale(' + scale + ')';
+                wrapper.style.backgroundSize = (28 * scale) + 'px ' + (28 * scale) + 'px';
+                wrapper.style.backgroundPosition = translateX + 'px ' + translateY + 'px';
+                zoomLabel.textContent = Math.round(scale * 100) + '%';
+            }
+
+            function applyZoomAt(x, y, targetScale) {
+                targetScale = clamp(targetScale, MIN_SCALE, MAX_SCALE);
+                if (targetScale === scale) return;
+                var px = (x - translateX) / scale;
+                var py = (y - translateY) / scale;
+                translateX = x - px * targetScale;
+                translateY = y - py * targetScale;
+                scale = targetScale;
+            }
+
+            function zoomAt(clientX, clientY, targetScale) {
+                var rect = wrapper.getBoundingClientRect();
+                applyZoomAt(clientX - rect.left, clientY - rect.top, targetScale);
+                updateTransform();
+                saveViewSoon();
+            }
+
+            function wrapperCenterClient() {
+                var rect = wrapper.getBoundingClientRect();
+                return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            }
+
+            function fitAll() {
+                var rect = wrapper.getBoundingClientRect();
+                if (!notes.length) {
+                    scale = 1; translateX = 0; translateY = 0;
+                    updateTransform(); saveViewSoon();
+                    return;
+                }
+                var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                notes.forEach(function(n) {
+                    minX = Math.min(minX, n.x);
+                    minY = Math.min(minY, n.y);
+                    maxX = Math.max(maxX, n.x + n.width);
+                    maxY = Math.max(maxY, n.y + n.height);
+                });
+                var pad = 50;
+                var w = Math.max(1, maxX - minX);
+                var h = Math.max(1, maxY - minY);
+                var s = Math.min((rect.width - pad * 2) / w, (rect.height - pad * 2) / h);
+                scale = clamp(isFinite(s) && s > 0 ? s : 1, MIN_SCALE, MAX_SCALE);
+                translateX = (rect.width - w * scale) / 2 - minX * scale;
+                translateY = (rect.height - h * scale) / 2 - minY * scale;
+                updateTransform();
+                saveViewSoon();
+            }
+
+            function centerNote(el) {
+                var rect = wrapper.getBoundingClientRect();
+                var bx = parseFloat(el.style.left) + el.offsetWidth / 2;
+                var by = parseFloat(el.style.top) + el.offsetHeight / 2;
+                translateX = rect.width / 2 - bx * scale;
+                translateY = rect.height / 2 - by * scale;
+                updateTransform();
+                saveViewSoon();
+            }
+
+            // ---- パン(マウス) ----
             function startPan(e) {
-                if (e.target !== wrapper && !e.target.closest('#board')) return;
                 if (e.target.closest('.note')) return;
                 isPanning = true;
                 panStartX = e.clientX;
@@ -796,6 +1369,7 @@
                 panStartX = e.clientX;
                 panStartY = e.clientY;
                 updateTransform();
+                saveViewSoon();
             }
 
             function endPan() {
@@ -803,16 +1377,45 @@
                 wrapper.style.cursor = 'grab';
             }
 
-            function startPanTouch(e) {
-                if (e.touches.length !== 1) return;
-                if (e.target.closest('.note')) return;
-                e.preventDefault();
-                isPanning = true;
-                panStartX = e.touches[0].clientX;
-                panStartY = e.touches[0].clientY;
+            // ---- パン・ピンチ(タッチ) ----
+            function touchDist(a, b) {
+                var dx = a.clientX - b.clientX, dy = a.clientY - b.clientY;
+                return Math.sqrt(dx * dx + dy * dy) || 1;
+            }
+            function touchMid(a, b) {
+                return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
             }
 
-            function doPanTouch(e) {
+            function onWrapperTouchStart(e) {
+                if (e.target.closest('.note')) return;
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    isPanning = false;
+                    var a = e.touches[0], b = e.touches[1];
+                    pinchState = { startDist: touchDist(a, b), startScale: scale, lastMid: touchMid(a, b) };
+                } else if (e.touches.length === 1) {
+                    e.preventDefault();
+                    isPanning = true;
+                    panStartX = e.touches[0].clientX;
+                    panStartY = e.touches[0].clientY;
+                }
+            }
+
+            function onWrapperTouchMove(e) {
+                if (pinchState && e.touches.length === 2) {
+                    e.preventDefault();
+                    var a = e.touches[0], b = e.touches[1];
+                    var mid = touchMid(a, b);
+                    var target = clamp(pinchState.startScale * touchDist(a, b) / pinchState.startDist, MIN_SCALE, MAX_SCALE);
+                    var rect = wrapper.getBoundingClientRect();
+                    applyZoomAt(mid.x - rect.left, mid.y - rect.top, target);
+                    translateX += mid.x - pinchState.lastMid.x;
+                    translateY += mid.y - pinchState.lastMid.y;
+                    pinchState.lastMid = mid;
+                    updateTransform();
+                    saveViewSoon();
+                    return;
+                }
                 if (!isPanning || e.touches.length !== 1) return;
                 e.preventDefault();
                 translateX += (e.touches[0].clientX - panStartX);
@@ -820,29 +1423,367 @@
                 panStartX = e.touches[0].clientX;
                 panStartY = e.touches[0].clientY;
                 updateTransform();
+                saveViewSoon();
             }
 
-            function endPanTouch() {
-                isPanning = false;
+            function onWrapperTouchEnd(e) {
+                if (e.touches.length < 2) pinchState = null;
+                if (e.touches.length === 1) {
+                    isPanning = true;
+                    panStartX = e.touches[0].clientX;
+                    panStartY = e.touches[0].clientY;
+                } else if (e.touches.length === 0) {
+                    isPanning = false;
+                }
             }
 
-            function updateTransform() {
-                board.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            // ---- ホイール(パン / Ctrl+ズーム) ----
+            function onWheel(e) {
+                e.preventDefault();
+                if (e.ctrlKey || e.metaKey) {
+                    zoomAt(e.clientX, e.clientY, scale * (e.deltaY < 0 ? 1.12 : 0.89));
+                } else {
+                    translateX -= e.deltaX;
+                    translateY -= e.deltaY;
+                    updateTransform();
+                    saveViewSoon();
+                }
+            }
+
+            // ================= 検索 =================
+            function applySearch() {
+                searchQuery = searchInput.value.trim().toLowerCase();
+                searchHits = [];
+                searchIndex = 0;
+                notes.forEach(function(n) {
+                    var el = qS('.note[data-id="' + n.id + '"]');
+                    if (!el) return;
+                    var match = !searchQuery || (n.content || '').toLowerCase().indexOf(searchQuery) !== -1;
+                    el.classList.toggle('dim', !!searchQuery && !match);
+                    el.classList.toggle('hit', !!searchQuery && match);
+                    if (searchQuery && match) searchHits.push(el);
+                });
+                updateStatus();
+            }
+
+            function cycleSearchHit() {
+                if (!searchHits.length) return;
+                var el = searchHits[searchIndex % searchHits.length];
+                searchIndex++;
+                centerNote(el);
+            }
+
+            // ================= エクスポート / インポート =================
+            function exportNotes() {
+                var data = JSON.stringify({
+                    app: 'timer-sticky-notes',
+                    version: 1,
+                    exportedAt: new Date().toISOString(),
+                    notes: notes
+                }, null, 2);
+                var blob = new Blob([data], { type: 'application/json' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'stickynotes-' + dateStamp(new Date()) + '.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('付箋データをエクスポートしました(' + notes.length + '件)');
+            }
+
+            function importNotes(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        var data = JSON.parse(ev.target.result);
+                        var arr = Array.isArray(data) ? data : (data && Array.isArray(data.notes) ? data.notes : null);
+                        if (!arr) throw new Error('Invalid JSON format');
+                        var clean = arr.map(sanitizeNote).filter(Boolean);
+                        if (!clean.length) throw new Error('No valid notes');
+                        showModal({
+                            title: 'インポート',
+                            body: clean.length + '件の付箋を読み込みます。\n現在の付箋(' + notes.length + '件)をどうしますか?',
+                            buttons: [
+                                { label: '置き換え', value: 'replace', className: 'btn-danger' },
+                                { label: '追加', value: 'merge', className: 'btn-primary' },
+                                { label: 'キャンセル', value: null, className: 'btn-plain' }
+                            ]
+                        }).then(function(result) {
+                            if (result === 'replace') {
+                                notes = clean;
+                                undoStack = [];
+                            } else if (result === 'merge') {
+                                var ids = {};
+                                notes.forEach(function(n) { ids[n.id] = true; });
+                                clean.forEach(function(n) {
+                                    if (ids[n.id]) n.id = n.id + '_x' + Math.random().toString(36).slice(2, 5);
+                                    notes.push(n);
+                                });
+                            } else {
+                                return;
+                            }
+                            saveNotes();
+                            renderAll();
+                            showToast('付箋を' + (result === 'replace' ? '置き換え' : '追加') + 'しました(' + clean.length + '件)');
+                        });
+                    } catch (error) {
+                        showToast('JSON形式が不正です。インポートに失敗しました。');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            }
+
+            // ================= トースト / モーダル =================
+            function showToast(msg, opts) {
+                opts = opts || {};
+                var duration = opts.duration || 4000;
+                var t = document.createElement('div');
+                t.className = 'toast';
+                var span = document.createElement('span');
+                span.textContent = msg;
+                t.appendChild(span);
+                if (opts.label && opts.action) {
+                    var b = document.createElement('button');
+                    b.textContent = opts.label;
+                    b.addEventListener('click', function() {
+                        opts.action();
+                        t.remove();
+                    });
+                    t.appendChild(b);
+                }
+                toasts.appendChild(t);
+                setTimeout(function() {
+                    t.style.opacity = '0';
+                    setTimeout(function() { t.remove(); }, 300);
+                }, duration);
+            }
+
+            function showModal(cfg) {
+                return new Promise(function(resolve) {
+                    var backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop';
+                    var box = document.createElement('div');
+                    box.className = 'modal';
+                    box.setAttribute('role', 'dialog');
+                    box.setAttribute('aria-modal', 'true');
+
+                    var h = document.createElement('h3');
+                    h.textContent = cfg.title;
+                    box.appendChild(h);
+
+                    var p = document.createElement('p');
+                    p.textContent = cfg.body;
+                    box.appendChild(p);
+
+                    var actions = document.createElement('div');
+                    actions.className = 'modal-actions';
+
+                    function close(v) {
+                        document.removeEventListener('keydown', onKey, true);
+                        backdrop.remove();
+                        resolve(v);
+                    }
+                    function onKey(e) {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            close(null);
+                        }
+                    }
+
+                    cfg.buttons.forEach(function(b) {
+                        var btn = document.createElement('button');
+                        btn.textContent = b.label;
+                        btn.className = b.className || 'btn-primary';
+                        btn.addEventListener('click', function() { close(b.value); });
+                        actions.appendChild(btn);
+                    });
+
+                    box.appendChild(actions);
+                    backdrop.appendChild(box);
+                    document.body.appendChild(backdrop);
+
+                    backdrop.addEventListener('mousedown', function(e) {
+                        if (e.target === backdrop) close(null);
+                    });
+                    document.addEventListener('keydown', onKey, true);
+                    (box.querySelector('.btn-primary') || actions.firstChild).focus();
+                });
+            }
+
+            function showHelp() {
+                showModal({
+                    title: '使い方',
+                    body:
+                        '■ 基本操作\n' +
+                        '・付箋を追加：ボタンまたは盤面のダブルクリック\n' +
+                        '・付箋を編集：本文をクリックして入力\n' +
+                        '・付箋を移動：本文以外の部分をドラッグ\n' +
+                        '・盤面を移動：空白をドラッグ / ホイール\n' +
+                        '・ズーム：Ctrl+ホイール / ピンチ操作 / ＋－ボタン\n' +
+                        '・全体表示：⛶ ボタンまたは 0 キー\n\n' +
+                        '■ タイマー\n' +
+                        '・時間を指定して付箋を追加すると自動でカウントダウン開始\n' +
+                        '・入力例：90=90秒 / 1:30=1分30秒 / 1:00:00=1時間\n' +
+                        '・▶ 再開 / ■ 停止 / ↺ リセット(時間切れ後の▶は最初から)\n' +
+                        '・時間切れになると付箋が赤くなり、通知と音でお知らせ\n\n' +
+                        '■ その他\n' +
+                        '・Ctrl+Z：削除した付箋を元に戻す\n' +
+                        '・Ctrl+F：検索(Enter で一致した付箋へ移動 / Esc で解除)\n' +
+                        '・🎨 ボタンで付箋の色を変更\n' +
+                        '・データはブラウザに自動保存されます',
+                    buttons: [{ label: '閉じる', value: 'close', className: 'btn-primary' }]
+                });
+            }
+
+            // ================= デモデータ (?demo 付きで起動した場合) =================
+            function seedDemo() {
+                var now = Date.now();
+                var mk = function(content, x, y, color, timerSec) {
+                    var n = sanitizeNote({ content: content, x: x, y: y, width: 190, height: 130, color: color, zIndex: 2, id: 'demo' + Math.random().toString(36).slice(2, 8) });
+                    if (timerSec) {
+                        n.timer = { initialSeconds: timerSec, endTime: now + timerSec * 1000, remainingTime: timerSec * 1000, isStopped: false, isAlerted: false };
+                    }
+                    return n;
+                };
+                notes.push(mk('買い物リスト\n・牛乳\n・卵', 60, 60, '#fffa65'));
+                notes.push(mk('会議の議事録をまとめる\n→ 金曜まで', 300, 150, '#48dbfb'));
+                notes.push(mk('3分タイマーのデモ\n(自動でカウントダウン中)', 120, 300, '#feca57', 180));
+                saveNotes();
+            }
+
+            // ================= 初期化 =================
+            function setupEventListeners() {
+                // パン(マウス)
+                wrapper.addEventListener('mousedown', function(e) {
+                    if (e.button !== 0) return;
+                    startPan(e);
+                });
+                document.addEventListener('mousemove', doPan);
+                document.addEventListener('mouseup', endPan);
+
+                // パン・ピンチ(タッチ)
+                wrapper.addEventListener('touchstart', onWrapperTouchStart, { passive: false });
+                document.addEventListener('touchmove', onWrapperTouchMove, { passive: false });
+                document.addEventListener('touchend', onWrapperTouchEnd);
+                document.addEventListener('touchcancel', onWrapperTouchEnd);
+
+                // ホイール(パン / Ctrl+ホイールでズーム)
+                wrapper.addEventListener('wheel', onWheel, { passive: false });
+
+                // ダブルクリックで付箋を追加
+                wrapper.addEventListener('dblclick', function(e) {
+                    if (e.target.closest('.note')) return;
+                    addNote('', parseTimerInput(timerInput.value));
+                });
+
+                addBtn.addEventListener('click', function() {
+                    addNote('', parseTimerInput(timerInput.value));
+                });
+                resetTimerBtn.addEventListener('click', function() { timerInput.value = ''; });
+                addHourBtn.addEventListener('click', function() { adjustTimer(3600); });
+                addMinuteBtn.addEventListener('click', function() { adjustTimer(60); });
+                addSecondBtn.addEventListener('click', function() { adjustTimer(1); });
+                alignBtn.addEventListener('click', alignNotes);
+
+                timerInput.addEventListener('focus', function() {
+                    if (timerInput.value === '') timerInput.value = '00:00';
+                });
+                timerInput.addEventListener('blur', function() {
+                    if (timerInput.value === '00:00') timerInput.value = '';
+                });
+                timerInput.addEventListener('input', formatTimerInput);
+
+                exportBtn.addEventListener('click', exportNotes);
+                importBtn.addEventListener('click', function() { importFile.click(); });
+                importFile.addEventListener('change', importNotes);
+
+                searchInput.addEventListener('input', applySearch);
+                searchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        cycleSearchHit();
+                    }
+                });
+
+                zoomInBtn.addEventListener('click', function() {
+                    var c = wrapperCenterClient();
+                    zoomAt(c.x, c.y, scale * 1.2);
+                });
+                zoomOutBtn.addEventListener('click', function() {
+                    var c = wrapperCenterClient();
+                    zoomAt(c.x, c.y, scale * 0.83);
+                });
+                zoomLabel.addEventListener('click', function() {
+                    var c = wrapperCenterClient();
+                    zoomAt(c.x, c.y, 1);
+                });
+                fitBtn.addEventListener('click', fitAll);
+
+                soundBtn.addEventListener('click', function() {
+                    soundOn = !soundOn;
+                    try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (e) {}
+                    updateSoundBtn();
+                    showToast(soundOn ? 'アラーム音：オン' : 'アラーム音：オフ');
+                });
+                helpBtn.addEventListener('click', showHelp);
+
+                // キーボードショートカット
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        if (qS('.modal-backdrop')) return; // モーダルはモーダル側で閉じる
+                        if (searchInput.value) {
+                            searchInput.value = '';
+                            applySearch();
+                            searchInput.blur();
+                        }
+                        return;
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isTyping(e)) {
+                        e.preventDefault();
+                        restoreLastDeleted();
+                        return;
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                        e.preventDefault();
+                        searchInput.focus();
+                        searchInput.select();
+                        return;
+                    }
+                    if (isTyping(e)) return;
+                    if (e.key === '+' || e.key === '=') {
+                        var c = wrapperCenterClient();
+                        zoomAt(c.x, c.y, scale * 1.2);
+                    } else if (e.key === '-' || e.key === '_') {
+                        var c2 = wrapperCenterClient();
+                        zoomAt(c2.x, c2.y, scale * 0.83);
+                    } else if (e.key === '0') {
+                        fitAll();
+                    }
+                });
+
+                // 最初のユーザー操作で音声コンテキストを解放(autoplay 対策)
+                document.addEventListener('pointerdown', function() { getAudioCtx(); }, { once: true });
+
+                window.addEventListener('beforeunload', saveView);
             }
 
             function alignNotes() {
-                const PADDING = 20;
-                const maxBoardWidth = window.innerWidth * 0.8 / scale;
-                let x = PADDING;
-                let y = PADDING;
-                let currentRowMaxHeight = 0;
+                var PADDING = 20;
+                var maxBoardWidth = window.innerWidth * 0.8 / scale;
+                var x = PADDING;
+                var y = PADDING;
+                var currentRowMaxHeight = 0;
 
-                notes.sort((a, b) => {
+                notes.sort(function(a, b) {
                     if (a.y !== b.y) return a.y - b.y;
                     return a.x - b.x;
                 });
 
-                notes.forEach(note => {
+                notes.forEach(function(note) {
                     if (x + note.width + PADDING > maxBoardWidth) {
                         x = PADDING;
                         y += currentRowMaxHeight + PADDING;
@@ -856,85 +1797,27 @@
 
                 saveNotes();
                 renderAll();
+                showToast('付箋を整列しました');
             }
 
-            function startTimerCheck() {
-                if (timerInterval) clearInterval(timerInterval);
-                timerInterval = setInterval(() => {
-                    const now = Date.now();
-                    notes.forEach(note => {
-                        if (note.timer && note.timer.endTime && !note.timer.isStopped && !note.timer.isAlerted) {
-                            if (now >= note.timer.endTime) {
-                                note.timer.isAlerted = true;
-                                saveNotes();
-                                const el = document.querySelector(`.note[data-id="${note.id}"]`);
-                                if (el) {
-                                    el.classList.add('alert');
-                                    triggerNotification(note);
-                                    playAlertSound();
-                                }
-                            }
-                        }
-                    });
-                    updateAllTimerDisplays();
-                }, 1000);
-            }
-
-            function updateAllTimerDisplays() {
-                notes.forEach(note => {
-                    const el = document.querySelector(`.note[data-id="${note.id}"]`);
-                    if (el && note.timer) {
-                        updateTimerDisplay(el, note);
-                    }
-                });
-            }
-
-            function updateTimerDisplay(el, note) {
-                const now = Date.now();
-                let timeLeft;
-                if (note.timer.isStopped) {
-                    timeLeft = note.timer.remainingTime;
-                } else {
-                    timeLeft = Math.max(0, note.timer.endTime - now);
+            function init() {
+                try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (e) {}
+                setupEventListeners();
+                loadNotes();
+                loadView();
+                if (new URLSearchParams(location.search).has('demo')) {
+                    seedDemo();
                 }
-                const totalSeconds = Math.floor(timeLeft / 1000);
-                
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
-                
-                const display = el.querySelector('.timer-display');
-                if (display) {
-                    if (totalSeconds > 0) {
-                        let displayValue = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                        if (hours > 0) {
-                            displayValue = `${hours}:${displayValue}`;
-                        }
-                        display.innerText = displayValue;
-                    } else if (note.timer.isAlerted) {
-                        display.innerText = `時間切れ`;
-                    } else {
-                        display.innerText = `00:00`;
-                    }
-                }
-            }
-
-            function triggerNotification(note) {
-                if (Notification.permission === 'granted') {
-                    new Notification('時間切れです', {
-                        body: `付箋「${note.content.substring(0, 30)}...」のタイマーが終了しました。`
-                    });
-                }
-            }
-
-            function playAlertSound() {
-                alarmSound.currentTime = 0;
-                alarmSound.volume = 0.5;
-                alarmSound.play().catch(e => console.error("音声再生に失敗しました", e));
+                renderAll();
+                updateTransform();
+                startTimerCheck();
+                updateSoundBtn();
+                updateEmptyState();
             }
 
             init();
         })();
     </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
