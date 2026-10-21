@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pierce the Balloon - 完全制覇エンドレス 神化</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 50% 20%, #1a2a4a 0%, #0a0a12 70%);
+    color: #fff;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    touch-action: manipulation;
+    overflow: hidden;
+    user-select: none;
+  }
+  #ui-top {
+    width: 300px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+  #scoreBox { color: #fbc531; font-weight: 700; }
+  #comboBox { color: #e056fd; font-weight: 700; min-width: 80px; text-align: right; }
+  #controls {
+    margin-bottom: 8px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  select {
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
+    background: #2f3640;
+    color: #f5f6fa;
+    border: 1px solid #57606f;
+  }
+  .extreme-option { color: #ff6b6b !important; }
+  canvas {
+    background: transparent;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
+    max-width: 100%;
+    touch-action: none;
+  }
+  #info {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #dcdde1;
+    display: flex;
+    gap: 12px;
+  }
+  .highlight { color: #ff9f43; font-weight: 700; }
+  #message {
+    margin-top: 6px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    height: 1.6rem;
+    color: #fbc531;
+    text-shadow: 0 2px 4px #000;
+    text-align: center;
+  }
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  button {
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    background: #e84118;
+    box-shadow: 0 4px 0 #c23616;
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  button:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #c23616;
+  }
+  #highScore {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 0.8rem;
+    color: #7f8fa6;
+  }
+</style>
+</head>
+<body>
+  <div id="highScore">HIGH: 0</div>
+
+  <div id="ui-top">
+    <div id="scoreBox">SCORE: 0</div>
+    <div id="comboBox"></div>
+  </div>
+
+  <div id="controls">
+    <label for="difficulty">初期難易度:</label>
+    <select id="difficulty">
+      <option value="easy">初級</option>
+      <option value="normal" selected>中級</option>
+      <option value="hard">上級</option>
+      <option value="extreme" class="extreme-option">鬼級</option>
+    </select>
+  </div>
+
+  <canvas id="gameCanvas" width="300" height="520"></canvas>
+
+  <div id="info">
+    <span>LV <span id="levelDisplay">1</span></span>
+    <span>隙間 <span id="gapDisplay">40</span>px</span>
+    <span>針 <span id="needleDisplay">4</span>px</span>
+  </div>
+  <div id="message">画面をタップして針を落とす！</div>
+
+  <div class="btn-row">
+    <button id="retryBtn">最初からやり直す</button>
+  </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const messageEl = document.getElementById('message');
+const infoLevelEl = document.getElementById('levelDisplay');
+const infoGapEl = document.getElementById('gapDisplay');
+const infoNeedleEl = document.getElementById('needleDisplay');
+const scoreBox = document.getElementById('scoreBox');
+const comboBox = document.getElementById('comboBox');
+const highScoreEl = document.getElementById('highScore');
+const retryBtn = document.getElementById('retryBtn');
+const difficultySelect = document.getElementById('difficulty');
+
+// ========== Audio ==========
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, type, duration, vol = 0.15, slide = 0) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  if (slide) o.frequency.linearRampToValueAtTime(freq + slide, audioCtx.currentTime + duration);
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + duration);
+}
+function sfxDrop()  { playTone(180, 'triangle', 0.12, 0.12); }
+function sfxMiss()  { playTone(90, 'sawtooth', 0.25, 0.18, -40); }
+function sfxPop()   { playTone(420, 'sine', 0.08, 0.2); playTone(680, 'triangle', 0.15, 0.12, -200); }
+function sfxClear() { playTone(520, 'sine', 0.1, 0.15); playTone(780, 'sine', 0.18, 0.1); }
+function sfxPerfect(){ playTone(880, 'sine', 0.12, 0.18); playTone(1320, 'triangle', 0.2, 0.1); }
+
+// ========== State ==========
+let gameState = 'playing';
+let animationId;
+let autoAdvanceTimer;
+let droppedNeedles = [];
+let particles = [];
+let currentLevel = 1;
+let isDomination = false;
+let score = 0;
+let combo = 0;
+let maxCombo = 0;
+let highScore = parseInt(localStorage.getItem('pierceHigh') || '0');
+highScoreEl.textContent = `HIGH: ${highScore}`;
+
+const needle = { x: 150, y: 70, width: 4, height: 68, speed: 2.5, direction: 1, trail: [] };
+const board  = { y: 355, height: 26, gapX: 0, gapWidth: 40, moveDir: 1, moveSpeed: 0 };
+const balloon = { x: 150, y: 445, radius: 42, isPopped: false, scale: 1 };
+
+const difficultySettings = {
+  easy:   { speed: 1.6, startGap: 58 },
+  normal: { speed: 2.6, startGap: 40 },
+  hard:   { speed: 3.8, startGap: 26 },
+  extreme:{ speed: 4.6, startGap: 8 }
+};
+
+const GAP_STEP = 3.5;
+
+// ========== Helpers ==========
+function updateInfo() {
+  infoLevelEl.textContent = isDomination ? currentLevel : (difficultySelect.value === 'extreme' && currentLevel === 1 ? 'MAX' : currentLevel);
+  infoGapEl.textContent = Math.round(board.gapWidth * 10) / 10;
+  infoNeedleEl.textContent = Math.round(needle.width * 10) / 10;
+  if (isDomination) {
+    infoGapEl.classList.add('highlight');
+    infoNeedleEl.classList.add('highlight');
+  } else {
+    infoGapEl.classList.remove('highlight');
+    infoNeedleEl.classList.remove('highlight');
+  }
+  scoreBox.textContent = `SCORE: ${score}`;
+  comboBox.textContent = combo > 1 ? `COMBO x${combo}` : '';
+}
+
+function applyDifficulty() {
+  const d = difficultySelect.value;
+  needle.speed = difficultySettings[d].speed;
+  needle.width = 4;
+  board.gapWidth = difficultySettings[d].startGap;
+  board.gapX = (canvas.width - board.gapWidth) / 2;
+  board.moveSpeed = 0;
+  isDomination = false;
+  updateInfo();
+}
+
+function setShadow(c, b, x = 0, y = 0) {
+  ctx.shadowColor = c; ctx.shadowBlur = b; ctx.shadowOffsetX = x; ctx.shadowOffsetY = y;
+}
+function resetShadow() { setShadow('transparent', 0); }
+
+// ========== Particles ==========
+function spawnPopParticles(x, y) {
+  for (let i = 0; i < 38; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 2 + Math.random() * 7;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 2,
+      life: 1,
+      decay: 0.018 + Math.random() * 0.02,
+      size: 2 + Math.random() * 4,
+      color: `hsl(${200 + Math.random() * 40}, 90%, ${55 + Math.random() * 25}%)`
+    });
+  }
+}
+function spawnMissSparks(x, y) {
+  for (let i = 0; i < 12; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: -Math.random() * 4 - 1,
+      life: 1,
+      decay: 0.04,
+      size: 1.5 + Math.random() * 2,
+      color: '#ff6b6b'
+    });
+  }
+}
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ========== Drawing ==========
+function renderNeedle(x, y, moving, w) {
+  // trail
+  if (moving && needle.trail.length > 1) {
+    ctx.strokeStyle = 'rgba(236, 240, 241, 0.25)';
+    ctx.lineWidth = w * 0.7;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    needle.trail.forEach((t, i) => {
+      if (i === 0) ctx.moveTo(t.x, t.y);
+      else ctx.lineTo(t.x, t.y);
+    });
+    ctx.stroke();
+  }
+
+  setShadow('rgba(0,0,0,0.55)', 8, 3, 6);
+  const g = ctx.createLinearGradient(x - w/2, 0, x + w/2, 0);
+  g.addColorStop(0, '#b2bec3');
+  g.addColorStop(0.45, '#dfe6e9');
+  g.addColorStop(1, '#636e72');
+  ctx.fillStyle = g;
+
+  // shaft
+  ctx.beginPath();
+  ctx.roundRect(x - w/2, y, w, needle.height, 1);
+  ctx.fill();
+
+  // tip
+  ctx.beginPath();
+  ctx.moveTo(x - w/2 - 0.5, y + needle.height);
+  ctx.lineTo(x + w/2 + 0.5, y + needle.height);
+  ctx.lineTo(x, y + needle.height + 16);
+  ctx.closePath();
+  ctx.fill();
+
+  // eye
+  if (w > 1.8) {
+    ctx.fillStyle = '#1e272e';
+    const hw = Math.min(1.8, w - 1.2);
+    ctx.fillRect(x - hw/2, y + 6, hw, 9);
+  }
+  resetShadow();
+
+  // hand emoji only while moving
+  if (moving) {
+    ctx.font = '32px serif';
+    ctx.fillText('🤏', x - 20, y + 8);
+  }
+}
+
+function drawBoard() {
+  const topGrad = ctx.createLinearGradient(0, board.y, 0, board.y + board.height);
+  topGrad.addColorStop(0, '#d4a574');
+  topGrad.addColorStop(1, '#8b5a2b');
+
+  setShadow('rgba(0,0,0,0.7)', 14, 0, 10);
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, board.y, board.gapX, board.height);
+  ctx.fillRect(board.gapX + board.gapWidth, board.y, canvas.width - board.gapX - board.gapWidth, board.height);
+  resetShadow();
+
+  // underside
+  ctx.fillStyle = '#5c3a21';
+  ctx.fillRect(0, board.y + board.height, board.gapX, 6);
+  ctx.fillRect(board.gapX + board.gapWidth, board.y + board.height, canvas.width - board.gapX - board.gapWidth, 6);
+
+  // gap edges highlight
+  ctx.fillStyle = '#e8c9a0';
+  ctx.fillRect(board.gapX - 2, board.y, 2, board.height);
+  ctx.fillRect(board.gapX + board.gapWidth, board.y, 2, board.height);
+}
+
+function drawBalloon() {
+  if (balloon.isPopped) {
+    // residual rubber pieces
+    ctx.fillStyle = '#0984e3';
+    ctx.beginPath(); ctx.arc(balloon.x - 28, balloon.y + 18, 11, 0, Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(balloon.x + 22, balloon.y + 12, 9, 0, Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(balloon.x, balloon.y + 38, 14, Math.PI, 0); ctx.fill();
+    return;
+  }
+
+  const r = balloon.radius * balloon.scale;
+  setShadow('rgba(0,0,0,0.55)', 18, 4, 10);
+  const grad = ctx.createRadialGradient(balloon.x - 12, balloon.y - 12, 4, balloon.x, balloon.y, r);
+  grad.addColorStop(0, '#74b9ff');
+  grad.addColorStop(0.65, '#0984e3');
+  grad.addColorStop(1, '#004a8b');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(balloon.x, balloon.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  resetShadow();
+
+  // shine
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(balloon.x, balloon.y, r - 9, Math.PI * 1.15, Math.PI * 1.55);
+  ctx.stroke();
+
+  // knot
+  ctx.fillStyle = '#0984e3';
+  ctx.beginPath();
+  ctx.moveTo(balloon.x, balloon.y + r - 1);
+  ctx.lineTo(balloon.x - 7, balloon.y + r + 11);
+  ctx.lineTo(balloon.x + 7, balloon.y + r + 11);
+  ctx.fill();
+
+  // string
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(balloon.x, balloon.y + r + 11);
+  ctx.lineTo(balloon.x + 4, balloon.y + r + 28);
+  ctx.lineTo(balloon.x - 2, balloon.y + r + 48);
+  ctx.stroke();
+}
+
+// ========== Core Logic ==========
+function update() {
+  if (gameState === 'playing') {
+    needle.x += needle.speed * needle.direction;
+    if (needle.x > canvas.width - 18 || needle.x < 18) needle.direction *= -1;
+
+    // trail
+    needle.trail.push({ x: needle.x, y: needle.y + 20 });
+    if (needle.trail.length > 8) needle.trail.shift();
+
+    // moving gap (appears from level 6 or domination)
+    if (board.moveSpeed > 0) {
+      board.gapX += board.moveSpeed * board.moveDir;
+      if (board.gapX < 8 || board.gapX + board.gapWidth > canvas.width - 8) board.moveDir *= -1;
+    }
+  }
+  else if (gameState === 'dropping') {
+    needle.y += 16;
+    const tipY = needle.y + needle.height + 16;
+
+    // board collision
+    if (tipY >= board.y && tipY <= board.y + board.height + 2) {
+      const hitW = Math.max(0.8, needle.width - 1.5);
+      const left = needle.x - hitW / 2;
+      const right = needle.x + hitW / 2;
+      const hit = left < board.gapX || right > board.gapX + board.gapWidth;
+
+      if (hit) {
+        droppedNeedles.push({ x: needle.x, width: needle.width });
+        spawnMissSparks(needle.x, board.y);
+        needle.y = 70;
+        needle.trail = [];
+        gameState = 'playing';
+        combo = 0;
+        messageEl.style.color = '#ff6b6b';
+        messageEl.textContent = `失敗！ (ミス ${droppedNeedles.length})`;
+        sfxMiss();
+        // screen shake
+        canvas.style.transform = 'translate(3px, -2px)';
+        setTimeout(() => canvas.style.transform = '', 60);
+        return;
+      }
+    }
+
+    // balloon hit
+    if (tipY >= balloon.y - balloon.radius + 8) {
+      balloon.isPopped = true;
+      gameState = 'result';
+      spawnPopParticles(balloon.x, balloon.y);
+      sfxPop();
+
+      // scoring
+      const precision = 1 - Math.abs(needle.x - (board.gapX + board.gapWidth / 2)) / (board.gapWidth / 2 + 1);
+      const perfect = precision > 0.82;
+      let add = Math.floor(120 + currentLevel * 35 + precision * 80);
+      if (perfect) { add = Math.floor(add * 1.6); sfxPerfect(); }
+      else sfxClear();
+
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      add = Math.floor(add * (1 + Math.min(combo - 1, 12) * 0.12));
+      score += add;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('pierceHigh', highScore);
+        highScoreEl.textContent = `HIGH: ${highScore}`;
+      }
+
+      if (isDomination) {
+        messageEl.style.color = '#e056fd';
+        messageEl.textContent = perfect ? `PERFECT! 神業 Lv\( {currentLevel}` : `完全制覇進行中 Lv \){currentLevel}`;
+      } else if (board.gapWidth <= 7) {
+        messageEl.style.color = '#fbc531';
+        messageEl.textContent = `限界到達！ 完全制覇フェーズへ…`;
+      } else {
+        messageEl.style.color = '#4cd137';
+        messageEl.textContent = perfect ? `PERFECT! +\( {add}` : `クリア！ + \){add}`;
+      }
+
+      autoAdvanceTimer = setTimeout(goToNextLevel, 1350);
+    }
+  }
+
+  // gentle balloon breathe
+  if (!balloon.isPopped) {
+    balloon.scale = 1 + Math.sin(Date.now() / 380) * 0.018;
+  }
+  updateParticles();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // subtle vignette
+  const vig = ctx.createRadialGradient(150, 260, 40, 150, 260, 320);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawBalloon();
+  drawBoard();
+
+  const restY = board.y - needle.height - 8;
+  droppedNeedles.forEach(n => renderNeedle(n.x, restY, false, n.width));
+  renderNeedle(needle.x, needle.y, gameState === 'playing', needle.width);
+  drawParticles();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  if (gameState !== 'result') animationId = requestAnimationFrame(gameLoop);
+  else draw();
+}
+
+function dropNeedle(e) {
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return;
+  if (gameState === 'playing') {
+    gameState = 'dropping';
+    needle.trail = [];
+    messageEl.textContent = '';
+    difficultySelect.disabled = true;
+    sfxDrop();
+  }
+}
+
+function goToNextLevel() {
+  currentLevel++;
+
+  if (board.gapWidth > 6.5) {
+    board.gapWidth = Math.max(6.5, board.gapWidth - GAP_STEP);
+  } else {
+    isDomination = true;
+    if (needle.width > 1.0) {
+      needle.width = Math.max(1.0, needle.width - 0.55);
+      board.gapWidth = Math.max(1.0, board.gapWidth - 0.55);
+    } else if (board.gapWidth > 1.0) {
+      board.gapWidth = Math.max(1.0, board.gapWidth - 0.4);
+    } else {
+      // ultimate: speed only
+      needle.speed += 0.35;
+    }
+  }
+
+  // introduce / increase gap movement
+  if (currentLevel >= 5 || isDomination) {
+    board.moveSpeed = Math.min(1.8, 0.35 + currentLevel * 0.07);
+  }
+
+  board.gapX = (canvas.width - board.gapWidth) / 2;
+  updateInfo();
+  startNewRound();
+}
+
+function resetGame() {
+  clearTimeout(autoAdvanceTimer);
+  cancelAnimationFrame(animationId);
+  currentLevel = 1;
+  score = 0;
+  combo = 0;
+  maxCombo = 0;
+  particles = [];
+  applyDifficulty();
+  startNewRound();
+}
+
+function startNewRound() {
+  needle.y = 70;
+  needle.trail = [];
+  balloon.isPopped = false;
+  balloon.scale = 1;
+  droppedNeedles = [];
+  gameState = 'playing';
+  difficultySelect.disabled = false;
+
+  if (isDomination) {
+    messageEl.style.color = '#e056fd';
+    messageEl.textContent = `完全制覇フェーズ  Lv${currentLevel}`;
+  } else if (difficultySelect.value === 'extreme') {
+    messageEl.style.color = '#ff6b6b';
+    messageEl.textContent = `鬼級スタート！`;
+  } else {
+    messageEl.style.color = '#fbc531';
+    messageEl.textContent = `レベル ${currentLevel} スタート！`;
+  }
+  gameLoop();
+}
+
+// events
+difficultySelect.addEventListener('change', () => {
+  if (gameState === 'playing') resetGame();
+});
+canvas.addEventListener('mousedown', dropNeedle);
+canvas.addEventListener('touchstart', e => {
+  if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault();
+    dropNeedle(e);
+  }
+}, { passive: false });
+retryBtn.addEventListener('click', resetGame);
+
+// kick off
+applyDifficulty();
+gameLoop();
+</script>
+</body>
+</html>
