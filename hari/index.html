@@ -15,26 +15,27 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      height: 100dvh; /* モバイルのURLバーを考慮した動的な高さ */
       background: radial-gradient(ellipse at 50% 20%, #1a2a4a 0%, #0a0a12 70%);
       color: #fff;
       font-family: 'Segoe UI', system-ui, sans-serif;
       touch-action: manipulation;
       overflow: hidden;
       user-select: none;
+      padding: 5px;
     }
     #ui-top {
       width: 300px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-size: 0.85rem;
     }
     #scoreBox { color: #fbc531; font-weight: 700; }
     #comboBox { color: #e056fd; font-weight: 700; min-width: 80px; text-align: right; }
     #controls {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       display: flex;
       gap: 10px;
       align-items: center;
@@ -53,11 +54,13 @@
       background: transparent;
       border-radius: 12px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
-      max-width: 100%;
+      max-height: 55vh; /* 画面の高さに合わせて自動縮小 */
+      width: auto;
+      aspect-ratio: 300 / 520; /* 縦横比を維持 */
       touch-action: none;
     }
     #info {
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 0.9rem;
       color: #dcdde1;
       display: flex;
@@ -65,7 +68,7 @@
     }
     .highlight { color: #ff9f43; font-weight: 700; }
     #message {
-      margin-top: 6px;
+      margin-top: 4px;
       font-size: 1.15rem;
       font-weight: 700;
       height: 1.6rem;
@@ -76,10 +79,11 @@
     .btn-row {
       display: flex;
       gap: 8px;
-      margin-top: 12px;
+      margin-top: 10px;
       flex-wrap: wrap;
       justify-content: center;
-      width: 300px;
+      width: 100%;
+      max-width: 320px;
     }
     button {
       padding: 8px 12px;
@@ -91,9 +95,10 @@
       color: white;
       background: #e84118;
       box-shadow: 0 4px 0 #c23616;
-      transition: transform 0.08s, box-shadow 0.08s;
+      transition: transform 0.08s, box-shadow 0.08s, background 0.2s;
     }
     button.helper-btn { background: #0097e6; box-shadow: 0 4px 0 #0081c6; }
+    button.helper-btn.active-toggle { background: #f39c12; box-shadow: 0 4px 0 #d68910; }
     button:active {
       transform: translateY(3px);
       box-shadow: 0 1px 0 rgba(0,0,0,0.3) !important;
@@ -153,7 +158,7 @@ const clearNeedlesBtn = document.getElementById('clearNeedlesBtn');
 const stopGapBtn = document.getElementById('stopGapBtn');
 const difficultySelect = document.getElementById('difficulty');
 
-// ========== Audio (遅延評価) ==========
+// ========== Audio ==========
 let audioCtx;
 function initAudio() {
   if (!audioCtx) {
@@ -195,13 +200,14 @@ let score = 0;
 let combo = 0;
 let maxCombo = 0;
 
-// localStorageの安全な読み込み
+// トグル機能用の状態管理
+let isGapStopped = false;
+let savedMoveSpeed = 0;
+
 let highScore = 0;
 try {
   highScore = parseInt(localStorage.getItem('pierceHigh') || '0');
-} catch (e) {
-  console.warn('localStorageアクセス制限により、ハイスコアは保存されません。');
-}
+} catch (e) {}
 highScoreEl.textContent = `HIGH: ${highScore}`;
 
 const needle = { x: 150, y: 70, width: 4, height: 68, speed: 2.5, direction: 1, trail: [] };
@@ -243,7 +249,15 @@ function applyDifficulty() {
   board.gapX = (canvas.width - board.gapWidth) / 2;
   board.moveSpeed = 0;
   isDomination = false;
+  resetGapToggle();
   updateInfo();
+}
+
+function resetGapToggle() {
+  isGapStopped = false;
+  savedMoveSpeed = 0;
+  stopGapBtn.textContent = '隙間停止';
+  stopGapBtn.classList.remove('active-toggle');
 }
 
 function setShadow(c, b, x = 0, y = 0) {
@@ -252,7 +266,6 @@ function setShadow(c, b, x = 0, y = 0) {
   ctx.shadowOffsetX = x;
   ctx.shadowOffsetY = y;
 }
-
 function resetShadow() {
   setShadow('transparent', 0);
 }
@@ -482,9 +495,7 @@ function update() {
       
       if (score > highScore) {
         highScore = score;
-        try {
-          localStorage.setItem('pierceHigh', highScore);
-        } catch (e) {}
+        try { localStorage.setItem('pierceHigh', highScore); } catch (e) {}
         highScoreEl.textContent = `HIGH: ${highScore}`;
       }
 
@@ -563,8 +574,18 @@ function goToNextLevel() {
     }
   }
 
+  // 新規レベルの速度計算
+  let newSpeed = 0;
   if (currentLevel >= 5 || isDomination) {
-    board.moveSpeed = Math.min(1.8, 0.35 + currentLevel * 0.07);
+    newSpeed = Math.min(1.8, 0.35 + currentLevel * 0.07);
+  }
+
+  // 停止トグルがオンの場合は、計算した速度を保存用変数に入れ、実速度は0のままにする
+  if (isGapStopped) {
+    savedMoveSpeed = newSpeed;
+    board.moveSpeed = 0;
+  } else {
+    board.moveSpeed = newSpeed;
   }
 
   board.gapX = (canvas.width - board.gapWidth) / 2;
@@ -631,7 +652,20 @@ clearNeedlesBtn.addEventListener('click', () => {
 
 stopGapBtn.addEventListener('click', () => {
   initAudio();
-  board.moveSpeed = 0;
+  if (isGapStopped) {
+    // 再開
+    board.moveSpeed = savedMoveSpeed;
+    isGapStopped = false;
+    stopGapBtn.textContent = '隙間停止';
+    stopGapBtn.classList.remove('active-toggle');
+  } else {
+    // 停止
+    savedMoveSpeed = board.moveSpeed;
+    board.moveSpeed = 0;
+    isGapStopped = true;
+    stopGapBtn.textContent = '隙間再開';
+    stopGapBtn.classList.add('active-toggle');
+  }
 });
 
 // ========== Kick off ==========
