@@ -15,7 +15,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100dvh; /* モバイルのURLバーを考慮した動的な高さ */
+      height: 100dvh;
       background: radial-gradient(ellipse at 50% 20%, #1a2a4a 0%, #0a0a12 70%);
       color: #fff;
       font-family: 'Segoe UI', system-ui, sans-serif;
@@ -54,9 +54,9 @@
       background: transparent;
       border-radius: 12px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
-      max-height: 55vh; /* 画面の高さに合わせて自動縮小 */
+      max-height: 55vh;
       width: auto;
-      aspect-ratio: 300 / 520; /* 縦横比を維持 */
+      aspect-ratio: 300 / 520;
       touch-action: none;
     }
     #info {
@@ -200,7 +200,6 @@ let score = 0;
 let combo = 0;
 let maxCombo = 0;
 
-// トグル機能用の状態管理
 let isGapStopped = false;
 let savedMoveSpeed = 0;
 
@@ -514,6 +513,9 @@ function update() {
     }
   }
 
+  // ★ 追加: 風船を常に隙間の中心に追従させる
+  balloon.x = board.gapX + (board.gapWidth / 2);
+
   if (!balloon.isPopped) {
     balloon.scale = 1 + Math.sin(Date.now() / 380) * 0.018;
   }
@@ -574,13 +576,11 @@ function goToNextLevel() {
     }
   }
 
-  // 新規レベルの速度計算
   let newSpeed = 0;
   if (currentLevel >= 5 || isDomination) {
     newSpeed = Math.min(1.8, 0.35 + currentLevel * 0.07);
   }
 
-  // 停止トグルがオンの場合は、計算した速度を保存用変数に入れ、実速度は0のままにする
   if (isGapStopped) {
     savedMoveSpeed = newSpeed;
     board.moveSpeed = 0;
@@ -653,13 +653,11 @@ clearNeedlesBtn.addEventListener('click', () => {
 stopGapBtn.addEventListener('click', () => {
   initAudio();
   if (isGapStopped) {
-    // 再開
     board.moveSpeed = savedMoveSpeed;
     isGapStopped = false;
     stopGapBtn.textContent = '隙間停止';
     stopGapBtn.classList.remove('active-toggle');
   } else {
-    // 停止
     savedMoveSpeed = board.moveSpeed;
     board.moveSpeed = 0;
     isGapStopped = true;
