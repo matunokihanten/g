@@ -31,7 +31,6 @@
             width: 100vw;
             height: 100vh;
         }
-        /* Custom scrollbar & glassmorphism */
         .glass-panel {
             background: rgba(13, 18, 38, 0.78);
             backdrop-filter: blur(12px);
@@ -50,14 +49,6 @@
         .glass-btn:active {
             transform: translateY(1px);
         }
-        /* Pulse Animation */
-        @keyframes subtle-pulse {
-            0%, 100% { transform: scale(1); opacity: 0.9; }
-            50% { transform: scale(1.04); opacity: 1; }
-        }
-        .animate-subtle {
-            animation: subtle-pulse 2s infinite ease-in-out;
-        }
     </style>
 </head>
 <body class="relative w-screen h-screen overflow-hidden text-white select-none">
@@ -66,68 +57,80 @@
     <div id="canvas-container" class="absolute inset-0 z-0"></div>
 
     <!-- UI Overlay Header -->
-    <header class="absolute top-0 left-0 right-0 z-10 p-3 sm:p-4 pointer-events-none flex flex-col gap-2">
-        <div class="max-w-4xl mx-auto w-full flex flex-wrap items-center justify-between gap-2">
+    <header class="absolute top-0 left-0 right-0 z-10 p-2 sm:p-4 pointer-events-none flex flex-col gap-1.5 transition-all duration-300" id="main-header">
+        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-1 sm:gap-2">
             <!-- Title & Badge -->
-            <div class="pointer-events-auto glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-3 shadow-lg">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center shadow-md">
-                    <i class="fa-solid fa-cube text-white text-base"></i>
+            <div class="pointer-events-auto glass-panel px-2.5 sm:px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg">
+                <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center shadow-sm">
+                    <i class="fa-solid fa-cube text-white text-xs sm:text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="text-sm sm:text-base font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-300 to-cyan-300">
+                    <h1 class="text-xs sm:text-sm font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-300 to-cyan-300 leading-tight">
                         動かないキューブはどれ？
                     </h1>
-                    <p class="text-[11px] text-gray-300 flex items-center gap-1.5 font-medium">
-                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                        <span id="cube-count-label">250個の中に1つだけ！</span>
+                    <p class="text-[10px] text-gray-300 font-medium leading-none mt-0.5">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping mr-0.5"></span>
+                        <span id="cube-count-label">200個の中に1つだけ！</span>
                     </p>
                 </div>
             </div>
 
             <!-- Stats & Quick Actions -->
-            <div class="pointer-events-auto flex items-center gap-2">
+            <div class="pointer-events-auto flex items-center gap-1.5">
                 <!-- Timer -->
-                <div class="glass-panel px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-semibold text-amber-300 shadow">
-                    <i class="fa-regular fa-clock text-amber-400"></i>
-                    <span id="timer-display" class="font-mono text-base tracking-wider">00:00.0</span>
+                <div class="glass-panel px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold text-amber-300 shadow">
+                    <i class="fa-regular fa-clock text-amber-400 text-xs"></i>
+                    <span id="timer-display" class="font-mono text-xs sm:text-sm tracking-wider">00:00.0</span>
                 </div>
 
                 <!-- Found Counter -->
-                <div class="glass-panel px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-bold text-cyan-300 shadow">
-                    <i class="fa-solid fa-crosshairs text-cyan-400"></i>
-                    <span id="status-display">0 / 1</span>
+                <div class="glass-panel px-2 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold text-cyan-300 shadow">
+                    <i class="fa-solid fa-crosshairs text-cyan-400 text-xs"></i>
+                    <span id="status-display">0/1</span>
                 </div>
 
                 <!-- Restart Button -->
-                <button id="btn-restart" class="pointer-events-auto glass-btn px-3 py-2 rounded-xl text-xs font-bold text-gray-200 hover:text-white flex items-center gap-1.5 shadow" title="最初からやり直す">
+                <button id="btn-restart" class="glass-btn p-2 rounded-xl text-xs font-bold text-gray-200 hover:text-white flex items-center shadow" title="最初からやり直す">
                     <i class="fa-solid fa-rotate-right text-emerald-400"></i>
-                    <span class="hidden sm:inline">リセット</span>
+                </button>
+
+                <!-- UI Collapse / Expand Toggle Button -->
+                <button id="btn-toggle-ui" class="glass-btn px-2 py-1.5 rounded-xl text-xs font-bold text-sky-300 hover:text-white flex items-center gap-1 shadow" title="UIを隠して広く見る">
+                    <i class="fa-solid fa-chevron-up transition-transform duration-300" id="ui-toggle-icon"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Controls Toolbar (Difficulty & Hint) -->
-        <div class="max-w-4xl mx-auto w-full flex items-center justify-between pointer-events-auto text-xs gap-2 pt-1">
+        <!-- Controls Toolbar (Difficulty & Hint) - Collapsible Container -->
+        <div id="collapsible-toolbar" class="max-w-4xl mx-auto w-full flex items-center justify-between pointer-events-auto text-xs gap-1.5 transition-all duration-300 origin-top overflow-hidden">
             <!-- Difficulty Selector -->
             <div class="glass-panel p-1 rounded-xl flex items-center gap-1">
-                <button class="diff-btn px-2.5 py-1 rounded-lg font-bold text-gray-300 hover:text-white transition" data-count="80">かんたん (80)</button>
-                <button class="diff-btn px-2.5 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow transition" data-count="200">ふつう (200)</button>
-                <button class="diff-btn px-2.5 py-1 rounded-lg font-bold text-gray-300 hover:text-white transition" data-count="300">激ムズ (300)</button>
+                <button class="diff-btn px-2 py-1 rounded-lg font-bold text-gray-300 hover:text-white text-[11px]" data-count="80">かんたん (80)</button>
+                <button class="diff-btn px-2 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow text-[11px]" data-count="200">ふつう (200)</button>
+                <button class="diff-btn px-2 py-1 rounded-lg font-bold text-gray-300 hover:text-white text-[11px]" data-count="300">激ムズ (300)</button>
             </div>
 
             <!-- Hint / Give Up -->
-            <button id="btn-giveup" class="glass-btn px-3 py-1.5 rounded-xl font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1.5 shadow text-xs">
+            <button id="btn-giveup" class="glass-btn px-2.5 py-1 rounded-xl font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1 shadow text-[11px]">
                 <i class="fa-regular fa-lightbulb text-yellow-400"></i>
                 <span>答えを見る</span>
             </button>
         </div>
     </header>
 
+    <!-- Floating Action Buttons (Reset View Camera) -->
+    <div class="absolute bottom-5 right-4 z-10 flex flex-col gap-2">
+        <button id="btn-reset-view" class="glass-panel hover:bg-white/20 active:scale-95 text-white p-3 rounded-2xl shadow-xl flex items-center justify-center gap-1.5 border border-white/20 transition backdrop-blur-md" title="視点をリセット">
+            <i class="fa-solid fa-arrows-rotate text-cyan-400 text-base"></i>
+            <span class="text-xs font-bold pr-1">正面に戻す</span>
+        </button>
+    </div>
+
     <!-- Bottom Hint bar -->
-    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none w-11/12 max-w-md">
-        <div class="glass-panel py-2 px-4 rounded-full text-center text-xs text-gray-300 shadow-xl border border-white/10 flex items-center justify-center gap-2">
+    <div class="absolute bottom-4 left-4 z-10 pointer-events-none max-w-xs hidden sm:block">
+        <div class="glass-panel py-1.5 px-3 rounded-xl text-left text-[11px] text-gray-300 shadow-xl border border-white/10 flex items-center gap-2">
             <i class="fa-solid fa-eye text-cyan-400"></i>
-            <span>コツ：全体をぼんやり眺めると、違和感で止まったキューブが浮き出ます！</span>
+            <span>画面全体をぼんやり見つめると、止まっている1個が浮き出ます。</span>
         </div>
     </div>
 
@@ -142,7 +145,6 @@
     <!-- Victory Modal -->
     <div id="win-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4">
         <div class="glass-panel bg-slate-900/95 max-w-sm w-full rounded-3xl p-6 text-center border border-amber-400/40 shadow-2xl transform scale-95 transition-transform duration-300" id="win-card">
-            <!-- Crown icon -->
             <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-200 flex items-center justify-center shadow-lg shadow-amber-500/30 text-amber-900 text-3xl">
                 <i class="fa-solid fa-trophy"></i>
             </div>
@@ -152,7 +154,6 @@
             </h2>
             <p class="text-xs text-gray-300 mb-4">動かないキューブを見事に見つけ出しました！</p>
 
-            <!-- Stats Box -->
             <div class="grid grid-cols-2 gap-2 mb-5">
                 <div class="bg-white/5 border border-white/10 rounded-2xl p-2.5">
                     <span class="text-[11px] text-gray-400 block mb-0.5">クリアタイム</span>
@@ -164,7 +165,6 @@
                 </div>
             </div>
 
-            <!-- Action buttons -->
             <div class="flex flex-col gap-2">
                 <button id="modal-btn-restart" class="w-full py-3 px-4 rounded-xl font-black text-slate-950 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 shadow-lg shadow-amber-500/25 active:scale-95 transition">
                     <i class="fa-solid fa-play mr-2"></i>もう一度遊ぶ
@@ -179,7 +179,6 @@
     <!-- Confetti Canvas -->
     <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-40"></canvas>
 
-    <!-- JavaScript Logic -->
     <script>
         /* ==========================================================
            1. Audio Synthesizer (Web Audio API)
@@ -191,15 +190,18 @@
             init() {
                 if (!this.ctx) {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    this.ctx = new AudioContext();
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
                 }
-                if (this.ctx.state === 'suspended') {
+                if (this.ctx && this.ctx.state === 'suspended') {
                     this.ctx.resume();
                 }
             }
             playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.2) {
                 try {
                     this.init();
+                    if (!this.ctx) return;
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = type;
@@ -215,7 +217,7 @@
             playCorrect() {
                 try {
                     this.init();
-                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
                     notes.forEach((freq, idx) => {
                         setTimeout(() => {
                             this.playTone(freq, 'triangle', 0.4, 0.25);
@@ -226,7 +228,7 @@
             playWrong() {
                 try {
                     this.init();
-                    this.playTone(140, 'sawtooth', 0.28, 0.3);
+                    this.playTone(140, 'sawtooth', 0.25, 0.3);
                     setTimeout(() => {
                         this.playTone(105, 'sawtooth', 0.35, 0.3);
                     }, 120);
@@ -244,7 +246,6 @@
 
         /* ==========================================================
            2. Procedural Rubik's Cube Texture Generator
-           Generates realistic 3x3 colorful Rubik's faces dynamically
            ========================================================== */
         const RUBIK_COLORS = [
             '#C41E3A', // Red
@@ -255,13 +256,12 @@
             '#FFFFFF'  // White
         ];
 
-        function createRubikFaceTexture(isPureColor = false, pureColorIndex = 0) {
+        function createRubikFaceTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 256;
             canvas.height = 256;
             const ctx = canvas.getContext('2d');
 
-            // Black plastic body background
             ctx.fillStyle = '#111215';
             ctx.fillRect(0, 0, 256, 256);
 
@@ -274,12 +274,8 @@
                 for (let col = 0; col < 3; col++) {
                     const x = padding + col * (tileSize + gap);
                     const y = padding + row * (tileSize + gap);
+                    const color = RUBIK_COLORS[Math.floor(Math.random() * RUBIK_COLORS.length)];
 
-                    const color = isPureColor 
-                        ? RUBIK_COLORS[pureColorIndex % RUBIK_COLORS.length]
-                        : RUBIK_COLORS[Math.floor(Math.random() * RUBIK_COLORS.length)];
-
-                    // Draw rounded rectangle for sticker
                     ctx.save();
                     ctx.beginPath();
                     ctx.moveTo(x + radius, y);
@@ -298,7 +294,6 @@
                     ctx.shadowBlur = 4;
                     ctx.fill();
 
-                    // Inner subtle bevel highlight
                     ctx.lineWidth = 1.5;
                     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
                     ctx.stroke();
@@ -311,11 +306,12 @@
             return texture;
         }
 
-        // Texture pool for high performance and variety
         const texturePool = [];
         for (let i = 0; i < 18; i++) {
-            texturePool.push(createRubikFaceTexture(false));
+            texturePool.push(createRubikFaceTexture());
         }
+
+        const cubeGeometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
 
         function getRandomMaterials() {
             const mats = [];
@@ -331,7 +327,7 @@
         }
 
         /* ==========================================================
-           3. Game State & Logic
+           3. Game State & Elements
            ========================================================== */
         const state = {
             cubeCount: 200,
@@ -347,7 +343,6 @@
             pointerDownTime: 0
         };
 
-        // DOM elements
         const container = document.getElementById('canvas-container');
         const timerDisplay = document.getElementById('timer-display');
         const statusDisplay = document.getElementById('status-display');
@@ -368,36 +363,37 @@
            4. Three.js Scene Setup
            ========================================================== */
         let scene, camera, renderer, controls, raycaster, mouse;
-        let goldRing = null; // Indicator ring when found or surrendered
-        let targetLookAt = null;
+        let goldRing = null;
 
         function initScene() {
             scene = new THREE.Scene();
-            // Dark elegant bluish/violet space background like the original video
             scene.background = new THREE.Color(0x0c1022);
             scene.fog = new THREE.FogExp2(0x0c1022, 0.012);
 
             const aspect = window.innerWidth / window.innerHeight;
             camera = new THREE.PerspectiveCamera(48, aspect, 0.1, 200);
-            updateCameraPosition();
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = false;
+            renderer.domElement.style.touchAction = 'none';
             container.appendChild(renderer.domElement);
 
-            // OrbitControls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            controls.dampingFactor = 0.06;
-            controls.rotateSpeed = 0.65;
-            controls.zoomSpeed = 0.8;
-            controls.panSpeed = 0.6;
+            controls.dampingFactor = 0.08;
+            controls.rotateSpeed = 1.4;
+            controls.zoomSpeed = 1.0;
+            controls.panSpeed = 0.8;
             controls.maxDistance = 85;
             controls.minDistance = 6;
+            controls.touches = {
+                ONE: THREE.TOUCH.ROTATE,
+                TWO: THREE.TOUCH.DOLLY_PAN
+            };
 
-            // Lighting
+            updateCameraPosition();
+
             const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
             scene.add(ambientLight);
 
@@ -412,41 +408,71 @@
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
-            // Window resize handler
             window.addEventListener('resize', onWindowResize);
-
-            // Pointer event listeners (differentiating drag from tap)
             renderer.domElement.addEventListener('pointerdown', onPointerDown);
             renderer.domElement.addEventListener('pointerup', onPointerUp);
         }
 
         function updateCameraPosition() {
             if (window.innerWidth < 640) {
-                // Mobile portrait angle: slightly further back to see the grid spread
-                camera.position.set(0, 15, 36);
+                camera.position.set(0, 10, 38);
+                if (controls) controls.target.set(0, -1.8, 0);
             } else {
-                camera.position.set(0, 18, 28);
+                camera.position.set(0, 12, 28);
+                if (controls) controls.target.set(0, -1.0, 0);
             }
-            camera.lookAt(0, 0, 0);
         }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            resizeConfetti();
+            resizeConfettiCanvas();
         }
 
         /* ==========================================================
-           5. Spawning Cubes & Game Generation
+           5. Timer & Toast UI
            ========================================================== */
-        const cubeGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const tenths = Math.floor((seconds % 1) * 10);
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${tenths}`;
+        }
 
+        function updateTimerDisplay() {
+            timerDisplay.textContent = formatTime(state.elapsedSeconds);
+        }
+
+        function startTimer() {
+            clearInterval(state.timerInterval);
+            state.startTime = Date.now();
+            state.timerInterval = setInterval(() => {
+                if (!state.isGameOver) {
+                    state.elapsedSeconds = (Date.now() - state.startTime) / 1000;
+                    updateTimerDisplay();
+                }
+            }, 100);
+        }
+
+        let toastTimeout = null;
+        function showToast(text) {
+            toastMsg.textContent = text;
+            toast.classList.remove('opacity-0', '-translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-2');
+            }, 1800);
+        }
+
+        /* ==========================================================
+           6. Game Generation
+           ========================================================== */
         function generateGame() {
-            // Clean previous cubes
             state.cubes.forEach(c => {
                 scene.remove(c.mesh);
-                // materials are kept in pool, don't dispose pool textures
             });
             state.cubes = [];
             if (goldRing) {
@@ -457,39 +483,31 @@
             state.isGameOver = false;
             state.missCount = 0;
             state.elapsedSeconds = 0;
-            statusDisplay.textContent = '0 / 1';
+            statusDisplay.textContent = '0/1';
             cubeCountLabel.textContent = `${state.cubeCount}個の中に1つだけ！`;
 
-            // Reset camera target
-            targetLookAt = null;
-            controls.target.set(0, 0, 0);
+            const targetY = (window.innerWidth < 640) ? -1.8 : -1.0;
+            controls.target.set(0, targetY, 0);
             controls.enabled = true;
 
-            // Pick 1 index to stay completely still
             state.targetIndex = Math.floor(Math.random() * state.cubeCount);
 
-            // Spread cubes across a volumetric frustum in front of camera
             const count = state.cubeCount;
-            const spreadX = 22;
-            const spreadY = 16;
-            const spreadZ = 18;
+            const isMobile = window.innerWidth < 640;
+            const spreadX = isMobile ? 12 : 20;
+            const spreadY = isMobile ? 18 : 13;
+            const spreadZ = 16;
+            const yOffset = isMobile ? -2.0 : -1.2;
 
             for (let i = 0; i < count; i++) {
                 const materials = getRandomMaterials();
                 const mesh = new THREE.Mesh(cubeGeometry, materials);
 
-                // Distribute evenly with jitter to fill the screen nicely without clump overlaps
-                const theta = (i / count) * Math.PI * 2 * 9;
-                const radiusX = Math.sqrt(i / count) * spreadX;
-                const radiusY = Math.sqrt(i / count) * spreadY;
-
-                const posX = (Math.random() - 0.5) * spreadX * 2.2;
-                const posY = (Math.random() - 0.5) * spreadY * 2.0;
-                const posZ = (Math.random() - 0.5) * spreadZ * 1.5;
-
+                const posX = (Math.random() - 0.5) * spreadX * 2.0;
+                const posY = (Math.random() - 0.5) * spreadY * 1.8 + yOffset;
+                const posZ = (Math.random() - 0.5) * spreadZ * 1.4;
                 mesh.position.set(posX, posY, posZ);
 
-                // Random initial rotation
                 mesh.rotation.set(
                     Math.random() * Math.PI * 2,
                     Math.random() * Math.PI * 2,
@@ -498,8 +516,6 @@
 
                 const isTarget = (i === state.targetIndex);
 
-                // Non-target cubes rotate steadily
-                // Speed is tuned to be natural: fast enough to notice, but calm enough to require scanning
                 const minSpeed = 0.012;
                 const maxSpeed = 0.038;
                 const signX = Math.random() > 0.5 ? 1 : -1;
@@ -529,109 +545,30 @@
                 }
             }
 
-            // Start timer
             startTimer();
         }
 
         /* ==========================================================
-           6. Timer & Statistics
+           7. Win & Loss Handlers
            ========================================================== */
-        function startTimer() {
-            if (state.timerInterval) clearInterval(state.timerInterval);
-            state.startTime = Date.now();
-            updateTimerDisplay();
-
-            state.timerInterval = setInterval(() => {
-                if (!state.isGameOver) {
-                    state.elapsedSeconds = (Date.now() - state.startTime) / 1000;
-                    updateTimerDisplay();
-                }
-            }, 50);
-        }
-
-        function formatTime(sec) {
-            const m = Math.floor(sec / 60);
-            const s = Math.floor(sec % 60);
-            const ms = Math.floor((sec % 1) * 10);
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms}`;
-        }
-
-        function updateTimerDisplay() {
-            timerDisplay.textContent = formatTime(state.elapsedSeconds);
-        }
-
-        function showToast(text) {
-            toastMsg.textContent = text;
-            toast.classList.remove('opacity-0', '-translate-y-2');
-            toast.classList.add('opacity-100', 'translate-y-0');
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'translate-y-0');
-                toast.classList.add('opacity-0', '-translate-y-2');
-            }, 1800);
-        }
-
-        /* ==========================================================
-           7. User Interactions & Raycasting
-           ========================================================== */
-        function onPointerDown(e) {
-            state.pointerDownPos = { x: e.clientX, y: e.clientY };
-            state.pointerDownTime = Date.now();
-            sfx.init(); // Warm audio context
-        }
-
-        function onPointerUp(e) {
-            const deltaX = Math.abs(e.clientX - state.pointerDownPos.x);
-            const deltaY = Math.abs(e.clientY - state.pointerDownPos.y);
-            const deltaTime = Date.now() - state.pointerDownTime;
-
-            // Treat as tap/click only if pointer barely moved
-            if (deltaX < 7 && deltaY < 7 && deltaTime < 400) {
-                handleTap(e.clientX, e.clientY);
-            }
-        }
-
-        function handleTap(clientX, clientY) {
-            if (state.isGameOver) return;
-
-            mouse.x = (clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const meshes = state.cubes.map(c => c.mesh);
-            const intersects = raycaster.intersectObjects(meshes);
-
-            if (intersects.length > 0) {
-                const hitMesh = intersects[0].object;
-                const cubeData = hitMesh.userData;
-
-                if (cubeData.isTarget) {
-                    onSuccess(cubeData);
-                } else {
-                    onMiss(cubeData);
-                }
-            }
-        }
-
         function onMiss(cubeData) {
             sfx.playWrong();
             state.missCount++;
-            state.startTime -= 3000; // Add 3-second penalty
+            state.startTime -= 3000;
             state.elapsedSeconds += 3;
             updateTimerDisplay();
             showToast('動いています！ (+3秒)');
 
-            // Flash cube red briefly
             const redMat = new THREE.MeshBasicMaterial({ color: 0xff1e3a });
             cubeData.mesh.material = [redMat, redMat, redMat, redMat, redMat, redMat];
-            cubeData.flashTimer = 0.35; // 0.35 seconds
+            cubeData.flashTimer = 0.35;
         }
 
         function onSuccess(cubeData, isSurrender = false) {
             state.isGameOver = true;
             clearInterval(state.timerInterval);
-            statusDisplay.textContent = '1 / 1';
+            statusDisplay.textContent = '1/1';
 
-            // Highlight target in gold
             highlightTargetCube(cubeData.mesh);
 
             if (!isSurrender) {
@@ -643,12 +580,10 @@
                 showToast('動かないキューブはこれでした！');
             }
 
-            // Smooth focus camera to target
             focusCameraOnTarget(cubeData.mesh.position);
         }
 
         function highlightTargetCube(mesh) {
-            // Emissive glowing gold materials
             const goldMaterials = [];
             for (let i = 0; i < 6; i++) {
                 goldMaterials.push(new THREE.MeshStandardMaterial({
@@ -661,7 +596,6 @@
             }
             mesh.material = goldMaterials;
 
-            // Add glowing pulsing indicator halo
             if (!goldRing) {
                 const ringGeo = new THREE.TorusGeometry(1.6, 0.08, 16, 64);
                 const ringMat = new THREE.MeshBasicMaterial({
@@ -677,8 +611,6 @@
         }
 
         function focusCameraOnTarget(targetPos) {
-            targetLookAt = targetPos.clone();
-            // Desired camera position: close to target with offset
             const offset = new THREE.Vector3(2.5, 2.5, 4.5);
             const targetCamPos = targetPos.clone().add(offset);
 
@@ -722,25 +654,67 @@
         }
 
         /* ==========================================================
-           8. Confetti Celebration Particle System
+           8. Pointer & Tap Handler
+           ========================================================== */
+        function onPointerDown(e) {
+            state.pointerDownPos = { x: e.clientX, y: e.clientY };
+            state.pointerDownTime = Date.now();
+            sfx.init();
+        }
+
+        function onPointerUp(e) {
+            const deltaX = Math.abs(e.clientX - state.pointerDownPos.x);
+            const deltaY = Math.abs(e.clientY - state.pointerDownPos.y);
+            const distance = Math.hypot(deltaX, deltaY);
+            const deltaTime = Date.now() - state.pointerDownTime;
+
+            if (distance < 8 && deltaTime < 450) {
+                handleTap(e.clientX, e.clientY);
+            }
+        }
+
+        function handleTap(clientX, clientY) {
+            if (state.isGameOver) return;
+
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const meshes = state.cubes.map(c => c.mesh);
+            const intersects = raycaster.intersectObjects(meshes, false);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const cubeData = hitMesh.userData;
+
+                if (cubeData.isTarget) {
+                    onSuccess(cubeData, false);
+                } else {
+                    onMiss(cubeData);
+                }
+            }
+        }
+
+        /* ==========================================================
+           9. Confetti Particle System
            ========================================================== */
         const confettiCanvas = document.getElementById('confetti-canvas');
         const cCtx = confettiCanvas.getContext('2d');
         let confettiParticles = [];
         let confettiActive = false;
 
-        function resizeConfetti() {
+        function resizeConfettiCanvas() {
             confettiCanvas.width = window.innerWidth;
             confettiCanvas.height = window.innerHeight;
         }
-        resizeConfetti();
+        resizeConfettiCanvas();
 
         function fireConfetti() {
-            confettiActive = true;
             confettiParticles = [];
-            const colors = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#fbbf24', '#a855f7'];
+            confettiActive = true;
+            const colors = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#fbbf24', '#ffffff'];
 
-            for (let i = 0; i < 180; i++) {
+            for (let i = 0; i < 90; i++) {
                 confettiParticles.push({
                     x: confettiCanvas.width * 0.5 + (Math.random() - 0.5) * 80,
                     y: confettiCanvas.height * 0.5 + (Math.random() - 0.5) * 80,
@@ -763,7 +737,7 @@
             confettiParticles.forEach(p => {
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.35; // Gravity
+                p.vy += 0.35;
                 p.vx *= 0.985;
                 p.rot += p.rotSpeed;
 
@@ -790,7 +764,7 @@
         }
 
         /* ==========================================================
-           9. Main Animation Loop
+           10. Main Animation Loop
            ========================================================== */
         let lastTime = performance.now();
 
@@ -801,7 +775,6 @@
             const delta = Math.min((now - lastTime) / 1000, 0.1);
             lastTime = now;
 
-            // Rotate moving cubes
             state.cubes.forEach(c => {
                 if (!c.isTarget) {
                     c.mesh.rotation.x += c.rotSpeed.x;
@@ -809,7 +782,6 @@
                     c.mesh.rotation.z += c.rotSpeed.z;
                 }
 
-                // Handle error red flash restore
                 if (c.flashTimer > 0) {
                     c.flashTimer -= delta;
                     if (c.flashTimer <= 0) {
@@ -818,7 +790,6 @@
                 }
             });
 
-            // Target ring effect
             if (goldRing) {
                 goldRing.rotation.x += 0.02;
                 goldRing.rotation.y += 0.03;
@@ -832,8 +803,36 @@
         }
 
         /* ==========================================================
-           10. Event Listeners & Buttons
+           11. Event Listeners & UI Binding
            ========================================================== */
+        const btnToggleUI = document.getElementById('btn-toggle-ui');
+        const collapsibleToolbar = document.getElementById('collapsible-toolbar');
+        const uiToggleIcon = document.getElementById('ui-toggle-icon');
+        const btnResetView = document.getElementById('btn-reset-view');
+        let isUICollapsed = false;
+
+        btnToggleUI.addEventListener('click', () => {
+            isUICollapsed = !isUICollapsed;
+            if (isUICollapsed) {
+                collapsibleToolbar.style.maxHeight = '0px';
+                collapsibleToolbar.style.opacity = '0';
+                collapsibleToolbar.style.pointerEvents = 'none';
+                uiToggleIcon.classList.remove('fa-chevron-up');
+                uiToggleIcon.classList.add('fa-chevron-down');
+            } else {
+                collapsibleToolbar.style.maxHeight = '100px';
+                collapsibleToolbar.style.opacity = '1';
+                collapsibleToolbar.style.pointerEvents = 'auto';
+                uiToggleIcon.classList.remove('fa-chevron-down');
+                uiToggleIcon.classList.add('fa-chevron-up');
+            }
+        });
+
+        btnResetView.addEventListener('click', () => {
+            updateCameraPosition();
+            controls.update();
+        });
+
         btnRestart.addEventListener('click', () => {
             sfx.init();
             hideVictoryModal();
@@ -854,27 +853,21 @@
             const timeStr = formatTime(state.elapsedSeconds);
             const text = `【動かないキューブはどれ？】\n${state.cubeCount}個の中から動かないキューブを【${timeStr}】(ミス${state.missCount}回) で発見しました！✨\n#動かないキューブゲーム #脳トレ`;
             
-            // Clipboard copy with fallbacks
             try {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text);
-                } else {
-                    const temp = document.createElement('textarea');
-                    temp.value = text;
-                    document.body.appendChild(temp);
-                    temp.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(temp);
-                }
+                const temp = document.createElement('textarea');
+                temp.value = text;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
                 showToast('結果をクリップボードにコピーしました！');
             } catch(e) {
                 showToast('コピーに失敗しました');
             }
         });
 
-        // Difficulty selector
         diffButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 diffButtons.forEach(b => {
                     b.classList.remove('bg-indigo-600', 'text-white', 'shadow');
                     b.classList.add('text-gray-300');
@@ -889,7 +882,7 @@
         });
 
         /* ==========================================================
-           11. Start On Load
+           12. Window Onload Initialization
            ========================================================== */
         window.onload = function () {
             initScene();
