@@ -3,14 +3,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>動かないキューブを探せ！ - 250個の中に1つだけ！</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>動かないキューブはどれ？ - 完全版</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js & OrbitControls -->
+    <!-- Three.js 本体 (軽量・安定CDN) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- FontAwesome for icons -->
+    <!-- FontAwesome アイコン -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,177 +17,182 @@
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
         body {
             font-family: 'Inter', 'M PLUS Rounded 1c', sans-serif;
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
             overflow: hidden;
-            background-color: #0c1022;
-        }
-        canvas {
-            display: block;
+            background-color: #0b0f1e;
             width: 100vw;
             height: 100vh;
         }
+        canvas#webgl-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            outline: none;
+        }
         .glass-panel {
-            background: rgba(13, 18, 38, 0.78);
+            background: rgba(13, 18, 38, 0.82);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.14);
         }
         .glass-btn {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.09);
             border: 1px solid rgba(255, 255, 255, 0.18);
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .glass-btn:hover {
-            background: rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.2);
             transform: translateY(-1px);
         }
         .glass-btn:active {
-            transform: translateY(1px);
+            transform: translateY(1px) scale(0.97);
         }
     </style>
 </head>
 <body class="relative w-screen h-screen overflow-hidden text-white select-none">
 
-    <!-- 3D WebGL Canvas Container -->
-    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+    <!-- 3D WebGL Canvas -->
+    <div id="canvas-container" class="absolute inset-0 z-0">
+        <canvas id="webgl-canvas"></canvas>
+    </div>
 
     <!-- UI Overlay Header -->
-    <header class="absolute top-0 left-0 right-0 z-10 p-2 sm:p-4 pointer-events-none flex flex-col gap-1.5 transition-all duration-300" id="main-header">
-        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-1 sm:gap-2">
-            <!-- Title & Badge -->
+    <header class="absolute top-0 left-0 right-0 z-20 p-2 sm:p-4 pointer-events-none flex flex-col gap-1.5 transition-all duration-300" id="main-header">
+        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-1.5 sm:gap-2">
+            <!-- Title -->
             <div class="pointer-events-auto glass-panel px-2.5 sm:px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg">
-                <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center shadow-sm">
+                <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center shadow-md">
                     <i class="fa-solid fa-cube text-white text-xs sm:text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="text-xs sm:text-sm font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-300 to-cyan-300 leading-tight">
+                    <h1 class="text-xs sm:text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-300 to-cyan-300 leading-tight">
                         動かないキューブはどれ？
                     </h1>
                     <p class="text-[10px] text-gray-300 font-medium leading-none mt-0.5">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping mr-0.5"></span>
-                        <span id="cube-count-label">200個の中に1つだけ！</span>
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-0.5"></span>
+                        <span id="cube-count-label">100個の中に1つだけ！</span>
                     </p>
                 </div>
             </div>
 
             <!-- Stats & Quick Actions -->
             <div class="pointer-events-auto flex items-center gap-1.5">
-                <!-- Timer -->
-                <div class="glass-panel px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold text-amber-300 shadow">
-                    <i class="fa-regular fa-clock text-amber-400 text-xs"></i>
-                    <span id="timer-display" class="font-mono text-xs sm:text-sm tracking-wider">00:00.0</span>
+                <!-- Stage Display -->
+                <div class="glass-panel px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-black text-cyan-300 shadow border border-cyan-400/30">
+                    <i class="fa-solid fa-trophy text-amber-400 text-[11px]"></i>
+                    <span id="stage-display" class="tracking-wide">STAGE 1</span>
                 </div>
 
-                <!-- Found Counter -->
-                <div class="glass-panel px-2 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold text-cyan-300 shadow">
-                    <i class="fa-solid fa-crosshairs text-cyan-400 text-xs"></i>
-                    <span id="status-display">0/1</span>
+                <!-- Timer -->
+                <div class="glass-panel px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold text-amber-300 shadow">
+                    <i class="fa-regular fa-clock text-amber-400 text-[11px]"></i>
+                    <span id="timer-display" class="font-mono text-xs sm:text-sm">00:00.0</span>
                 </div>
 
                 <!-- Restart Button -->
-                <button id="btn-restart" class="glass-btn p-2 rounded-xl text-xs font-bold text-gray-200 hover:text-white flex items-center shadow" title="最初からやり直す">
+                <button id="btn-restart" class="glass-btn p-2 rounded-xl text-xs font-bold text-gray-200 hover:text-white flex items-center shadow" title="STAGE 1からやり直す">
                     <i class="fa-solid fa-rotate-right text-emerald-400"></i>
                 </button>
 
-                <!-- UI Collapse / Expand Toggle Button -->
-                <button id="btn-toggle-ui" class="glass-btn px-2 py-1.5 rounded-xl text-xs font-bold text-sky-300 hover:text-white flex items-center gap-1 shadow" title="UIを隠して広く見る">
-                    <i class="fa-solid fa-chevron-up transition-transform duration-300" id="ui-toggle-icon"></i>
+                <!-- UI Collapse Toggle Button -->
+                <button id="btn-toggle-ui" class="glass-btn px-2 py-1.5 rounded-xl text-xs font-bold text-sky-300 hover:text-white flex items-center shadow" title="設定バーの開閉">
+                    <i class="fa-solid fa-chevron-up transition-transform duration-300 text-xs" id="ui-toggle-icon"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Controls Toolbar (Difficulty & Hint) - Collapsible Container -->
-        <div id="collapsible-toolbar" class="max-w-4xl mx-auto w-full flex items-center justify-between pointer-events-auto text-xs gap-1.5 transition-all duration-300 origin-top overflow-hidden">
+        <!-- Collapsible Toolbar (Difficulty & Hint) -->
+        <div id="collapsible-toolbar" class="max-w-4xl mx-auto w-full flex items-center justify-between pointer-events-auto text-xs gap-1.5 transition-all duration-300 overflow-hidden">
             <!-- Difficulty Selector -->
             <div class="glass-panel p-1 rounded-xl flex items-center gap-1">
-                <button class="diff-btn px-2 py-1 rounded-lg font-bold text-gray-300 hover:text-white text-[11px]" data-count="80">かんたん (80)</button>
-                <button class="diff-btn px-2 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow text-[11px]" data-count="200">ふつう (200)</button>
-                <button class="diff-btn px-2 py-1 rounded-lg font-bold text-gray-300 hover:text-white text-[11px]" data-count="300">激ムズ (300)</button>
+                <button class="diff-btn px-2.5 py-1 rounded-lg font-bold text-gray-300 hover:text-white text-[11px] transition" data-count="50">かんたん (50)</button>
+                <button class="diff-btn px-2.5 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow text-[11px] transition" data-count="100">ふつう (100)</button>
+                <button class="diff-btn px-2.5 py-1 rounded-lg font-bold text-gray-300 hover:text-white text-[11px] transition" data-count="200">激ムズ (200)</button>
             </div>
 
             <!-- Hint / Give Up -->
-            <button id="btn-giveup" class="glass-btn px-2.5 py-1 rounded-xl font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1 shadow text-[11px]">
+            <button id="btn-giveup" class="glass-btn px-3 py-1.5 rounded-xl font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1.5 shadow text-[11px]">
                 <i class="fa-regular fa-lightbulb text-yellow-400"></i>
                 <span>答えを見る</span>
             </button>
         </div>
     </header>
 
-    <!-- Floating Action Buttons (Rotation & Camera Control) -->
-    <div class="absolute bottom-5 right-4 z-10 flex flex-col items-end gap-2.5 pointer-events-auto">
-        <!-- 止まらず自動回転する ON/OFF ボタン -->
-        <button id="btn-auto-rotate" class="glass-panel px-3.5 py-2.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 border border-cyan-400/60 bg-cyan-950/70 text-cyan-300 transition-all backdrop-blur-md active:scale-95 hover:bg-cyan-900/60" title="キューブ全体の自動回転を切り替え">
-            <i id="auto-rotate-icon" class="fa-solid fa-arrows-spin text-cyan-400 text-sm sm:text-base animate-spin"></i>
-            <span id="auto-rotate-text" class="text-xs font-black tracking-wide whitespace-nowrap">自動回転: ON</span>
-        </button>
+    <!-- Bottom Floating Quick Controls (Auto-Rotate & Reset Angle) -->
+    <div class="absolute bottom-4 left-0 right-0 z-20 pointer-events-none px-4">
+        <div class="max-w-4xl mx-auto flex items-center justify-between pointer-events-auto gap-2">
+            <!-- View Hint Tip -->
+            <div class="hidden sm:flex glass-panel px-3 py-1.5 rounded-xl text-[11px] text-gray-300 items-center gap-1.5">
+                <i class="fa-solid fa-eye text-cyan-400"></i>
+                <span>画面全体をぼんやり見つめると静止キューブが浮き上がります</span>
+            </div>
 
-        <!-- 正面に戻す -->
-        <button id="btn-reset-view" class="glass-panel hover:bg-white/20 active:scale-95 text-white px-3.5 py-2 rounded-2xl shadow-xl flex items-center justify-center gap-2 border border-white/20 transition backdrop-blur-md" title="視点を正面に戻す">
-            <i class="fa-solid fa-bullseye text-emerald-400 text-sm sm:text-base"></i>
-            <span class="text-xs font-bold whitespace-nowrap">正面に戻す</span>
-        </button>
+            <div class="flex items-center gap-2 ml-auto">
+                <!-- Reset View Button -->
+                <button id="btn-reset-view" class="glass-panel glass-btn px-3 py-2 rounded-xl shadow-lg flex items-center gap-1.5 text-xs font-bold text-sky-200 border border-sky-400/30">
+                    <i class="fa-solid fa-arrows-to-dot text-sky-400 text-sm"></i>
+                    <span>正面に戻す</span>
+                </button>
+
+                <!-- Auto Rotate Toggle Button (Default: ON) -->
+                <button id="btn-auto-rotate" class="glass-panel px-3.5 py-2 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold border border-cyan-400/60 bg-cyan-950/70 text-cyan-300 active:scale-95 transition-all">
+                    <i class="fa-solid fa-arrows-spin text-cyan-400 text-sm animate-spin" id="auto-rotate-icon"></i>
+                    <span id="auto-rotate-text">自動回転: ON</span>
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- Bottom Hint bar -->
-    <div class="absolute bottom-4 left-4 z-10 pointer-events-none max-w-xs hidden sm:block">
-        <div class="glass-panel py-1.5 px-3 rounded-xl text-left text-[11px] text-gray-300 shadow-xl border border-white/10 flex items-center gap-2">
-            <i class="fa-solid fa-eye text-cyan-400"></i>
-            <span>画面全体をぼんやり見つめると、止まっている1個が浮き出ます。</span>
+    <!-- Success Popup Banner (Auto Next Stage) -->
+    <div id="success-banner" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none opacity-0 scale-90 transition-all duration-300 flex flex-col items-center">
+        <div class="glass-panel bg-emerald-950/90 border border-emerald-400/60 text-white px-7 py-5 rounded-3xl shadow-2xl flex flex-col items-center gap-2 backdrop-blur-xl">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-300 flex items-center justify-center text-emerald-950 text-2xl shadow-lg">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-yellow-200 to-teal-200">
+                正解！素晴らしい！
+            </h2>
+            <p class="text-xs text-emerald-200 font-bold flex items-center gap-1.5 mt-0.5">
+                <i class="fa-solid fa-arrows-rotate animate-spin text-xs"></i>
+                <span id="success-stage-text">次のステージへ進みます...</span>
+            </p>
         </div>
     </div>
 
     <!-- Error Toast Notification -->
-    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300 transform -translate-y-2">
-        <div class="bg-rose-600/90 backdrop-blur-md text-white font-bold px-4 py-2 rounded-xl shadow-2xl flex items-center gap-2 border border-rose-400/40 text-sm">
-            <i class="fa-solid fa-circle-xmark text-lg"></i>
+    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none opacity-0 transition-all duration-300 transform -translate-y-2">
+        <div class="bg-rose-600/90 backdrop-blur-md text-white font-bold px-4 py-2 rounded-xl shadow-2xl flex items-center gap-2 border border-rose-400/40 text-xs sm:text-sm">
+            <i class="fa-solid fa-circle-xmark text-base"></i>
             <span id="toast-message">それは動いています！ (+3秒)</span>
         </div>
     </div>
 
-    <!-- Victory Modal -->
-    <div id="win-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4">
-        <div class="glass-panel bg-slate-900/95 max-w-sm w-full rounded-3xl p-6 text-center border border-amber-400/40 shadow-2xl transform scale-95 transition-transform duration-300" id="win-card">
-            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-200 flex items-center justify-center shadow-lg shadow-amber-500/30 text-amber-900 text-3xl">
-                <i class="fa-solid fa-trophy"></i>
-            </div>
-            
-            <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 mb-1">
-                素晴らしい動体視力！
-            </h2>
-            <p class="text-xs text-gray-300 mb-4">動かないキューブを見事に見つけ出しました！</p>
+    <!-- Confetti Canvas (2D) -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-30"></canvas>
 
-            <div class="grid grid-cols-2 gap-2 mb-5">
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-2.5">
-                    <span class="text-[11px] text-gray-400 block mb-0.5">クリアタイム</span>
-                    <span id="modal-time" class="text-lg font-mono font-black text-amber-300">00:15.3</span>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-2.5">
-                    <span class="text-[11px] text-gray-400 block mb-0.5">ミス回数</span>
-                    <span id="modal-miss" class="text-lg font-mono font-black text-rose-300">0回</span>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-2">
-                <button id="modal-btn-restart" class="w-full py-3 px-4 rounded-xl font-black text-slate-950 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 shadow-lg shadow-amber-500/25 active:scale-95 transition">
-                    <i class="fa-solid fa-play mr-2"></i>もう一度遊ぶ
-                </button>
-                <button id="modal-btn-share" class="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white glass-btn flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-share-nodes"></i>結果をコピーする
-                </button>
-            </div>
+    <!-- Error Fallback Screen (万が一の初期化エラー表示用) -->
+    <div id="fatal-error-screen" class="hidden fixed inset-0 z-50 bg-slate-950/95 flex items-center justify-center p-6 text-center text-white">
+        <div class="max-w-md p-6 glass-panel rounded-2xl border border-rose-500/40">
+            <i class="fa-solid fa-triangle-exclamation text-rose-400 text-3xl mb-3"></i>
+            <h2 class="text-lg font-bold mb-2">起動に問題が発生しました</h2>
+            <p id="fatal-error-msg" class="text-xs text-gray-300 mb-4"></p>
+            <button onclick="location.reload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold rounded-lg transition">ページを再読み込み</button>
         </div>
     </div>
 
-    <!-- Confetti Canvas -->
-    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-40"></canvas>
-
     <script>
         /* ==========================================================
-           1. Audio Synthesizer (Web Audio API)
+           1. Audio Synthesizer (Web Audio API - 完全自前音源)
            ========================================================== */
         class SoundFX {
             constructor() {
@@ -226,241 +230,389 @@
                     this.init();
                     const notes = [523.25, 659.25, 783.99, 1046.50];
                     notes.forEach((freq, idx) => {
-                        setTimeout(() => {
-                            this.playTone(freq, 'triangle', 0.4, 0.25);
-                        }, idx * 90);
+                        setTimeout(() => this.playTone(freq, 'triangle', 0.35, 0.22), idx * 80);
                     });
                 } catch(e) {}
             }
             playWrong() {
                 try {
                     this.init();
-                    this.playTone(140, 'sawtooth', 0.25, 0.3);
-                    setTimeout(() => {
-                        this.playTone(105, 'sawtooth', 0.35, 0.3);
-                    }, 120);
+                    this.playTone(150, 'sawtooth', 0.2, 0.25);
+                    setTimeout(() => this.playTone(110, 'sawtooth', 0.28, 0.25), 110);
                 } catch(e) {}
             }
             playGiveUp() {
                 try {
                     this.init();
-                    this.playTone(392, 'sine', 0.2, 0.2);
-                    setTimeout(() => this.playTone(523, 'sine', 0.3, 0.25), 150);
+                    this.playTone(440, 'sine', 0.15, 0.2);
+                    setTimeout(() => this.playTone(660, 'sine', 0.3, 0.2), 120);
                 } catch(e) {}
             }
         }
         const sfx = new SoundFX();
 
         /* ==========================================================
-           2. Procedural Rubik's Cube Texture Generator
+           2. Procedural Rubik's Cube Face Texture Generator (Canvas 2D)
            ========================================================== */
-        const RUBIK_COLORS = [
-            '#C41E3A', // Red
-            '#0051BA', // Blue
-            '#009E60', // Green
-            '#FFD500', // Yellow
-            '#FF5800', // Orange
-            '#FFFFFF'  // White
-        ];
-
-        function createRubikFaceTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#111215';
-            ctx.fillRect(0, 0, 256, 256);
-
-            const padding = 10;
-            const gap = 8;
-            const tileSize = (256 - padding * 2 - gap * 2) / 3;
-            const radius = 6;
-
-            for (let row = 0; row < 3; row++) {
-                for (let col = 0; col < 3; col++) {
-                    const x = padding + col * (tileSize + gap);
-                    const y = padding + row * (tileSize + gap);
-                    const color = RUBIK_COLORS[Math.floor(Math.random() * RUBIK_COLORS.length)];
-
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(x + radius, y);
-                    ctx.lineTo(x + tileSize - radius, y);
-                    ctx.quadraticCurveTo(x + tileSize, y, x + tileSize, y + radius);
-                    ctx.lineTo(x + tileSize, y + tileSize - radius);
-                    ctx.quadraticCurveTo(x + tileSize, y + tileSize, x + tileSize - radius, y + tileSize);
-                    ctx.lineTo(x + radius, y + tileSize);
-                    ctx.quadraticCurveTo(x, y + tileSize, x, y + tileSize - radius);
-                    ctx.lineTo(x, y + radius);
-                    ctx.quadraticCurveTo(x, y, x + radius, y);
-                    ctx.closePath();
-
-                    ctx.fillStyle = color;
-                    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-                    ctx.shadowBlur = 4;
-                    ctx.fill();
-
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
-
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.generateMipmaps = true;
-            return texture;
-        }
-
+        const RUBIK_COLORS = ['#C41E3A', '#0051BA', '#009E60', '#FFD500', '#FF5800', '#FFFFFF'];
         const texturePool = [];
-        for (let i = 0; i < 18; i++) {
-            texturePool.push(createRubikFaceTexture());
+
+        function generateTextures() {
+            for (let t = 0; t < 14; t++) {
+                const cv = document.createElement('canvas');
+                cv.width = 256;
+                cv.height = 256;
+                const ctx = cv.getContext('2d');
+
+                // 黒目地ベース
+                ctx.fillStyle = '#111318';
+                ctx.fillRect(0, 0, 256, 256);
+
+                const padding = 10;
+                const gap = 8;
+                const tileSize = (256 - padding * 2 - gap * 2) / 3;
+                const radius = 6;
+
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        const x = padding + c * (tileSize + gap);
+                        const y = padding + r * (tileSize + gap);
+                        const color = RUBIK_COLORS[Math.floor(Math.random() * RUBIK_COLORS.length)];
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(x + radius, y);
+                        ctx.lineTo(x + tileSize - radius, y);
+                        ctx.quadraticCurveTo(x + tileSize, y, x + tileSize, y + radius);
+                        ctx.lineTo(x + tileSize, y + tileSize - radius);
+                        ctx.quadraticCurveTo(x + tileSize, y + tileSize, x + tileSize - radius, y + tileSize);
+                        ctx.lineTo(x + radius, y + tileSize);
+                        ctx.quadraticCurveTo(x, y + tileSize, x, y + tileSize - radius);
+                        ctx.lineTo(x, y + radius);
+                        ctx.quadraticCurveTo(x, y, x + radius, y);
+                        ctx.closePath();
+
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = 'rgba(0,0,0,0.45)';
+                        ctx.shadowBlur = 4;
+                        ctx.fill();
+
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+
+                const texture = new THREE.CanvasTexture(cv);
+                texture.generateMipmaps = true;
+                texturePool.push(texture);
+            }
         }
 
-        const cubeGeometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+        // キューブのサイズを大型（3.3）に最適化し、最高200個でも密集しすぎず迫力と視認性を両立
+        const cubeGeometry = new THREE.BoxGeometry(3.3, 3.3, 3.3);
 
-        function getRandomMaterials() {
+        function getRandomCubeMaterials() {
             const mats = [];
             for (let i = 0; i < 6; i++) {
                 const tex = texturePool[Math.floor(Math.random() * texturePool.length)];
                 mats.push(new THREE.MeshStandardMaterial({
                     map: tex,
-                    roughness: 0.28,
-                    metalness: 0.1,
+                    roughness: 0.3,
+                    metalness: 0.1
                 }));
             }
             return mats;
         }
 
         /* ==========================================================
-           3. Game State & Elements
+           3. Zero-Dependency 3D Orbit & Auto-Rotate Camera Controller
+              (外部CDNに一切依存せずスマホ・PCで滑らかに動作)
+           ========================================================== */
+        class CustomOrbitControls {
+            constructor(camera, domElement) {
+                this.camera = camera;
+                this.dom = domElement;
+                this.target = new THREE.Vector3(0, -1.2, 0);
+
+                // 球面座標パラメータ
+                this.radius = 36;
+                this.targetRadius = 36;
+                this.theta = 0;          // 水平回転角
+                this.targetTheta = 0;
+                this.phi = Math.PI / 2.3; // 垂直回転角
+                this.targetPhi = Math.PI / 2.3;
+
+                this.autoRotate = true;
+                this.autoRotateSpeed = 0.005; // 滑らかな自動旋回
+                this.isPointerDown = false;
+                this.isDragging = false;
+
+                this.lastPointerX = 0;
+                this.lastPointerY = 0;
+                this.pointerDownX = 0;
+                this.pointerDownY = 0;
+                this.pointerDownTime = 0;
+
+                this.touchStartDist = 0;
+
+                this.initEvents();
+            }
+
+            initEvents() {
+                // Pointer Events (Mouse & Single Touch)
+                this.dom.addEventListener('pointerdown', (e) => this.onPointerDown(e), { passive: false });
+                window.addEventListener('pointermove', (e) => this.onPointerMove(e), { passive: false });
+                window.addEventListener('pointerup', (e) => this.onPointerUp(e), { passive: false });
+                window.addEventListener('pointercancel', (e) => this.onPointerUp(e), { passive: false });
+
+                // Wheel Zoom
+                this.dom.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    this.targetRadius += e.deltaY * 0.03;
+                    this.targetRadius = Math.max(16, Math.min(140, this.targetRadius));
+                }, { passive: false });
+
+                // Touch Pinch Zoom
+                this.dom.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        this.touchStartDist = Math.hypot(dx, dy);
+                    }
+                }, { passive: true });
+
+                this.dom.addEventListener('touchmove', (e) => {
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const dist = Math.hypot(dx, dy);
+                        if (this.touchStartDist > 0) {
+                            const delta = (this.touchStartDist - dist) * 0.08;
+                            this.targetRadius = Math.max(16, Math.min(140, this.targetRadius + delta));
+                        }
+                        this.touchStartDist = dist;
+                    }
+                }, { passive: true });
+            }
+
+            onPointerDown(e) {
+                if (e.button !== 0 && e.pointerType === 'mouse') return;
+                this.isPointerDown = true;
+                this.isDragging = false;
+                this.lastPointerX = e.clientX;
+                this.lastPointerY = e.clientY;
+                this.pointerDownX = e.clientX;
+                this.pointerDownY = e.clientY;
+                this.pointerDownTime = performance.now();
+            }
+
+            onPointerMove(e) {
+                if (!this.isPointerDown) return;
+                const dx = e.clientX - this.lastPointerX;
+                const dy = e.clientY - this.lastPointerY;
+                const totalDist = Math.hypot(e.clientX - this.pointerDownX, e.clientY - this.pointerDownY);
+
+                if (totalDist > 7) {
+                    this.isDragging = true;
+                }
+
+                if (this.isDragging) {
+                    // 指スワイプで素早く快適に回転
+                    const rotateSpeed = 0.007;
+                    this.targetTheta -= dx * rotateSpeed;
+                    this.targetPhi -= dy * rotateSpeed;
+                    // 上下反転防止のリミット
+                    this.targetPhi = Math.max(0.15, Math.min(Math.PI - 0.15, this.targetPhi));
+                }
+
+                this.lastPointerX = e.clientX;
+                this.lastPointerY = e.clientY;
+            }
+
+            onPointerUp(e) {
+                if (!this.isPointerDown) return;
+                const totalDist = Math.hypot(e.clientX - this.pointerDownX, e.clientY - this.pointerDownY);
+                const duration = performance.now() - this.pointerDownTime;
+                this.isPointerDown = false;
+
+                // スワイプ移動が7px未満かつ短時間ならタップと判定
+                if (!this.isDragging && totalDist < 8 && duration < 380) {
+                    handleTap(e.clientX, e.clientY);
+                }
+                this.isDragging = false;
+            }
+
+            resetFront() {
+                this.targetTheta = 0;
+                this.targetPhi = Math.PI / 2.3;
+                fitCameraDistance();
+            }
+
+            update() {
+                // 自動回転がONなら、指で触っていない間は止まらずに自動旋回を継続
+                if (this.autoRotate && !this.isPointerDown) {
+                    this.targetTheta += this.autoRotateSpeed;
+                }
+
+                // 滑らかなダンピング補間 (Lerp)
+                this.theta += (this.targetTheta - this.theta) * 0.1;
+                this.phi += (this.targetPhi - this.phi) * 0.1;
+                this.radius += (this.targetRadius - this.radius) * 0.1;
+
+                // 球面座標からカメラのXYZ座標を算出
+                const sinPhiRadius = Math.sin(this.phi) * this.radius;
+                this.camera.position.x = this.target.x + sinPhiRadius * Math.sin(this.theta);
+                this.camera.position.y = this.target.y + Math.cos(this.phi) * this.radius;
+                this.camera.position.z = this.target.z + sinPhiRadius * Math.cos(this.theta);
+
+                this.camera.lookAt(this.target);
+            }
+        }
+
+        /* ==========================================================
+           4. Game State & Elements
            ========================================================== */
         const state = {
-            cubeCount: 200,
+            cubeCount: 100,
+            stage: 1,
             cubes: [],
             targetCube: null,
             targetIndex: -1,
             isGameOver: false,
+            isTransitioning: false,
             startTime: null,
             elapsedSeconds: 0,
             timerInterval: null,
-            missCount: 0,
-            pointerDownPos: { x: 0, y: 0 },
-            pointerDownTime: 0
+            missCount: 0
         };
 
-        const container = document.getElementById('canvas-container');
+        // DOM Elements
+        const canvasContainer = document.getElementById('canvas-container');
+        const webglCanvas = document.getElementById('webgl-canvas');
+        const stageDisplay = document.getElementById('stage-display');
         const timerDisplay = document.getElementById('timer-display');
-        const statusDisplay = document.getElementById('status-display');
         const cubeCountLabel = document.getElementById('cube-count-label');
-        const btnRestart = document.getElementById('btn-restart');
-        const btnGiveUp = document.getElementById('btn-giveup');
+        const successBanner = document.getElementById('success-banner');
+        const successStageText = document.getElementById('success-stage-text');
         const toast = document.getElementById('toast');
         const toastMsg = document.getElementById('toast-message');
-        const winModal = document.getElementById('win-modal');
-        const winCard = document.getElementById('win-card');
-        const modalTime = document.getElementById('modal-time');
-        const modalMiss = document.getElementById('modal-miss');
-        const modalBtnRestart = document.getElementById('modal-btn-restart');
-        const modalBtnShare = document.getElementById('modal-btn-share');
+
+        const btnRestart = document.getElementById('btn-restart');
+        const btnToggleUI = document.getElementById('btn-toggle-ui');
+        const uiToggleIcon = document.getElementById('ui-toggle-icon');
+        const collapsibleToolbar = document.getElementById('collapsible-toolbar');
+        const btnGiveUp = document.getElementById('btn-giveup');
+        const btnResetView = document.getElementById('btn-reset-view');
+        const btnAutoRotate = document.getElementById('btn-auto-rotate');
+        const autoRotateIcon = document.getElementById('auto-rotate-icon');
+        const autoRotateText = document.getElementById('auto-rotate-text');
         const diffButtons = document.querySelectorAll('.diff-btn');
 
         /* ==========================================================
-           4. Three.js Scene Setup
+           5. Three.js Scene Setup & Frustum-Fitting
            ========================================================== */
-        let scene, camera, renderer, controls, raycaster, mouse;
+        let scene, camera, renderer, customControls, raycaster, mouse;
         let goldRing = null;
+
+        // キューブ群の拡がりサイズを保持
+        let currentFieldBounds = { rx: 20, ry: 25, rz: 20, maxR: 25 };
+
+        function calculateFieldBounds(count, aspect) {
+            // 最大200個でも画面全体に美しく広がるよう、縦横比と個数に合わせて最適配分
+            const baseR = Math.cbrt(count) * 6.5;
+            const rx = aspect < 0.75 ? baseR * 1.15 : baseR * 1.5;
+            const ry = aspect < 0.75 ? baseR * 1.95 : baseR * 1.25;
+            const rz = baseR * 1.35;
+            const maxR = Math.max(rx, ry, rz);
+            return { rx, ry, rz, maxR };
+        }
+
+        function fitCameraDistance() {
+            if (!camera || !customControls) return;
+            const aspect = window.innerWidth / window.innerHeight;
+            currentFieldBounds = calculateFieldBounds(state.cubeCount, aspect);
+
+            // カメラを引きすぎず、画面いっぱいにキューブが迫る距離を算出
+            const effectiveFovTan = Math.tan((camera.fov * Math.PI) / 360);
+            const distY = (currentFieldBounds.ry * 0.94) / effectiveFovTan;
+            const distX = (currentFieldBounds.rx * 0.94) / (effectiveFovTan * aspect);
+
+            // 個数に応じた最適カメラ距離
+            const optimalDist = Math.max(distY, distX, 25);
+            customControls.targetRadius = optimalDist;
+
+            // スマホ縦画面でもヘッダーに被らないよう中心を微調整
+            const yTarget = aspect < 0.75 ? -1.2 : -0.5;
+            customControls.target.set(0, yTarget, 0);
+        }
 
         function initScene() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0c1022);
-            scene.fog = new THREE.FogExp2(0x0c1022, 0.012);
+            scene.background = new THREE.Color(0x0b0f1e);
+            scene.fog = new THREE.FogExp2(0x0b0f1e, 0.0035);
 
             const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(48, aspect, 0.1, 200);
+            // FOVを50度に広げて視野のダイナミック感を向上
+            camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 400);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+            renderer = new THREE.WebGLRenderer({
+                canvas: webglCanvas,
+                antialias: true,
+                powerPreference: 'high-performance'
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.domElement.style.touchAction = 'none';
-            container.appendChild(renderer.domElement);
 
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.08;
-            controls.rotateSpeed = 1.4;
-            controls.zoomSpeed = 1.0;
-            controls.panSpeed = 0.8;
-            controls.maxDistance = 85;
-            controls.minDistance = 6;
-            // 止まらずに滑らかに360度自動旋回する設定
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = 1.3;
-            controls.touches = {
-                ONE: THREE.TOUCH.ROTATE,
-                TWO: THREE.TOUCH.DOLLY_PAN
-            };
+            customControls = new CustomOrbitControls(camera, webglCanvas);
+            fitCameraDistance();
+            customControls.update();
 
-            updateCameraPosition();
+            // ライティング
+            const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+            scene.add(ambient);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
-            scene.add(ambientLight);
-
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.9);
-            dirLight1.position.set(20, 40, 30);
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight1.position.set(25, 45, 30);
             scene.add(dirLight1);
 
-            const dirLight2 = new THREE.DirectionalLight(0x70a5ff, 0.6);
-            dirLight2.position.set(-30, -20, -20);
+            const dirLight2 = new THREE.DirectionalLight(0x75a0ff, 0.65);
+            dirLight2.position.set(-30, -20, -25);
             scene.add(dirLight2);
 
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
             window.addEventListener('resize', onWindowResize);
-            renderer.domElement.addEventListener('pointerdown', onPointerDown);
-            renderer.domElement.addEventListener('pointerup', onPointerUp);
-        }
-
-        function updateCameraPosition() {
-            if (window.innerWidth < 640) {
-                camera.position.set(0, 10, 38);
-                if (controls) controls.target.set(0, -1.8, 0);
-            } else {
-                camera.position.set(0, 12, 28);
-                if (controls) controls.target.set(0, -1.0, 0);
-            }
         }
 
         function onWindowResize() {
+            if (!camera || !renderer) return;
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            resizeConfettiCanvas();
+            fitCameraDistance();
+            resizeConfetti();
         }
 
         /* ==========================================================
-           5. Timer & Toast UI
+           6. Timer & Toast UI
            ========================================================== */
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            const tenths = Math.floor((seconds % 1) * 10);
-            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${tenths}`;
-        }
-
-        function updateTimerDisplay() {
-            timerDisplay.textContent = formatTime(state.elapsedSeconds);
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            const ms = Math.floor((sec % 1) * 10);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ms}`;
         }
 
         function startTimer() {
             clearInterval(state.timerInterval);
-            state.startTime = Date.now();
+            state.startTime = performance.now();
             state.timerInterval = setInterval(() => {
                 if (!state.isGameOver) {
-                    state.elapsedSeconds = (Date.now() - state.startTime) / 1000;
-                    updateTimerDisplay();
+                    state.elapsedSeconds = (performance.now() - state.startTime) / 1000;
+                    timerDisplay.textContent = formatTime(state.elapsedSeconds);
                 }
             }, 100);
         }
@@ -478,46 +630,165 @@
         }
 
         /* ==========================================================
-           6. Game Generation
+           7. Target Highlight Effect (ゴールドリング＆発光)
            ========================================================== */
-        function generateGame() {
-            state.cubes.forEach(c => {
-                scene.remove(c.mesh);
+        function createTargetHighlight(targetMesh) {
+            if (goldRing) {
+                scene.remove(goldRing);
+                goldRing = null;
+            }
+
+            // キューブ大型化（3.3）に合わせてリングサイズを調整 (4.6)
+            const ringGeo = new THREE.TorusGeometry(4.6, 0.2, 16, 64);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xffdf00,
+                wireframe: false,
+                transparent: true,
+                opacity: 0.9
             });
+            goldRing = new THREE.Mesh(ringGeo, ringMat);
+            goldRing.position.copy(targetMesh.position);
+            scene.add(goldRing);
+
+            const goldMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            targetMesh.material = [goldMat, goldMat, goldMat, goldMat, goldMat, goldMat];
+        }
+
+        /* ==========================================================
+           8. Game Generation (新ステージ生成)
+           ========================================================== */
+        function generateGame(isNextStage = false) {
+            state.cubes.forEach(c => scene.remove(c.mesh));
             state.cubes = [];
             if (goldRing) {
                 scene.remove(goldRing);
                 goldRing = null;
             }
 
-            state.isGameOver = false;
-            state.missCount = 0;
-            state.elapsedSeconds = 0;
-            statusDisplay.textContent = '0/1';
-            cubeCountLabel.textContent = `${state.cubeCount}個の中に1つだけ！`;
+            if (isNextStage) {
+                state.stage++;
+            } else {
+                state.stage = 1;
+                state.elapsedSeconds = 0;
+                timerDisplay.textContent = '00:00.0';
+            }
 
-            const targetY = (window.innerWidth < 640) ? -1.8 : -1.0;
-            controls.target.set(0, targetY, 0);
-            controls.enabled = true;
+            state.isGameOver = false;
+            state.isTransitioning = false;
+            state.missCount = 0;
+            stageDisplay.textContent = `STAGE ${state.stage}`;
+            cubeCountLabel.textContent = `${state.cubeCount}個の中に1つだけ！`;
 
             state.targetIndex = Math.floor(Math.random() * state.cubeCount);
 
             const count = state.cubeCount;
-            const isMobile = window.innerWidth < 640;
-            const spreadX = isMobile ? 12 : 20;
-            const spreadY = isMobile ? 18 : 13;
-            const spreadZ = 16;
-            const yOffset = isMobile ? -2.0 : -1.2;
+            fitCameraDistance();
 
+            const bounds = currentFieldBounds;
+            const yOffset = customControls ? customControls.target.y : -1.0;
+
+            // 最大200個でもキューブが重なり合わないよう個数に応じた最小距離を設定
+            const minSpacing = count <= 50 ? 5.8 : (count <= 100 ? 5.2 : 4.8);
+            const minSpacingSq = minSpacing * minSpacing;
+
+            // 多層シェル＋フィボナッチ球面サンプリングで画面全体に立体的に散布
+            const numShells = count <= 50 ? 3 : (count <= 100 ? 4 : 5);
+
+            const shellRadii = [];
+            let totalWeight = 0;
+            for (let s = 0; s < numShells; s++) {
+                const rFrac = 0.35 + (s / Math.max(1, numShells - 1)) * 0.65;
+                shellRadii.push(rFrac);
+                totalWeight += rFrac * rFrac;
+            }
+
+            let remaining = count;
+            const shellCounts = [];
+            for (let s = 0; s < numShells; s++) {
+                if (s === numShells - 1) {
+                    shellCounts.push(remaining);
+                } else {
+                    const c = Math.max(3, Math.round(count * (shellRadii[s] * shellRadii[s]) / totalWeight));
+                    shellCounts.push(c);
+                    remaining -= c;
+                }
+            }
+
+            const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+            const generatedPositions = [];
+
+            for (let s = 0; s < numShells; s++) {
+                const nPoints = shellCounts[s];
+                const rFrac = shellRadii[s];
+                const rotOffset = Math.random() * Math.PI * 2;
+
+                for (let j = 0; j < nPoints; j++) {
+                    const yNorm = 1 - (j / Math.max(1, nPoints - 1)) * 2;
+                    const radiusAtY = Math.sqrt(Math.max(0, 1 - yNorm * yNorm));
+                    const phi = j * goldenAngle + rotOffset;
+
+                    const jitterR = rFrac + (Math.random() - 0.5) * 0.08;
+                    const px = Math.cos(phi) * radiusAtY * bounds.rx * jitterR;
+                    const py = yNorm * bounds.ry * jitterR + yOffset;
+                    const pz = Math.sin(phi) * radiusAtY * bounds.rz * jitterR;
+
+                    let posValid = true;
+                    for (let p = 0; p < generatedPositions.length; p++) {
+                        const gp = generatedPositions[p];
+                        const dx = px - gp.x;
+                        const dy = py - gp.y;
+                        const dz = pz - gp.z;
+                        if (dx * dx + dy * dy + dz * dz < minSpacingSq) {
+                            posValid = false;
+                            break;
+                        }
+                    }
+
+                    let finalX = px;
+                    let finalY = py;
+                    let finalZ = pz;
+
+                    if (!posValid) {
+                        for (let attempt = 0; attempt < 8; attempt++) {
+                            const testX = px + (Math.random() - 0.5) * 4.0;
+                            const testY = py + (Math.random() - 0.5) * 4.0;
+                            const testZ = pz + (Math.random() - 0.5) * 4.0;
+                            let ok = true;
+                            for (let p = 0; p < generatedPositions.length; p++) {
+                                const gp = generatedPositions[p];
+                                const ddx = testX - gp.x;
+                                const ddy = testY - gp.y;
+                                const ddz = testZ - gp.z;
+                                if (ddx * ddx + ddy * ddy + ddz * ddz < minSpacingSq * 0.85) {
+                                    ok = false;
+                                    break;
+                                }
+                            }
+                            if (ok) {
+                                finalX = testX;
+                                finalY = testY;
+                                finalZ = testZ;
+                                break;
+                            }
+                        }
+                    }
+
+                    generatedPositions.push({ x: finalX, y: finalY, z: finalZ });
+                }
+            }
+
+            // キューブの作成とシーンへの配置
             for (let i = 0; i < count; i++) {
-                const materials = getRandomMaterials();
+                const materials = getRandomCubeMaterials();
                 const mesh = new THREE.Mesh(cubeGeometry, materials);
 
-                const posX = (Math.random() - 0.5) * spreadX * 2.0;
-                const posY = (Math.random() - 0.5) * spreadY * 1.8 + yOffset;
-                const posZ = (Math.random() - 0.5) * spreadZ * 1.4;
-                mesh.position.set(posX, posY, posZ);
+                const pos = generatedPositions[i] || {
+                    x: (Math.random() - 0.5) * bounds.rx,
+                    y: (Math.random() - 0.5) * bounds.ry + yOffset,
+                    z: (Math.random() - 0.5) * bounds.rz
+                };
 
+                mesh.position.set(pos.x, pos.y, pos.z);
                 mesh.rotation.set(
                     Math.random() * Math.PI * 2,
                     Math.random() * Math.PI * 2,
@@ -526,17 +797,19 @@
 
                 const isTarget = (i === state.targetIndex);
 
-                const minSpeed = 0.012;
-                const maxSpeed = 0.038;
-                const signX = Math.random() > 0.5 ? 1 : -1;
-                const signY = Math.random() > 0.5 ? 1 : -1;
-                const signZ = Math.random() > 0.5 ? 1 : -1;
-
-                const rotSpeed = isTarget ? { x: 0, y: 0, z: 0 } : {
-                    x: signX * (minSpeed + Math.random() * (maxSpeed - minSpeed)),
-                    y: signY * (minSpeed + Math.random() * (maxSpeed - minSpeed)),
-                    z: signZ * (minSpeed * 0.5 + Math.random() * 0.01)
-                };
+                let rotSpeed = { x: 0, y: 0, z: 0 };
+                if (!isTarget) {
+                    const minSpd = 0.015;
+                    const maxSpd = 0.040;
+                    const sx = Math.random() > 0.5 ? 1 : -1;
+                    const sy = Math.random() > 0.5 ? 1 : -1;
+                    const sz = Math.random() > 0.5 ? 1 : -1;
+                    rotSpeed = {
+                        x: sx * (minSpd + Math.random() * (maxSpd - minSpd)),
+                        y: sy * (minSpd + Math.random() * (maxSpd - minSpd)),
+                        z: sz * (minSpd * 0.6 + Math.random() * 0.01)
+                    };
+                }
 
                 const cubeData = {
                     mesh: mesh,
@@ -559,132 +832,10 @@
         }
 
         /* ==========================================================
-           7. Win & Loss Handlers
+           9. Tap Handling & Progression
            ========================================================== */
-        function onMiss(cubeData) {
-            sfx.playWrong();
-            state.missCount++;
-            state.startTime -= 3000;
-            state.elapsedSeconds += 3;
-            updateTimerDisplay();
-            showToast('動いています！ (+3秒)');
-
-            const redMat = new THREE.MeshBasicMaterial({ color: 0xff1e3a });
-            cubeData.mesh.material = [redMat, redMat, redMat, redMat, redMat, redMat];
-            cubeData.flashTimer = 0.35;
-        }
-
-        function onSuccess(cubeData, isSurrender = false) {
-            state.isGameOver = true;
-            clearInterval(state.timerInterval);
-            statusDisplay.textContent = '1/1';
-
-            highlightTargetCube(cubeData.mesh);
-
-            if (!isSurrender) {
-                sfx.playCorrect();
-                fireConfetti();
-                setTimeout(() => showVictoryModal(), 900);
-            } else {
-                sfx.playGiveUp();
-                showToast('動かないキューブはこれでした！');
-            }
-
-            focusCameraOnTarget(cubeData.mesh.position);
-        }
-
-        function highlightTargetCube(mesh) {
-            const goldMaterials = [];
-            for (let i = 0; i < 6; i++) {
-                goldMaterials.push(new THREE.MeshStandardMaterial({
-                    color: 0xffd700,
-                    emissive: 0xffaa00,
-                    emissiveIntensity: 0.6,
-                    roughness: 0.2,
-                    metalness: 0.7
-                }));
-            }
-            mesh.material = goldMaterials;
-
-            if (!goldRing) {
-                const ringGeo = new THREE.TorusGeometry(1.6, 0.08, 16, 64);
-                const ringMat = new THREE.MeshBasicMaterial({
-                    color: 0xffea00,
-                    transparent: true,
-                    opacity: 0.9
-                });
-                goldRing = new THREE.Mesh(ringGeo, ringMat);
-                scene.add(goldRing);
-            }
-            goldRing.position.copy(mesh.position);
-            goldRing.scale.set(1, 1, 1);
-        }
-
-        function focusCameraOnTarget(targetPos) {
-            const offset = new THREE.Vector3(2.5, 2.5, 4.5);
-            const targetCamPos = targetPos.clone().add(offset);
-
-            let progress = 0;
-            const startCamPos = camera.position.clone();
-            const startControlsTarget = controls.target.clone();
-
-            function animZoom() {
-                progress += 0.035;
-                if (progress <= 1) {
-                    camera.position.lerpVectors(startCamPos, targetCamPos, easeOutQuad(progress));
-                    controls.target.lerpVectors(startControlsTarget, targetPos, easeOutQuad(progress));
-                    requestAnimationFrame(animZoom);
-                } else {
-                    camera.position.copy(targetCamPos);
-                    controls.target.copy(targetPos);
-                }
-            }
-            animZoom();
-        }
-
-        function easeOutQuad(t) {
-            return t * (2 - t);
-        }
-
-        function showVictoryModal() {
-            modalTime.textContent = formatTime(state.elapsedSeconds);
-            modalMiss.textContent = `${state.missCount}回`;
-
-            winModal.classList.remove('opacity-0', 'pointer-events-none');
-            winModal.classList.add('opacity-100');
-            winCard.classList.remove('scale-95');
-            winCard.classList.add('scale-100');
-        }
-
-        function hideVictoryModal() {
-            winModal.classList.add('opacity-0', 'pointer-events-none');
-            winModal.classList.remove('opacity-100');
-            winCard.classList.add('scale-95');
-            winCard.classList.remove('scale-100');
-        }
-
-        /* ==========================================================
-           8. Pointer & Tap Handler
-           ========================================================== */
-        function onPointerDown(e) {
-            state.pointerDownPos = { x: e.clientX, y: e.clientY };
-            state.pointerDownTime = Date.now();
-            sfx.init();
-        }
-
-        function onPointerUp(e) {
-            const deltaX = Math.abs(e.clientX - state.pointerDownPos.x);
-            const deltaY = Math.abs(e.clientY - state.pointerDownPos.y);
-            const distance = Math.hypot(deltaX, deltaY);
-            const deltaTime = Date.now() - state.pointerDownTime;
-
-            if (distance < 8 && deltaTime < 450) {
-                handleTap(e.clientX, e.clientY);
-            }
-        }
-
         function handleTap(clientX, clientY) {
-            if (state.isGameOver) return;
+            if (state.isGameOver || state.isTransitioning) return;
 
             mouse.x = (clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(clientY / window.innerHeight) * 2 + 1;
@@ -698,39 +849,83 @@
                 const cubeData = hitMesh.userData;
 
                 if (cubeData.isTarget) {
-                    onSuccess(cubeData, false);
+                    onTargetFound(cubeData);
                 } else {
-                    onMiss(cubeData);
+                    onTargetMiss(cubeData);
                 }
             }
         }
 
+        function onTargetMiss(cubeData) {
+            sfx.playWrong();
+            state.missCount++;
+            state.startTime -= 3000; // 3秒ペナルティ加算
+            state.elapsedSeconds += 3;
+            timerDisplay.textContent = formatTime(state.elapsedSeconds);
+            showToast('動いています！ (+3秒)');
+
+            const redMat = new THREE.MeshBasicMaterial({ color: 0xff2244 });
+            cubeData.mesh.material = [redMat, redMat, redMat, redMat, redMat, redMat];
+            cubeData.flashTimer = 0.35;
+        }
+
+        function onTargetFound(cubeData) {
+            state.isTransitioning = true;
+            state.isGameOver = true;
+
+            sfx.playCorrect();
+            createTargetHighlight(cubeData.mesh);
+            fireConfetti();
+
+            successStageText.textContent = `STAGE ${state.stage} クリア！ 次へ進みます...`;
+            successBanner.classList.remove('opacity-0', 'scale-90');
+            successBanner.classList.add('opacity-100', 'scale-100');
+
+            // 1.2秒後に自動で次ステージへスムーズに移行！
+            setTimeout(() => {
+                successBanner.classList.remove('opacity-100', 'scale-100');
+                successBanner.classList.add('opacity-0', 'scale-90');
+                generateGame(true);
+            }, 1200);
+        }
+
+        function giveUpAndShowTarget() {
+            if (state.isGameOver || !state.targetCube) return;
+            state.isGameOver = true;
+            sfx.playGiveUp();
+            createTargetHighlight(state.targetCube.mesh);
+            showToast('動かないキューブはこれでした！');
+            setTimeout(() => {
+                generateGame(false);
+            }, 2500);
+        }
+
         /* ==========================================================
-           9. Confetti Particle System
+           10. Confetti Particles (完全自前 2D Canvas)
            ========================================================== */
         const confettiCanvas = document.getElementById('confetti-canvas');
         const cCtx = confettiCanvas.getContext('2d');
         let confettiParticles = [];
         let confettiActive = false;
 
-        function resizeConfettiCanvas() {
+        function resizeConfetti() {
             confettiCanvas.width = window.innerWidth;
             confettiCanvas.height = window.innerHeight;
         }
-        resizeConfettiCanvas();
+        resizeConfetti();
 
         function fireConfetti() {
             confettiParticles = [];
             confettiActive = true;
             const colors = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#fbbf24', '#ffffff'];
 
-            for (let i = 0; i < 90; i++) {
+            for (let i = 0; i < 85; i++) {
                 confettiParticles.push({
-                    x: confettiCanvas.width * 0.5 + (Math.random() - 0.5) * 80,
-                    y: confettiCanvas.height * 0.5 + (Math.random() - 0.5) * 80,
-                    vx: (Math.random() - 0.5) * 18,
-                    vy: (Math.random() - 1.2) * 16 - 3,
-                    size: Math.random() * 8 + 6,
+                    x: confettiCanvas.width * 0.5 + (Math.random() - 0.5) * 60,
+                    y: confettiCanvas.height * 0.5 + (Math.random() - 0.5) * 60,
+                    vx: (Math.random() - 0.5) * 16,
+                    vy: (Math.random() - 1.2) * 16 - 2,
+                    size: Math.random() * 8 + 5,
                     color: colors[Math.floor(Math.random() * colors.length)],
                     rot: Math.random() * 360,
                     rotSpeed: (Math.random() - 0.5) * 10,
@@ -752,7 +947,7 @@
                 p.rot += p.rotSpeed;
 
                 if (p.y > confettiCanvas.height * 0.6) {
-                    p.opacity -= 0.018;
+                    p.opacity -= 0.02;
                 }
 
                 if (p.opacity > 0) {
@@ -774,24 +969,24 @@
         }
 
         /* ==========================================================
-           10. Main Animation Loop
+           11. Main Render & Animation Loop
            ========================================================== */
-        let lastTime = performance.now();
+        let lastFrameTime = performance.now();
 
         function animate() {
             requestAnimationFrame(animate);
 
             const now = performance.now();
-            const delta = Math.min((now - lastTime) / 1000, 0.1);
-            lastTime = now;
+            const delta = Math.min((now - lastFrameTime) / 1000, 0.1);
+            lastFrameTime = now;
 
+            // キューブの回転更新（ターゲット以外が回転）
             state.cubes.forEach(c => {
                 if (!c.isTarget) {
                     c.mesh.rotation.x += c.rotSpeed.x;
                     c.mesh.rotation.y += c.rotSpeed.y;
                     c.mesh.rotation.z += c.rotSpeed.z;
                 }
-
                 if (c.flashTimer > 0) {
                     c.flashTimer -= delta;
                     if (c.flashTimer <= 0) {
@@ -800,55 +995,53 @@
                 }
             });
 
+            // 正解キューブのゴールドリングアニメーション
             if (goldRing) {
                 goldRing.rotation.x += 0.02;
                 goldRing.rotation.y += 0.03;
-                const scale = 1 + Math.sin(now * 0.006) * 0.12;
-                goldRing.scale.set(scale, scale, scale);
+                const sc = 1 + Math.sin(now * 0.007) * 0.12;
+                goldRing.scale.set(sc, sc, sc);
             }
 
-            controls.update();
+            if (customControls) {
+                customControls.update();
+            }
+
             renderer.render(scene, camera);
             updateConfetti();
         }
 
         /* ==========================================================
-           11. Event Listeners & UI Binding
+           12. UI Event Bindings
            ========================================================== */
-        const btnToggleUI = document.getElementById('btn-toggle-ui');
-        const collapsibleToolbar = document.getElementById('collapsible-toolbar');
-        const uiToggleIcon = document.getElementById('ui-toggle-icon');
-        const btnResetView = document.getElementById('btn-reset-view');
-        const btnAutoRotate = document.getElementById('btn-auto-rotate');
-        const autoRotateIcon = document.getElementById('auto-rotate-icon');
-        const autoRotateText = document.getElementById('auto-rotate-text');
-        let isUICollapsed = false;
-        let isAutoRotating = true; // デフォルトで自動回転ON
+        // 自動回転切り替え
+        let isAutoRotating = true;
+        function setAutoRotate(enabled) {
+            isAutoRotating = enabled;
+            if (customControls) customControls.autoRotate = enabled;
 
-        // キューブ全体の止まらない自動回転 ON/OFF 切り替え
-        function setAutoRotate(enable, showNotify = true) {
-            isAutoRotating = enable;
-            if (controls) controls.autoRotate = enable;
-
-            if (enable) {
-                btnAutoRotate.className = "glass-panel px-3.5 py-2.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 border border-cyan-400/60 bg-cyan-950/70 text-cyan-300 transition-all backdrop-blur-md active:scale-95 hover:bg-cyan-900/60";
-                autoRotateIcon.className = "fa-solid fa-arrows-spin text-cyan-400 text-sm sm:text-base animate-spin";
+            if (enabled) {
+                btnAutoRotate.className = "glass-panel px-3.5 py-2 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold border border-cyan-400/60 bg-cyan-950/70 text-cyan-300 active:scale-95 transition-all";
+                autoRotateIcon.className = "fa-solid fa-arrows-spin text-cyan-400 text-sm animate-spin";
                 autoRotateText.textContent = "自動回転: ON";
-                if (showNotify) showToast('🔄 自動回転: ON (指を離しても回り続けます)');
+                showToast('🔄 自動回転: ON (指を離すと回り続けます)');
             } else {
-                btnAutoRotate.className = "glass-panel px-3.5 py-2.5 rounded-2xl shadow-xl flex items-center justify-center gap-2 border border-white/20 bg-slate-900/60 text-gray-300 transition-all backdrop-blur-md active:scale-95 hover:bg-white/10";
-                autoRotateIcon.className = "fa-solid fa-pause text-gray-400 text-sm sm:text-base";
+                btnAutoRotate.className = "glass-panel px-3.5 py-2 rounded-xl shadow-lg flex items-center gap-2 text-xs font-bold border border-white/20 bg-slate-900/60 text-gray-300 active:scale-95 transition-all";
+                autoRotateIcon.className = "fa-solid fa-pause text-gray-400 text-sm";
                 autoRotateText.textContent = "自動回転: OFF";
-                if (showNotify) showToast('⏸️ 自動回転: OFF');
+                showToast('⏸️ 自動回転: OFF');
             }
         }
 
-        function toggleAutoRotate() {
-            setAutoRotate(!isAutoRotating, true);
-        }
+        btnAutoRotate.addEventListener('click', () => setAutoRotate(!isAutoRotating));
 
-        btnAutoRotate.addEventListener('click', toggleAutoRotate);
+        // 正面に戻す
+        btnResetView.addEventListener('click', () => {
+            if (customControls) customControls.resetFront();
+        });
 
+        // UI折りたたみトグル
+        let isUICollapsed = false;
         btnToggleUI.addEventListener('click', () => {
             isUICollapsed = !isUICollapsed;
             if (isUICollapsed) {
@@ -858,7 +1051,7 @@
                 uiToggleIcon.classList.remove('fa-chevron-up');
                 uiToggleIcon.classList.add('fa-chevron-down');
             } else {
-                collapsibleToolbar.style.maxHeight = '100px';
+                collapsibleToolbar.style.maxHeight = '120px';
                 collapsibleToolbar.style.opacity = '1';
                 collapsibleToolbar.style.pointerEvents = 'auto';
                 uiToggleIcon.classList.remove('fa-chevron-down');
@@ -866,53 +1059,16 @@
             }
         });
 
-        btnResetView.addEventListener('click', () => {
-            updateCameraPosition();
-            controls.update();
-            if (isAutoRotating) {
-                controls.autoRotate = true;
-            }
-        });
-
+        // やり直す
         btnRestart.addEventListener('click', () => {
             sfx.init();
-            hideVictoryModal();
-            generateGame();
-            if (isAutoRotating) {
-                controls.autoRotate = true;
-            }
+            generateGame(false);
         });
 
-        btnGiveUp.addEventListener('click', () => {
-            if (state.isGameOver) return;
-            onSuccess(state.targetCube, true);
-        });
+        // 答えを見る
+        btnGiveUp.addEventListener('click', giveUpAndShowTarget);
 
-        modalBtnRestart.addEventListener('click', () => {
-            hideVictoryModal();
-            generateGame();
-            if (isAutoRotating) {
-                controls.autoRotate = true;
-            }
-        });
-
-        modalBtnShare.addEventListener('click', () => {
-            const timeStr = formatTime(state.elapsedSeconds);
-            const text = `【動かないキューブはどれ？】\n${state.cubeCount}個の中から動かないキューブを【${timeStr}】(ミス${state.missCount}回) で発見しました！✨\n#動かないキューブゲーム #脳トレ`;
-            
-            try {
-                const temp = document.createElement('textarea');
-                temp.value = text;
-                document.body.appendChild(temp);
-                temp.select();
-                document.execCommand('copy');
-                document.body.removeChild(temp);
-                showToast('結果をクリップボードにコピーしました！');
-            } catch(e) {
-                showToast('コピーに失敗しました');
-            }
-        });
-
+        // 難易度切り替え
         diffButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 diffButtons.forEach(b => {
@@ -923,19 +1079,32 @@
                 btn.classList.remove('text-gray-300');
 
                 state.cubeCount = parseInt(btn.dataset.count);
-                hideVictoryModal();
-                generateGame();
+                generateGame(false);
             });
         });
 
         /* ==========================================================
-           12. Window Onload Initialization
+           13. 安全な初期化シーケンス (Error Fallback 付き)
            ========================================================== */
-        window.onload = function () {
-            initScene();
-            generateGame();
-            animate();
-        };
+        window.addEventListener('load', () => {
+            try {
+                if (typeof THREE === 'undefined') {
+                    throw new Error('Three.jsの読み込みに失敗しました。ネットワーク接続を確認してください。');
+                }
+                generateTextures();
+                initScene();
+                generateGame(false);
+                animate();
+            } catch (err) {
+                console.error(err);
+                const errScreen = document.getElementById('fatal-error-screen');
+                const errMsg = document.getElementById('fatal-error-msg');
+                if (errScreen && errMsg) {
+                    errMsg.textContent = err.message || 'ゲームの初期化中にエラーが発生しました。';
+                    errScreen.classList.remove('hidden');
+                }
+            }
+        });
     </script>
 </body>
 </html>
