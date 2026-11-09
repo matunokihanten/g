@@ -3,261 +3,142 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>回転双方向錯視 ラボ (Spinning Illusion Lab - Dancer & Chair)</title>
+  <title>究極の双方向錯視ラボ (Ultimate Spinning Illusion Lab)</title>
   <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     body {
-      background-color: #0b0c0f;
+      background-color: #080a0d;
       color: #f0f3f6;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
       height: 100dvh;
-      padding: env(safe-area-inset-top, 6px) 10px env(safe-area-inset-bottom, 6px) 10px;
+      padding: env(safe-area-inset-top, 6px) 8px env(safe-area-inset-bottom, 6px) 8px;
       user-select: none;
     }
 
-    header {
-      width: 100%;
-      max-width: 640px;
-      text-align: center;
-      flex-shrink: 0;
-      padding-top: 2px;
-    }
-    h1 {
-      margin: 0 0 2px;
-      font-size: clamp(0.92rem, 3.6vw, 1.2rem);
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
+    header { width: 100%; max-width: 640px; text-align: center; flex-shrink: 0; padding-top: 2px; }
+    h1 { margin: 0 0 4px; font-size: clamp(0.92rem, 3.6vw, 1.15rem); font-weight: 700; letter-spacing: 0.02em; }
+    
     .status-bar {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      font-size: clamp(0.68rem, 2.3vw, 0.78rem);
-      color: #9ba3af;
-      margin-top: 2px;
+      display: flex; justify-content: center; gap: 8px;
+      font-size: clamp(0.65rem, 2.2vw, 0.75rem); color: #9ba3af; margin-top: 2px;
     }
     .badge {
-      background: #181b22;
-      border: 1px solid #2d3340;
-      padding: 2px 8px;
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      background: #15181e; border: 1px solid #282d38; padding: 3px 8px;
+      border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;
     }
-    .badge strong {
-      color: #58a6ff;
-    }
+    .badge strong { color: #58a6ff; }
 
     .stage {
-      display: flex;
-      gap: clamp(6px, 1.8vw, 16px);
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      flex: 1;
-      min-height: 0;
-      padding: 4px 0;
+      display: flex; gap: clamp(4px, 1.5vw, 12px); align-items: center; justify-content: center;
+      width: 100%; flex: 1; min-height: 0; padding: 4px 0;
     }
 
-    .dancer-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      min-height: 0;
-      flex: 1 1 0;
-      max-width: 200px;
-    }
-    .dancer-container.main {
-      flex: 1.35 1 0;
-      max-width: 270px;
-    }
-    .stage.guides-hidden .dancer-container.main {
-      max-width: 340px;
-      flex: 1 1 100%;
-    }
+    .dancer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 0; flex: 1 1 0; max-width: 190px; }
+    .dancer-container.main { flex: 1.4 1 0; max-width: 270px; }
+    .stage.guides-hidden .dancer-container.main { max-width: 350px; flex: 1 1 100%; }
 
     .canvas-wrapper {
-      width: 100%;
-      height: calc(100% - 22px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 0;
-      border-radius: 10px;
-      overflow: hidden;
-      background: radial-gradient(circle at 50% 50%, #1c2027 0%, #0e1014 100%);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      position: relative;
+      width: 100%; height: calc(100% - 20px); display: flex; align-items: center; justify-content: center;
+      min-height: 0; border-radius: 10px; overflow: hidden;
+      background: radial-gradient(circle at 50% 50%, #171b22 0%, #0b0d12 100%);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06); position: relative;
     }
-
     .canvas-wrapper.center-bg {
-      background: radial-gradient(circle at 50% 45%, #ffffff 0%, #cbd2db 100%);
+      background: radial-gradient(circle at 50% 45%, #ffffff 0%, #c1c8d1 100%);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
+    .canvas-wrapper canvas { display: block; width: 100% !important; height: 100% !important; object-fit: contain; }
 
-    .canvas-wrapper canvas {
-      display: block;
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: contain;
-    }
+    .label { height: 18px; line-height: 18px; margin-top: 2px; font-size: clamp(0.6rem, 2vw, 0.7rem); color: #9aa0a6; text-align: center; white-space: nowrap; }
+    .dancer-container.main .label { color: #ffffff; font-weight: 600; }
 
-    .label {
-      height: 18px;
-      line-height: 18px;
-      margin-top: 3px;
-      font-size: clamp(0.64rem, 2.1vw, 0.74rem);
-      color: #9aa0a6;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      width: 100%;
-    }
-    .dancer-container.main .label {
-      color: #ffffff;
-      font-weight: 600;
-    }
-
+    /* コントロール・ドック */
     .dock-panel {
-      width: 100%;
-      max-width: 580px;
-      background: #14171f;
-      border: 1px solid #292f3d;
-      border-radius: 14px;
-      padding: 8px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
+      width: 100%; max-width: 600px; background: #12141a; border: 1px solid #232833;
+      border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
     }
 
-    .slider-row {
-      display: grid;
-      grid-template-columns: 86px 1fr 40px;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.72rem;
-      color: #c0c6d0;
+    .row { display: grid; grid-template-columns: 82px 1fr 35px; align-items: center; gap: 6px; font-size: 0.7rem; color: #b5bcc9; }
+    
+    /* セレクトボックス（プルダウン） */
+    select {
+      width: 100%; padding: 4px 6px; background: #1b1f28; color: #58a6ff;
+      border: 1px solid #2d3442; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; outline: none;
     }
-    input[type=range] {
-      accent-color: #58a6ff;
-      height: 4px;
-      width: 100%;
-      cursor: pointer;
-    }
-    .slider-val {
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      color: #8c95a5;
-    }
+    select:focus { border-color: #58a6ff; }
 
-    .button-row {
-      display: flex;
-      gap: 5px;
-      justify-content: space-between;
-      margin-top: 2px;
-    }
+    input[type=range] { accent-color: #58a6ff; height: 4px; width: 100%; cursor: pointer; }
+    .slider-val { text-align: right; font-variant-numeric: tabular-nums; color: #8c95a5; }
+
+    .button-row { display: flex; gap: 5px; justify-content: space-between; margin-top: 2px; }
     .btn {
-      flex: 1;
-      background: #202430;
-      color: #e6edf3;
-      border: 1px solid #3d4556;
-      padding: 7px 4px;
-      font-size: clamp(0.66rem, 2.2vw, 0.76rem);
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      transition: background 0.15s, transform 0.05s;
+      flex: 1; background: #1b1e26; color: #e6edf3; border: 1px solid #323847; padding: 7px 2px;
+      font-size: clamp(0.64rem, 2.1vw, 0.74rem); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.15s;
     }
-    .btn:active {
-      transform: scale(0.97);
-      background: #2c3345;
-    }
-    .btn.active-cw {
-      border-color: #1e88e5;
-      background: rgba(30, 136, 229, 0.25);
-    }
-    .btn.active-ccw {
-      border-color: #e53935;
-      background: rgba(229, 57, 53, 0.25);
-    }
-    .btn.mode-active {
-      border-color: #58a6ff;
-      background: #283347;
-      color: #58a6ff;
-      font-weight: 600;
-    }
+    .btn:active { transform: scale(0.96); background: #262b36; }
+    .btn.active-cw { border-color: #1e88e5; background: rgba(30, 136, 229, 0.25); color: #90caf9; }
+    .btn.active-ccw { border-color: #e53935; background: rgba(229, 57, 53, 0.25); color: #ffcdd2; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
   <header>
-    <h1>双方向回転錯視 ラボ</h1>
+    <h1>究極の双方向錯視ラボ</h1>
     <div class="status-bar">
-      <span class="badge">視覚切替: <strong id="switchCount">0</strong>回</span>
-      <span class="badge">認識: <strong id="currentPerception">未選択</strong></span>
-      <span class="badge">維持: <strong id="holdTime">0.0s</strong></span>
+      <span class="badge">視覚反転: <strong id="switchCount">0</strong>回</span>
+      <span class="badge">現在認識: <strong id="currentPerception">-</strong></span>
     </div>
   </header>
 
   <div class="stage" id="stage">
     <div class="dancer-container side-guide">
       <div class="canvas-wrapper" id="wrapLeft"></div>
-      <div class="label" id="labelLeft" style="color: #4da3ff;">時計回り誘導</div>
+      <div class="label" style="color: #4da3ff;">時計回り誘導</div>
     </div>
-
     <div class="dancer-container main">
       <div class="canvas-wrapper center-bg" id="wrapCenter"></div>
-      <div class="label" id="labelCenter"><strong>錯視シルエット</strong></div>
+      <div class="label"><strong>完全な錯視シルエット</strong></div>
     </div>
-
     <div class="dancer-container side-guide">
       <div class="canvas-wrapper" id="wrapRight"></div>
-      <div class="label" id="labelRight" style="color: #ff5252;">反時計回り誘導</div>
+      <div class="label" style="color: #ff5252;">反時計回り誘導</div>
     </div>
   </div>
 
   <div class="dock-panel">
-    <!-- スライダー1: 視点仰角（チルト） -->
-    <div class="slider-row">
-      <span>視点仰角(チルト)</span>
-      <input type="range" id="pitchSlider" min="-35" max="35" value="12" step="1">
-      <span class="slider-val" id="pitchVal">+12°</span>
+    <!-- モチーフ選択プルダウン -->
+    <div class="row" style="grid-template-columns: 82px 1fr;">
+      <span>モチーフ</span>
+      <select id="modelSelect">
+        <option value="dancer">💃 ダンサー（基本の錯視）</option>
+        <option value="chair">🪑 椅子（ネッカー立体構造）</option>
+        <option value="dna">🧬 3D二重らせん（上昇/下降の曖昧性）</option>
+        <option value="rings">🔗 連結トーラス（メビウス的貫通）</option>
+        <option value="stairs">🪜 螺旋階段（エッシャーの階段）</option>
+        <option value="horse">🐎 走る馬（前後逆転ギャロップ）</option>
+        <option value="gymnast">🚩 ヒューマンフラッグ（回転軸の錯覚）</option>
+        <option value="windmill">🌀 3枚プロペラ（表裏の反転）</option>
+      </select>
     </div>
 
-    <!-- スライダー2: 奥行アシスト -->
-    <div class="slider-row">
+    <!-- スライダー -->
+    <div class="row">
+      <span>視点仰角</span>
+      <input type="range" id="pitchSlider" min="-45" max="45" value="12" step="1">
+      <span class="slider-val" id="pitchVal">+12°</span>
+    </div>
+    <div class="row">
       <span>奥行アシスト</span>
       <input type="range" id="assistSlider" min="0" max="100" value="0" step="1">
       <span class="slider-val" id="assistVal">0%</span>
     </div>
 
-    <!-- ボタン群 -->
+    <!-- アクションボタン -->
     <div class="button-row">
-      <button class="btn" id="btnToggleModel">🪑 椅子モードへ</button>
       <button class="btn" id="btnPerceiveCw">↻ 時計回り</button>
       <button class="btn" id="btnPerceiveCcw">↺ 反時計回り</button>
       <button class="btn" id="toggleGuidesBtn" style="flex: 0.85;">ガイド非表示</button>
@@ -266,363 +147,239 @@
 
   <script>
     // -------------------------------------------------------------
-    // 1. ダンサーモデル生成
+    // 共通マテリアル生成ファクトリ
     // -------------------------------------------------------------
-    function createRealisticDancer(mode) {
-      const group = new THREE.Group();
-      let matCenter = new THREE.MeshBasicMaterial({ color: 0x050505, side: THREE.DoubleSide });
-
-      let matTorso, matLeft, matRight, matWhite;
-      if (mode !== 'center') {
-        matTorso = new THREE.MeshPhongMaterial({
-          color: 0x23272f, emissive: 0x101217, specular: 0x777e8a, shininess: 45, side: THREE.DoubleSide
-        });
-        matLeft = new THREE.MeshPhongMaterial({
-          color: 0x1e88e5, emissive: 0x0d47a1, specular: 0x90caf9, shininess: 55, side: THREE.DoubleSide
-        });
-        matRight = new THREE.MeshPhongMaterial({
-          color: 0xe53935, emissive: 0xb71c1c, specular: 0xffcdd2, shininess: 55, side: THREE.DoubleSide
-        });
-        matWhite = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    function getMaterials(mode) {
+      if (mode === 'center') {
+        return {
+          base: new THREE.MeshBasicMaterial({ color: 0x050505, side: THREE.DoubleSide }),
+          left: new THREE.MeshBasicMaterial({ color: 0x050505, side: THREE.DoubleSide }),
+          right: new THREE.MeshBasicMaterial({ color: 0x050505, side: THREE.DoubleSide }),
+          highlight: new THREE.MeshBasicMaterial({ color: 0x050505, transparent: true, opacity: 0 })
+        };
       }
-
-      function getMat(type) {
-        if (mode === 'center') return matCenter;
-        if (type === 'left') return matLeft;
-        if (type === 'right') return matRight;
-        if (type === 'white') return matWhite;
-        return matTorso;
-      }
-
-      function createLatheBody(points, segs = 32, matType = 'torso') {
-        const pts = points.map(p => new THREE.Vector2(p[0], p[1]));
-        return new THREE.Mesh(new THREE.LatheGeometry(pts, segs), getMat(matType));
-      }
-
-      // 頭部・ポニーテール・首
-      const headGeom = new THREE.SphereGeometry(3.6, 24, 24);
-      headGeom.scale(0.95, 1.25, 1.05);
-      const head = new THREE.Mesh(headGeom, getMat('torso'));
-      head.position.set(0, 31.8, 0);
-      group.add(head);
-
-      const ponytailCurve = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(0, 33.2, -3.2),
-        new THREE.Vector3(0, 32.5, -6.8),
-        new THREE.Vector3(0, 27.5, -8.5)
-      );
-      group.add(new THREE.Mesh(new THREE.TubeGeometry(ponytailCurve, 16, 1.1, 12, false), getMat('torso')));
-      group.add(createLatheBody([[0, 30.0], [1.3, 29.5], [1.2, 27.5], [1.6, 25.5], [0, 25.2]], 24, 'torso'));
-
-      // トルソー
-      const torsoPts = [[0, 25.4], [3.6, 24.5], [4.2, 22.8], [3.7, 21.0], [2.7, 18.2], [3.6, 15.5], [4.3, 13.0], [3.8, 10.5], [0, 10.0]];
-      const torso = createLatheBody(torsoPts, 32, 'torso');
-      torso.scale.set(1.0, 1.0, 0.88);
-      group.add(torso);
-
-      if (mode !== 'center') {
-        const spineLine = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 14.5, 8), matWhite);
-        spineLine.position.set(0, 18.5, 3.4);
-        group.add(spineLine);
-      }
-
-      // 軸足（左脚）
-      const lThighPts = [[0, 10.5], [2.4, 9.5], [2.2, 6.0], [1.8, 2.5], [1.5, 0], [0, -0.5]];
-      const lThigh = createLatheBody(lThighPts, 24, 'left');
-      lThigh.position.set(-1.7, 0, 0);
-      group.add(lThigh);
-
-      const lKnee = new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 16), getMat('left'));
-      lKnee.position.set(-1.7, 0, 0.2);
-      group.add(lKnee);
-
-      const lCalfPts = [[0, 0.2], [1.6, -1.5], [1.8, -4.0], [1.2, -9.0], [0.8, -12.5], [0.75, -14.5], [0.4, -17.5], [0, -18.0]];
-      const lCalf = createLatheBody(lCalfPts, 24, 'left');
-      lCalf.position.set(-1.7, 0, 0);
-      group.add(lCalf);
-
-      // 上げ足（右脚）
-      const rLegGroup = new THREE.Group();
-      rLegGroup.add(createLatheBody([[0, 0], [2.4, -1.0], [2.2, -4.5], [1.8, -8.0], [1.5, -11.0], [0, -11.5]], 24, 'right'));
-
-      const rKneeMesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 16), getMat('right'));
-      rKneeMesh.position.set(0, -11.5, 0.2);
-      rLegGroup.add(rKneeMesh);
-
-      const rLowerLegGroup = new THREE.Group();
-      rLowerLegGroup.position.set(0, -11.5, 0);
-      rLowerLegGroup.add(createLatheBody([[0, 0], [1.6, -1.5], [1.7, -4.0], [1.1, -9.0], [0.75, -12.5], [0.7, -15.0], [0.35, -18.0], [0, -18.5]], 24, 'right'));
-      rLowerLegGroup.rotation.z = -0.22;
-      rLegGroup.add(rLowerLegGroup);
-
-      rLegGroup.position.set(2.0, 10.5, 0.5);
-      rLegGroup.rotation.z = -Math.PI / 2.35;
-      rLegGroup.rotation.y = 0.28;
-      group.add(rLegGroup);
-
-      // 腕部
-      const lArmCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-3.8, 24.0, 0), new THREE.Vector3(-8.5, 20.0, -1.5),
-        new THREE.Vector3(-13.0, 15.0, -3.0), new THREE.Vector3(-15.5, 11.5, -4.0)
-      ]);
-      group.add(new THREE.Mesh(new THREE.TubeGeometry(lArmCurve, 20, 1.1, 14, false), getMat('left')));
-
-      const rArmCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(3.8, 24.0, 0), new THREE.Vector3(8.5, 22.0, 3.5),
-        new THREE.Vector3(13.0, 18.5, 7.0), new THREE.Vector3(15.5, 15.0, 9.5)
-      ]);
-      group.add(new THREE.Mesh(new THREE.TubeGeometry(rArmCurve, 20, 1.1, 14, false), getMat('right')));
-
-      // 足元回転リング
-      const orbitRing = new THREE.Mesh(
-        new THREE.RingGeometry(22.8, 23.3, 48),
-        new THREE.MeshBasicMaterial({
-          color: mode === 'center' ? 0x000000 : (mode === 'cw' ? 0x4da3ff : 0xff5252),
-          side: THREE.DoubleSide, transparent: true, opacity: mode === 'center' ? 0.15 : 0.4
-        })
-      );
-      orbitRing.rotation.x = Math.PI / 2;
-      orbitRing.position.set(2.0, 7.0, 0.5);
-      group.add(orbitRing);
-
-      return { group, matCenter };
+      return {
+        base: new THREE.MeshPhongMaterial({ color: 0x222630, emissive: 0x101217, specular: 0x666f80, shininess: 30, side: THREE.DoubleSide }),
+        left: new THREE.MeshPhongMaterial({ color: 0x1e88e5, emissive: 0x0d47a1, specular: 0x90caf9, shininess: 50, side: THREE.DoubleSide }),
+        right: new THREE.MeshPhongMaterial({ color: 0xe53935, emissive: 0xb71c1c, specular: 0xffcdd2, shininess: 50, side: THREE.DoubleSide }),
+        highlight: new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+      };
     }
 
     // -------------------------------------------------------------
-    // 2. 幾何学的な椅子のモデル生成（ネッカー構造錯視）
+    // 各錯視モデルのジオメトリ構築（8バリエーション）
     // -------------------------------------------------------------
-    function createChairMesh(mode) {
-      const group = new THREE.Group();
-      let matCenter = new THREE.MeshBasicMaterial({ color: 0x050505, side: THREE.DoubleSide });
+    const ModelBuilders = {
+      
+      // 1. ダンサー（有機的曲面）
+      dancer: (mats) => {
+        const g = new THREE.Group();
+        const makeLathe = (pts, mat) => new THREE.Mesh(new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0],p[1])), 24), mat);
+        // 頭・体
+        const head = new THREE.Mesh(new THREE.SphereGeometry(3.6, 16, 16), mats.base);
+        head.position.set(0, 31, 0); head.scale.set(0.9, 1.2, 1.0); g.add(head);
+        g.add(makeLathe([[0,25.4], [3.6,24.5], [4.2,22.8], [3.7,21], [2.7,18.2], [4.3,13], [3.8,10.5], [0,10]], mats.base));
+        // 脚
+        const lLeg = makeLathe([[0,10.5], [2.4,9.5], [1.8,2.5], [1.5,0], [1.8,-4], [0.8,-12], [0,-18]], mats.left);
+        lLeg.position.x = -1.5; g.add(lLeg);
+        const rLegGroup = new THREE.Group();
+        rLegGroup.add(makeLathe([[0,0], [2.4,-1], [1.5,-11.5]], mats.right));
+        const rCalf = makeLathe([[0,0], [1.7,-4], [0.7,-15], [0,-18.5]], mats.right);
+        rCalf.position.y = -11.5; rCalf.rotation.z = -0.2; rLegGroup.add(rCalf);
+        rLegGroup.position.set(2, 10.5, 0.5); rLegGroup.rotation.set(0, 0.3, -1.3); g.add(rLegGroup);
+        // 腕（簡略化）
+        const armGeo = new THREE.CylinderGeometry(1, 0.6, 14);
+        const lArm = new THREE.Mesh(armGeo, mats.left); lArm.position.set(-6, 18, -2); lArm.rotation.z = 0.6; g.add(lArm);
+        const rArm = new THREE.Mesh(armGeo, mats.right); rArm.position.set(6, 18, 4); rArm.rotation.z = -0.6; g.add(rArm);
+        g.position.y = -6; return g;
+      },
 
-      let matFrame, matSeat, matBack, matHighlight;
-      if (mode !== 'center') {
-        matFrame = new THREE.MeshPhongMaterial({
-          color: 0x222630, emissive: 0x101217, specular: 0x666f80, shininess: 40, side: THREE.DoubleSide
-        });
-        matSeat = new THREE.MeshPhongMaterial({
-          color: mode === 'cw' ? 0x1976d2 : 0xd32f2f,
-          emissive: mode === 'cw' ? 0x0d47a1 : 0xb71c1c,
-          specular: 0xffffff, shininess: 60, side: THREE.DoubleSide
-        });
-        matBack = new THREE.MeshPhongMaterial({
-          color: mode === 'cw' ? 0x42a5f5 : 0xef5350,
-          emissive: mode === 'cw' ? 0x1565c0 : 0xc62828,
-          specular: 0xffffff, shininess: 60, side: THREE.DoubleSide
-        });
-        matHighlight = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+      // 2. 椅子（ネッカー立体構造）
+      chair: (mats) => {
+        const g = new THREE.Group();
+        const addBox = (w,h,d, mat, x,y,z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m.position.set(x,y,z); g.add(m); return m; };
+        addBox(18, 1.8, 18, mats.right, 0, 0, 0); // 座面
+        [[-7.5, -7.5], [7.5, -7.5], [-7.5, 7.5], [7.5, 7.5]].forEach(p => addBox(1.5, 18, 1.5, mats.base, p[0], -9, p[1])); // 脚
+        addBox(1.5, 22, 1.5, mats.base, -7.5, 11, -7.5); addBox(1.5, 22, 1.5, mats.base, 7.5, 11, -7.5); // 背もたれ柱
+        addBox(16, 6, 1.5, mats.left, 0, 18, -7.5); // 背もたれ板
+        g.position.y = -2; return g;
+      },
+
+      // 3. DNA（3D二重らせん）
+      dna: (mats) => {
+        const g = new THREE.Group();
+        const path1=[], path2=[];
+        for(let i=0; i<=40; i++) {
+          let t = (i/40) * Math.PI * 4;
+          path1.push(new THREE.Vector3(Math.cos(t)*8, i - 20, Math.sin(t)*8));
+          path2.push(new THREE.Vector3(Math.cos(t+Math.PI)*8, i - 20, Math.sin(t+Math.PI)*8));
+        }
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path1), 64, 1.5, 8, false), mats.left));
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path2), 64, 1.5, 8, false), mats.right));
+        for(let i=2; i<40; i+=4) {
+          const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 16), mats.base);
+          rung.position.y = i - 20;
+          let t = (i/40) * Math.PI * 4;
+          rung.rotation.y = -t; rung.rotation.z = Math.PI/2; g.add(rung);
+        }
+        return g;
+      },
+
+      // 4. 連結リング（トーラス）
+      rings: (mats) => {
+        const g = new THREE.Group();
+        const r1 = new THREE.Mesh(new THREE.TorusGeometry(10, 2, 16, 64), mats.left);
+        r1.position.x = -4.5; r1.rotation.y = Math.PI/4; g.add(r1);
+        const r2 = new THREE.Mesh(new THREE.TorusGeometry(10, 2, 16, 64), mats.right);
+        r2.position.x = 4.5; r2.rotation.x = Math.PI/2; r2.rotation.y = -Math.PI/4; g.add(r2);
+        return g;
+      },
+
+      // 5. 螺旋階段（エッシャー）
+      stairs: (mats) => {
+        const g = new THREE.Group();
+        for(let i=0; i<20; i++) {
+          const step = new THREE.Mesh(new THREE.BoxGeometry(8, 1.5, 4), i%2===0 ? mats.left : mats.right);
+          let angle = i * 0.35;
+          step.position.set(Math.cos(angle)*7, i*1.2 - 12, Math.sin(angle)*7);
+          step.rotation.y = -angle;
+          g.add(step);
+        }
+        return g;
+      },
+
+      // 6. 走る馬（静的ギャロップポーズの回転）
+      horse: (mats) => {
+        const g = new THREE.Group();
+        const addBox = (w,h,d, mat, x,y,z, rx=0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m.position.set(x,y,z); m.rotation.x=rx; g.add(m); return m; };
+        addBox(4, 5, 18, mats.base, 0, 0, 0); // 胴体
+        addBox(3, 8, 4, mats.left, 0, 5, 8, Math.PI/4); // 首
+        addBox(3, 3, 6, mats.right, 0, 8, 11, Math.PI/8); // 頭
+        // 脚（前方に伸ばす・後方に伸ばす）
+        [[-2,2], [2,2]].forEach(x => addBox(1.5, 12, 2, mats.left, x[0], -6, 7, -Math.PI/4)); // 前脚
+        [[-2,-2], [2,-2]].forEach(x => addBox(1.5, 12, 2, mats.right, x[0], -6, -7, Math.PI/4)); // 後脚
+        return g;
+      },
+
+      // 7. ヒューマンフラッグ（Y軸回転のポールダンス）
+      gymnast: (mats) => {
+        const g = new THREE.Group();
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 40), mats.highlight); g.add(pole);
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(2.5, 10), mats.base);
+        body.position.set(10, 0, 0); body.rotation.z = Math.PI/2; g.add(body);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(2.5), mats.left); head.position.set(18, 0, 0); g.add(head);
+        const arms = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 10), mats.right);
+        arms.position.set(5, 0, 0); arms.rotation.z = Math.PI/2; g.add(arms);
+        const legs = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 14), mats.left);
+        legs.position.set(-2, 0, 0); legs.rotation.z = Math.PI/2; g.add(legs);
+        return g;
+      },
+
+      // 8. 3枚プロペラ（風車）
+      windmill: (mats) => {
+        const g = new THREE.Group();
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4, 16), mats.base);
+        hub.rotation.x = Math.PI/2; g.add(hub);
+        for(let i=0; i<3; i++) {
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(3, 20, 0.6), i===0 ? mats.left : mats.right);
+          blade.position.y = 12; blade.rotation.y = 0.35; // ひねり
+          const pivot = new THREE.Group(); pivot.rotation.z = i * (Math.PI*2/3);
+          pivot.add(blade); hub.add(pivot);
+        }
+        g.rotation.x = Math.PI/12; // 少し上を向かせる
+        return g;
       }
-
-      function getMat(type) {
-        if (mode === 'center') return matCenter;
-        if (type === 'seat') return matSeat;
-        if (type === 'back') return matBack;
-        if (type === 'white') return matHighlight;
-        return matFrame;
-      }
-
-      const W = 18; // 幅
-      const D = 18; // 奥行
-      const seatH = 0; // 座面高さ基準
-      const legH = 20; // 脚の長さ
-      const backH = 24; // 背もたれ高さ
-
-      // 1. 座面（天板）
-      const seatGeom = new THREE.BoxGeometry(W, 1.8, D);
-      const seatMesh = new THREE.Mesh(seatGeom, getMat('seat'));
-      seatMesh.position.set(0, seatH, 0);
-      group.add(seatMesh);
-
-      // ガイド用座面エッジハイライト
-      if (mode !== 'center') {
-        const edgeGeom = new THREE.EdgesGeometry(seatGeom);
-        const edgeLine = new THREE.LineSegments(edgeGeom, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
-        edgeLine.position.set(0, seatH, 0);
-        group.add(edgeLine);
-      }
-
-      // 2. 4本脚（角柱）
-      const legGeom = new THREE.CylinderGeometry(0.85, 0.7, legH, 12);
-      const legOffsets = [
-        [-W / 2 + 1.2, -legH / 2, -D / 2 + 1.2],
-        [ W / 2 - 1.2, -legH / 2, -D / 2 + 1.2],
-        [-W / 2 + 1.2, -legH / 2,  D / 2 - 1.2],
-        [ W / 2 - 1.2, -legH / 2,  D / 2 - 1.2]
-      ];
-      legOffsets.forEach(pos => {
-        const leg = new THREE.Mesh(legGeom, getMat('frame'));
-        leg.position.set(pos[0], pos[1], pos[2]);
-        group.add(leg);
-      });
-
-      // 3. 補強の貫（ストレッチャー：脚の補強棒）
-      const barXGeom = new THREE.CylinderGeometry(0.5, 0.5, W - 2.4, 8);
-      barXGeom.rotateZ(Math.PI / 2);
-      const barFront = new THREE.Mesh(barXGeom, getMat('frame'));
-      barFront.position.set(0, -legH * 0.55, D / 2 - 1.2);
-      group.add(barFront);
-
-      const barBack = new THREE.Mesh(barXGeom, getMat('frame'));
-      barBack.position.set(0, -legH * 0.55, -D / 2 + 1.2);
-      group.add(barBack);
-
-      // 4. 背もたれの支柱（2本）
-      const backPostGeom = new THREE.CylinderGeometry(0.85, 0.85, backH, 12);
-      const postLeft = new THREE.Mesh(backPostGeom, getMat('frame'));
-      postLeft.position.set(-W / 2 + 1.2, backH / 2, -D / 2 + 1.2);
-      group.add(postLeft);
-
-      const postRight = new THREE.Mesh(backPostGeom, getMat('frame'));
-      postRight.position.set( W / 2 - 1.2, backH / 2, -D / 2 + 1.2);
-      group.add(postRight);
-
-      // 5. 背もたれ板（スラット）
-      const slatGeom = new THREE.BoxGeometry(W - 1.0, 8.0, 1.4);
-      const slatMesh = new THREE.Mesh(slatGeom, getMat('back'));
-      slatMesh.position.set(0, backH - 5.0, -D / 2 + 1.2);
-      group.add(slatMesh);
-
-      // スラット格子（縦バー3本）
-      for (let i = -1; i <= 1; i++) {
-        const slatBarGeom = new THREE.CylinderGeometry(0.4, 0.4, 10, 8);
-        const slatBar = new THREE.Mesh(slatBarGeom, getMat('frame'));
-        slatBar.position.set(i * 4.2, 5.5, -D / 2 + 1.2);
-        group.add(slatBar);
-      }
-
-      // 全体の中央配置バランス調整
-      group.position.y = 4;
-
-      return { group, matCenter };
-    }
+    };
 
     // -------------------------------------------------------------
-    // 3. ビューポート・カメラ初期化
+    // ビューポート初期化
     // -------------------------------------------------------------
-    const frustumSize = 64;
-
+    const frustumSize = 56;
     function createViewer(containerId, mode) {
       const container = document.getElementById(containerId);
       const scene = new THREE.Scene();
-
-      const aspect = container.clientWidth / container.clientHeight || 0.65;
-      const camera = new THREE.OrthographicCamera(
-        (frustumSize * aspect) / -2,
-        (frustumSize * aspect) / 2,
-        frustumSize / 2,
-        frustumSize / -2,
-        1,
-        1000
-      );
-      camera.position.set(0, 6, 100);
-      camera.lookAt(0, 6, 0);
-
+      const camera = new THREE.OrthographicCamera(-frustumSize/2, frustumSize/2, frustumSize/2, -frustumSize/2, 1, 1000);
+      camera.position.set(0, 0, 100);
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(container.clientWidth, container.clientHeight);
       container.appendChild(renderer.domElement);
 
-      // ライト
-      const light = new THREE.DirectionalLight(0xffffff, 1.45);
-      light.position.set(20, 30, 80);
-      scene.add(light);
-      scene.add(new THREE.AmbientLight(0x404552, 0.75));
+      const light = new THREE.DirectionalLight(0xffffff, 1.5);
+      light.position.set(20, 30, 80); scene.add(light);
+      scene.add(new THREE.AmbientLight(0x404552, 0.8));
 
-      return { container, scene, camera, renderer, mode };
+      return { container, scene, camera, renderer, mode, mats: getMaterials(mode) };
     }
 
-    const vLeft   = createViewer('wrapLeft', 'cw');
-    const vCenter = createViewer('wrapCenter', 'center');
-    const vRight  = createViewer('wrapRight', 'ccw');
-    const viewers = [vLeft, vCenter, vRight];
+    const viewers = [
+      createViewer('wrapLeft', 'cw'),
+      createViewer('wrapCenter', 'center'),
+      createViewer('wrapRight', 'ccw')
+    ];
 
-    let currentModelType = 'dancer'; // 'dancer' | 'chair'
-
-    function setupModels(type) {
-      currentModelType = type;
+    function setupModel(type) {
       viewers.forEach(v => {
         if (v.rootGroup) v.scene.remove(v.rootGroup);
-
-        let res;
-        if (type === 'dancer') {
-          res = createRealisticDancer(v.mode);
-        } else {
-          res = createChairMesh(v.mode);
-        }
-        v.rootGroup = res.group;
-        v.matCenter = res.matCenter;
-
-        // 右側モデルは Z反転して2D投影像を完全同期しつつ前後遮蔽を逆転
-        if (v.mode === 'ccw') {
-          v.rootGroup.scale.z = -1;
-        }
-
-        v.scene.add(v.rootGroup);
+        const group = ModelBuilders[type](v.mats);
+        
+        // ★錯視の心臓部：右側モデルはZ軸反転(奥行反転)
+        if (v.mode === 'ccw') group.scale.z = -1;
+        
+        v.rootGroup = group;
+        v.scene.add(group);
       });
+      onResize();
     }
 
-    // 初回生成
-    setupModels('dancer');
-
+    // リサイズと正射影アスペクト維持
     function onResize() {
       viewers.forEach(v => {
-        const w = v.container.clientWidth;
-        const h = v.container.clientHeight;
+        const w = v.container.clientWidth; const h = v.container.clientHeight;
         if (w === 0 || h === 0) return;
-
         const aspect = w / h;
-        v.camera.left = (-frustumSize * aspect) / 2;
-        v.camera.right = (frustumSize * aspect) / 2;
-        v.camera.top = frustumSize / 2;
-        v.camera.bottom = -frustumSize / 2;
+        v.camera.left = (-frustumSize * aspect) / 2; v.camera.right = (frustumSize * aspect) / 2;
+        v.camera.top = frustumSize / 2; v.camera.bottom = -frustumSize / 2;
         v.camera.updateProjectionMatrix();
-
         v.renderer.setSize(w, h);
       });
     }
     window.addEventListener('resize', onResize);
 
     // -------------------------------------------------------------
-    // アニメーションループ & チルト制御
+    // アニメーションループ & チルト連動
     // -------------------------------------------------------------
-    let angle = 0;
-    const speed = 0.030;
-    // 椅子は初期角度で見下ろし（+12°）にすると立体ネッカーキューブ錯視が最も顕著に出る
+    let angle = 0; const speed = 0.032;
     let pitchRad = (12 * Math.PI) / 180;
     let guidesVisible = true;
 
     function animate() {
       requestAnimationFrame(animate);
-
       angle += speed;
 
-      // 中央
-      if (vCenter.rootGroup) {
-        vCenter.rootGroup.rotation.x = pitchRad;
-        vCenter.rootGroup.rotation.y = angle;
-        vCenter.renderer.render(vCenter.scene, vCenter.camera);
-      }
-
-      // 左右ガイド
-      if (guidesVisible) {
-        if (vLeft.rootGroup) {
-          vLeft.rootGroup.rotation.x = pitchRad;
-          vLeft.rootGroup.rotation.y = angle;
-          vLeft.renderer.render(vLeft.scene, vLeft.camera);
+      viewers.forEach(v => {
+        if (!v.rootGroup) return;
+        if (v.mode === 'center' || guidesVisible) {
+          // Z反転している右側モデル（ccw）は、回転方向も反転させることで、
+          // 2Dスクリーン上への投影シルエットが中央(正方向)と【1ピクセルも狂わず完全一致】する。
+          const rotDir = (v.mode === 'ccw') ? -1 : 1;
+          v.rootGroup.rotation.x = pitchRad * rotDir;
+          v.rootGroup.rotation.y = angle * rotDir;
+          v.renderer.render(v.scene, v.camera);
         }
-        if (vRight.rootGroup) {
-          vRight.rootGroup.rotation.x = -pitchRad;
-          vRight.rootGroup.rotation.y = -angle;
-          vRight.renderer.render(vRight.scene, vRight.camera);
-        }
-      }
+      });
     }
     animate();
 
     // -------------------------------------------------------------
-    // UI操作ロジック
+    // UI イベントリスナー
     // -------------------------------------------------------------
-    // 1. チルトスライダー
+    // プルダウン切替
+    const modelSelect = document.getElementById('modelSelect');
+    modelSelect.addEventListener('change', (e) => setupModel(e.target.value));
+    setupModel('dancer'); // 初期ロード
+
+    // チルト
     const pitchSlider = document.getElementById('pitchSlider');
     const pitchVal = document.getElementById('pitchVal');
     pitchSlider.addEventListener('input', (e) => {
@@ -631,74 +388,39 @@
       pitchVal.textContent = (deg > 0 ? `+${deg}°` : `${deg}°`);
     });
 
-    // 2. 奥行アシスト
+    // 奥行透過
     const assistSlider = document.getElementById('assistSlider');
     const assistVal = document.getElementById('assistVal');
     assistSlider.addEventListener('input', (e) => {
       const val = parseInt(e.target.value, 10);
       assistVal.textContent = `${val}%`;
-      const ratio = val / 100;
-      const gray = Math.round(5 + ratio * 48);
-      if (vCenter.matCenter) {
-        vCenter.matCenter.color.setRGB(gray / 255, gray / 255, (gray + 5) / 255);
-      }
+      const gray = Math.round(5 + (val / 100) * 48);
+      viewers[1].mats.base.color.setRGB(gray/255, gray/255, (gray+5)/255);
     });
 
-    // 3. モチーフ切替（ダンサー ⇄ 椅子）
-    const btnToggleModel = document.getElementById('btnToggleModel');
-    btnToggleModel.addEventListener('click', () => {
-      if (currentModelType === 'dancer') {
-        setupModels('chair');
-        btnToggleModel.textContent = '💃 ダンサーモードへ';
-        btnToggleModel.classList.add('mode-active');
-      } else {
-        setupModels('dancer');
-        btnToggleModel.textContent = '🪑 椅子モードへ';
-        btnToggleModel.classList.remove('mode-active');
-      }
-    });
-
-    // 4. 知覚カウンター
-    let switchCount = 0;
-    let currentDir = null;
-    let lastSwitchTime = performance.now();
-
+    // 知覚記録ボタン
+    let switchCount = 0; let currentDir = null;
     const switchCountEl = document.getElementById('switchCount');
     const currentPerceptionEl = document.getElementById('currentPerception');
-    const holdTimeEl = document.getElementById('holdTime');
     const btnCw = document.getElementById('btnPerceiveCw');
     const btnCcw = document.getElementById('btnPerceiveCcw');
 
     function recordPerception(dir) {
-      const now = performance.now();
       if (currentDir !== dir) {
-        if (currentDir !== null) {
-          switchCount++;
-          switchCountEl.textContent = switchCount;
-        }
+        if (currentDir !== null) { switchCount++; switchCountEl.textContent = switchCount; }
         currentDir = dir;
         currentPerceptionEl.textContent = dir === 'cw' ? '時計回り ↻' : '反時計 ↺';
-        lastSwitchTime = now;
       }
       btnCw.classList.toggle('active-cw', dir === 'cw');
       btnCcw.classList.toggle('active-ccw', dir === 'ccw');
     }
-
     btnCw.addEventListener('click', () => recordPerception('cw'));
     btnCcw.addEventListener('click', () => recordPerception('ccw'));
 
-    setInterval(() => {
-      if (currentDir) {
-        const sec = ((performance.now() - lastSwitchTime) / 1000).toFixed(1);
-        holdTimeEl.textContent = `${sec}s`;
-      }
-    }, 100);
-
-    // 5. ガイド表示切替
+    // ガイド表示切替
     const toggleBtn = document.getElementById('toggleGuidesBtn');
     const stage = document.getElementById('stage');
     const sideGuides = document.querySelectorAll('.side-guide');
-
     toggleBtn.addEventListener('click', () => {
       guidesVisible = !guidesVisible;
       sideGuides.forEach(el => el.style.display = guidesVisible ? 'flex' : 'none');
